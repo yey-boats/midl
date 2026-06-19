@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>YB-MIDL Preview</title>
+    <style>
+      body { margin: 0; background: #0b0f14; color: #cdd6e0; font-family: system-ui, sans-serif; }
+      #bar { padding: 8px 12px; }
+      canvas { display: block; margin: 12px auto; background: #000; border: 1px solid #243; }
+      #issues { color: #f6c; white-space: pre-wrap; padding: 0 12px; }
+    </style>
+  </head>
+  <body>
+    <div id="bar">
+      <label>Class:
+        <select id="cls">
+          <option value="square-480">square-480 (480x480)</option>
+          <option value="landscape-800x480">landscape-800x480</option>
+          <option value="landscape-1024x600">landscape-1024x600</option>
+        </select>
+      </label>
+    </div>
+    <canvas id="cv" width="480" height="480"></canvas>
+    <div id="issues"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
