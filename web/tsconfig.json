@@ -7,7 +7,11 @@
     "lib": ["ES2022", "DOM"],
     "types": [],
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@yey-boats/midl": ["../ts/src/index.ts"]
+    }
   },
   "include": ["src", "test", "vite.config.ts"]
 }
