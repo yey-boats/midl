@@ -6,8 +6,8 @@ screens:
       sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
       depth: { type: single-value, bindings: { value: { kind: signalk, path: environment.depth.belowTransducer } } }
     layout:
-      dir: row
+      flow: row
       children:
         - element: wind
-        - dir: col
+        - flow: col
           children: [{ element: sog }, { element: depth }]

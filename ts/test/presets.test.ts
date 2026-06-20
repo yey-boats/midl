@@ -11,8 +11,8 @@ test("'full' preset expands to a single leaf", () => {
 
 test("'hero-split' expands {1,{2,3}} to row[leaf, col[leaf,leaf]]", () => {
   expect(expand({ preset: "hero-split", slots: ["a", "b", "c"] })).toEqual({
-    dir: "row",
-    children: [{ element: "a" }, { dir: "col", children: [{ element: "b" }, { element: "c" }] }],
+    flow: "row",
+    children: [{ element: "a" }, { flow: "col", children: [{ element: "b" }, { element: "c" }] }],
   });
 });
 

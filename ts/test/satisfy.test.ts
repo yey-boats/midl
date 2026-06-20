@@ -40,7 +40,7 @@ test("too many tiles for the class is rejected", () => {
     screens: [{
       id: "d",
       elements: { a: { type: "single-value" }, b: { type: "single-value" }, c: { type: "single-value" }, d: { type: "single-value" }, e: { type: "single-value" } },
-      layout: { dir: "col", children: [{ element: "a" }, { element: "b" }, { element: "c" }, { element: "d" }, { element: "e" }] },
+      layout: { flow: "col", children: [{ element: "a" }, { element: "b" }, { element: "c" }, { element: "d" }, { element: "e" }] },
     }],
   };
   expect(satisfies(cfg, manifest, "sunton-480").some((i) => /too many tiles/.test(i.message))).toBe(true);

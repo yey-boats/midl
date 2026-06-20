@@ -16,7 +16,7 @@ export const PRESETS: Record<string, PresetExpander> = {
   full: (s) => ({ element: req(s, 1)[0] }),
   "hero-split": (s) => {
     const [a, b, c] = req(s, 3);
-    return { dir: "row", children: [{ element: a }, { dir: "col", children: [{ element: b }, { element: c }] }] };
+    return { flow: "row", children: [{ element: a }, { flow: "col", children: [{ element: b }, { element: c }] }] };
   },
 };
 

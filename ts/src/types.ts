@@ -24,7 +24,7 @@ export interface Element {
 
 export type Node =
   | { element: string }
-  | { dir: "row" | "col"; children: Node[]; weights?: number[] }
+  | { flow: "row" | "col"; children: Node[]; weights?: number[] }
   | { rows: number; cols: number; cells: Node[] }
   | { preset: string; slots?: string[] };
 

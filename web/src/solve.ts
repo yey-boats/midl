@@ -20,7 +20,7 @@ export function solveLayout(node: Node, rect: Rect): Placement[] {
     node.children.forEach((child, i) => {
       const frac = weights[i] / total;
       let childRect: Rect;
-      if (node.dir === "row") {
+      if (node.flow === "row") {
         const w = rect.w * frac;
         childRect = { x: rect.x + off, y: rect.y, w, h: rect.h };
         off += w;

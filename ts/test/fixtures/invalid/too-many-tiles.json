@@ -7,7 +7,7 @@
       "c": { "type": "single-value" }, "d": { "type": "single-value" },
       "e": { "type": "single-value" }
     },
-    "layout": { "dir": "col", "children": [
+    "layout": { "flow": "col", "children": [
       { "element": "a" }, { "element": "b" }, { "element": "c" }, { "element": "d" }, { "element": "e" }
     ] }
   }]

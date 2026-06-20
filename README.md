@@ -75,10 +75,10 @@ screens:
       sog:   { type: single-value, name: SOG,   format: { unit: kn }, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
       depth: { type: single-value, name: DEPTH, format: { unit: m },  bindings: { value: { kind: signalk, path: environment.depth.belowTransducer } } }
     layout:
-      dir: row
+      flow: row
       children:
         - element: wind
-        - dir: col
+        - flow: col
           children: [{ element: sog }, { element: depth }]
 ```
 
@@ -149,7 +149,7 @@ A screen's layout is a recursive tree; **presets are macros** that expand to it:
 
 ```
 node := { element: <id> }                                   leaf
-      | { dir: row|col, children: [node, …], weights?: […] } split
+      | { flow: row|col, children: [node, …], weights?: […] } split
       | { rows: N, cols: M, cells: [node, …] }              grid
       | { preset: <name>, slots: [<id>, …] }                macro
 ```

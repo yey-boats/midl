@@ -69,8 +69,8 @@
       "oneOf": [
         { "type": "object", "required": ["element"], "additionalProperties": false,
           "properties": { "element": { "type": "string" } } },
-        { "type": "object", "required": ["dir", "children"], "additionalProperties": false,
-          "properties": { "dir": { "enum": ["row", "col"] },
+        { "type": "object", "required": ["flow", "children"], "additionalProperties": false,
+          "properties": { "flow": { "enum": ["row", "col"] },
             "children": { "type": "array", "items": { "$ref": "#/$defs/node" } },
             "weights": { "type": "array", "items": { "type": "number" } } } },
         { "type": "object", "required": ["rows", "cols", "cells"], "additionalProperties": false,
