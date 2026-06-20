@@ -2,96 +2,152 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://yey.boats/schemas/yb-midl-config.schema.json",
   "title": "YB-MIDL Config Document",
+  "description": "A complete boat-dashboard definition: a versioned set of screens, each laying out data-bound elements, plus optional global settings, defaults, presets and alarms. This schema checks document STRUCTURE (shape and types); internal meaning (reference resolution, unique ids, layout arithmetic) is enforced by a separate semantic pass, and device fit by capability satisfaction.",
   "type": "object",
   "required": ["midl", "screens"],
   "properties": {
-    "midl": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
-    "settings": { "type": "object" },
-    "defaults": { "type": "object" },
-    "screens": { "type": "array", "items": { "$ref": "#/$defs/screen" } },
-    "alarms": { "type": "array", "items": { "$ref": "#/$defs/alarm" } },
-    "presets": { "type": "object" }
+    "midl": {
+      "description": "MIDL grammar version this document targets, as MAJOR.MINOR.BUILD (e.g. \"1.0.0\"). The major must match the device manifest's major for the document to be admissible.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "settings": { "description": "Optional document-wide settings (theme, units, refresh rate, …). Free-form object interpreted by the renderer.", "type": "object" },
+    "defaults": { "description": "Optional default element attributes inherited by elements that do not override them. Free-form object.", "type": "object" },
+    "screens": {
+      "description": "Ordered list of dashboard screens. A document must define at least one screen; the user pages between them on the device.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/screen" }
+    },
+    "alarms": {
+      "description": "Optional threshold alarms evaluated against data sources. Each alarm fires at its level when its source crosses a lt/gt bound.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/alarm" }
+    },
+    "presets": { "description": "Optional document-local named layout presets (in addition to the built-in registry). Free-form object.", "type": "object" }
   },
   "$defs": {
     "screen": {
       "type": "object",
+      "description": "One dashboard page: a named set of elements and a layout tree that arranges them. May carry per-device-class variant layouts.",
       "required": ["id", "elements", "layout"],
       "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "elements": { "type": "object", "additionalProperties": { "$ref": "#/$defs/element" } },
-        "layout": { "$ref": "#/$defs/node" },
+        "id": { "description": "Unique screen identifier (must be unique across the document; used for navigation and addressing).", "type": "string", "minLength": 1 },
+        "title": { "description": "Optional human-readable screen title shown in the UI.", "type": "string" },
+        "elements": {
+          "description": "Map of element-id -> element definition for this screen. Must be non-empty; the layout tree references these ids by key.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/element" }
+        },
+        "layout": { "description": "The base layout tree for this screen (a recursive node). Arranges the screen's elements into splits, grids or presets.", "$ref": "#/$defs/node" },
         "variants": {
+          "description": "Optional per-device-class layout overrides. When the target device class matches a variant's class, its layout replaces the base layout.",
           "type": "array",
           "items": {
             "type": "object",
             "required": ["class", "layout"],
-            "properties": { "class": { "type": "string" }, "layout": { "$ref": "#/$defs/node" } }
+            "properties": {
+              "class": { "description": "Device class id this variant applies to (must match a class in the device manifest).", "type": "string", "minLength": 1 },
+              "layout": { "description": "Layout tree used when rendering on the named device class.", "$ref": "#/$defs/node" }
+            }
           }
         }
       }
     },
     "element": {
       "type": "object",
+      "description": "A single renderable widget (numeric value, gauge, compass, button, …). Its `type` selects the widget; `bindings` wire its fields to data sources.",
       "required": ["type"],
       "properties": {
-        "type": { "type": "string" },
-        "name": { "type": "string" },
-        "bindings": { "type": "object", "additionalProperties": { "$ref": "#/$defs/source" } },
-        "style": { "type": "object" },
-        "format": { "type": "object" },
-        "markers": { "type": "array" },
-        "action": { "$ref": "#/$defs/action" },
-        "zoom": { "type": "string" }
+        "type": { "description": "Element kind, e.g. single-value, text, gauge, bar, trend, autopilot, compass, windrose, button. Known types have required bindings enforced by the semantic pass; unknown types are allowed but warned.", "type": "string", "minLength": 1 },
+        "name": { "description": "Optional label / title for the element.", "type": "string" },
+        "bindings": {
+          "description": "Map of binding-field -> data source. E.g. `value` for the primary reading; compass/windrose also accept `dir`. Required bindings per type are checked semantically.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/source" }
+        },
+        "style": { "description": "Optional visual style overrides (color, size, …).", "type": "object" },
+        "format": { "description": "Optional value formatting (unit, precision, …).", "type": "object" },
+        "markers": { "description": "Optional dial markers (for compass/windrose), each an object with an optional glyph.", "type": "array" },
+        "action": { "description": "Optional interaction performed when the element is activated (e.g. a button).", "$ref": "#/$defs/action" },
+        "zoom": { "description": "Optional zoom/detail level hint for the element.", "type": "string" }
       }
     },
     "source": {
       "type": "object",
+      "description": "A data source for a binding. The `kind` selects which other field is required: signalk->path, local->id, const->value, computed->expr.",
       "required": ["kind"],
       "properties": {
-        "kind": { "type": "string", "enum": ["signalk", "local", "const", "computed"] },
-        "path": { "type": "string" },
-        "id": { "type": "string" },
-        "expr": { "type": "string" },
-        "value": {}
-      }
+        "kind": { "description": "Source kind: `signalk` (a SignalK path), `local` (an onboard sensor id), `const` (a fixed value), or `computed` (an expression).", "type": "string", "enum": ["signalk", "local", "const", "computed"] },
+        "path": { "description": "SignalK path, e.g. navigation.speedOverGround. Required when kind is `signalk`.", "type": "string" },
+        "id": { "description": "Onboard/local source id. Required when kind is `local`.", "type": "string" },
+        "expr": { "description": "Expression to evaluate. Required when kind is `computed`.", "type": "string" },
+        "value": { "description": "Literal value. Required when kind is `const`." }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "signalk" } } }, "then": { "required": ["path"] } },
+        { "if": { "properties": { "kind": { "const": "local" } } }, "then": { "required": ["id"] } },
+        { "if": { "properties": { "kind": { "const": "const" } } }, "then": { "required": ["value"] } },
+        { "if": { "properties": { "kind": { "const": "computed" } } }, "then": { "required": ["expr"] } }
+      ]
     },
     "action": {
       "type": "object",
+      "description": "An interaction triggered by an element. `put` writes a value to a target; `nav` switches screen/target; `command` invokes a named command.",
       "required": ["kind"],
       "properties": {
-        "kind": { "type": "string", "enum": ["put", "nav", "command"] },
-        "target": { "type": "string" },
-        "value": {}
-      }
+        "kind": { "description": "Action kind: `put` (write value), `nav` (navigate), or `command` (invoke command).", "type": "string", "enum": ["put", "nav", "command"] },
+        "target": { "description": "Action target (SignalK path, screen id, or command name depending on kind).", "type": "string" },
+        "value": { "description": "Value to write. Required when kind is `put`." }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "put" } } }, "then": { "required": ["target", "value"] } },
+        { "if": { "properties": { "kind": { "const": "nav" } } }, "then": { "required": ["target"] } },
+        { "if": { "properties": { "kind": { "const": "command" } } }, "then": { "required": ["target"] } }
+      ]
     },
     "node": {
+      "description": "A recursive layout node. Exactly one of four shapes: an element leaf, a directional split (`flow` + `children`), a grid (`rows`/`cols`/`cells`), or a `preset` reference.",
       "oneOf": [
         { "type": "object", "required": ["element"], "additionalProperties": false,
-          "properties": { "element": { "type": "string" } } },
+          "description": "Leaf node: places a single element (by its id in screen.elements) filling the available rect.",
+          "properties": { "element": { "description": "Element id (a key in the enclosing screen's `elements`).", "type": "string", "minLength": 1 } } },
         { "type": "object", "required": ["flow", "children"], "additionalProperties": false,
-          "properties": { "flow": { "enum": ["row", "col"] },
-            "children": { "type": "array", "items": { "$ref": "#/$defs/node" } },
-            "weights": { "type": "array", "items": { "type": "number" } } } },
+          "description": "Directional split: arranges children along one axis. `flow: row` = horizontal main axis (children side by side); `flow: col` = vertical main axis (children stacked).",
+          "properties": {
+            "flow": { "description": "Main axis of the split. `row` lays children out horizontally; `col` lays them out vertically.", "enum": ["row", "col"] },
+            "children": { "description": "Ordered child nodes laid out along the flow axis. Must be non-empty.", "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } },
+            "weights": { "description": "Optional relative sizes along the flow axis, one positive number per child. When present its length must equal children length (checked semantically).", "type": "array", "items": { "type": "number", "exclusiveMinimum": 0 } } } },
         { "type": "object", "required": ["rows", "cols", "cells"], "additionalProperties": false,
-          "properties": { "rows": { "type": "integer" }, "cols": { "type": "integer" },
-            "cells": { "type": "array", "items": { "$ref": "#/$defs/node" } } } },
+          "description": "Grid: arranges cells in a rows x cols matrix, filled row-major. `cells` length must equal rows*cols (checked semantically).",
+          "properties": {
+            "rows": { "description": "Number of grid rows (positive integer).", "type": "integer", "minimum": 1 },
+            "cols": { "description": "Number of grid columns (positive integer).", "type": "integer", "minimum": 1 },
+            "cells": { "description": "Grid cells in row-major order; each is itself a node. Must be non-empty.", "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } } } },
         { "type": "object", "required": ["preset"], "additionalProperties": false,
-          "properties": { "preset": { "type": "string" },
-            "slots": { "type": "array", "items": { "type": "string" } } } }
+          "description": "Preset reference: expands a named layout template, filling its holes from `slots`. The preset name must be known (checked semantically).",
+          "properties": {
+            "preset": { "description": "Name of a known layout preset (e.g. full, hero-split).", "type": "string", "minLength": 1 },
+            "slots": { "description": "Element ids that fill the preset's holes, in the order the preset consumes them.", "type": "array", "items": { "type": "string" } } } }
       ]
     },
     "alarm": {
       "type": "object",
-      "required": ["id", "source"],
+      "description": "A threshold alarm: fires at `level` with `message` when `source` crosses `lt`/`gt`. At least one of lt/gt must be present.",
+      "required": ["id", "source", "level", "message"],
       "properties": {
-        "id": { "type": "string" },
-        "source": { "$ref": "#/$defs/source" },
-        "level": { "enum": ["info", "warn", "alarm", "emergency"] },
-        "lt": { "type": "number" },
-        "gt": { "type": "number" },
-        "message": { "type": "string" }
-      }
+        "id": { "description": "Unique alarm id (must be unique across the document).", "type": "string", "minLength": 1 },
+        "source": { "description": "Data source whose value is compared against the thresholds.", "$ref": "#/$defs/source" },
+        "level": { "description": "Severity raised when the alarm fires.", "enum": ["info", "warn", "alarm", "emergency"] },
+        "lt": { "description": "Fire when the source value is less than this number.", "type": "number" },
+        "gt": { "description": "Fire when the source value is greater than this number.", "type": "number" },
+        "message": { "description": "Human-readable message shown when the alarm fires.", "type": "string", "minLength": 1 }
+      },
+      "anyOf": [
+        { "required": ["lt"] },
+        { "required": ["gt"] }
+      ]
     }
   }
 }

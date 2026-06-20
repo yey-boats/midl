@@ -31,7 +31,10 @@ test("invalid/unknown-element.json fails with a type issue", () => {
 });
 
 test("a cross-major config is rejected as incompatible", () => {
-  const r = validateDocument('{"midl":"2.0.0","screens":[]}', manifest, "sunton-480");
+  const r = validateDocument(
+    '{"midl":"2.0.0","screens":[{"id":"d","elements":{"a":{"type":"single-value","bindings":{"value":{"kind":"signalk","path":"x"}}}},"layout":{"element":"a"}}]}',
+    manifest, "sunton-480",
+  );
   expect(r.ok).toBe(false);
   expect(r.issues.some((i) => /incompatible MIDL/.test(i.message))).toBe(true);
 });

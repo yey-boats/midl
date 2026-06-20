@@ -3,9 +3,11 @@
   "screens": [{
     "id": "dash",
     "elements": {
-      "a": { "type": "single-value" }, "b": { "type": "single-value" },
-      "c": { "type": "single-value" }, "d": { "type": "single-value" },
-      "e": { "type": "single-value" }
+      "a": { "type": "single-value", "bindings": { "value": { "kind": "signalk", "path": "a" } } },
+      "b": { "type": "single-value", "bindings": { "value": { "kind": "signalk", "path": "b" } } },
+      "c": { "type": "single-value", "bindings": { "value": { "kind": "signalk", "path": "c" } } },
+      "d": { "type": "single-value", "bindings": { "value": { "kind": "signalk", "path": "d" } } },
+      "e": { "type": "single-value", "bindings": { "value": { "kind": "signalk", "path": "e" } } }
     },
     "layout": { "flow": "col", "children": [
       { "element": "a" }, { "element": "b" }, { "element": "c" }, { "element": "d" }, { "element": "e" }

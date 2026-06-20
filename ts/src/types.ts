@@ -78,4 +78,8 @@ export interface Manifest {
   themes?: string[];
 }
 
-export interface Issue { path: string; message: string; }
+// An issue surfaced by a validation pass. `severity` distinguishes hard
+// errors (default) from advisory warnings — a config with only warnings is
+// still admissible. Omitting `severity` means "error" for backwards
+// compatibility with callers that test `issues.length`.
+export interface Issue { path: string; message: string; severity?: "error" | "warning"; }

@@ -222,9 +222,40 @@ if (!result.ok) {
 }
 ```
 
-`validateDocument` runs the full pipeline: manifest well-formedness → config
-structural validity → version compatibility → capability satisfaction, returning
-the first failing stage's path-addressed issues.
+`validateDocument` runs the full pipeline and returns the first failing stage's
+path-addressed issues:
+
+```
+manifest well-formedness
+  → config STRUCTURAL validity   (validate.ts — JSON Schema / Ajv)
+  → config SEMANTIC validity     (semantic.ts — meaning, device-independent)
+  → version compatibility
+  → CAPABILITY satisfaction      (satisfy.ts — fit for this device/class)
+```
+
+### Three distinct validation concerns
+
+These are deliberately separate passes, each answering a different question.
+You can also call each standalone.
+
+| Pass | Module | Asks | Examples |
+|---|---|---|---|
+| **Structural** | [`validateConfigStructure`](ts/src/validate.ts) | *Is this the right JSON shape?* | required fields present, correct types, `flow ∈ {row,col}`, `source.kind` carries its field (`signalk`→`path`, `local`→`id`, `const`→`value`, `computed`→`expr`), `action.kind` carries its target/value, alarm has `id`/`source`/`level`/`message` and at least one of `lt`/`gt`, `screens` non-empty, grid `rows`/`cols` positive, `weights` positive. |
+| **Semantic** | [`validateSemantics`](ts/src/semantic.ts) | *Does this config mean something coherent, on any device?* | every `{ element: x }` resolves to a key in that screen's `elements`; no duplicate `screen.id` / `alarm.id`; `weights.length === children.length`; grid `cells.length === rows*cols`; `{ preset: x }` names a known preset; each variant has a `class` + a valid layout whose refs resolve; known element types declare their required bindings (`single-value` needs `value`, …); `signalk.path` / `computed.expr` / `local.id` are non-empty. |
+| **Capability** | [`satisfies`](ts/src/satisfy.ts) | *Will this run on **this** device, at **this** resolution?* | element type / source kind / action kind supported by the manifest; tile count ≤ `maxTiles`; nesting depth ≤ `maxDepth`. |
+
+Structural and capability validation report only errors. The semantic pass can
+also emit advisory **warnings** (e.g. an unregistered element type, allowed for
+forward-compatibility) — `Issue.severity` distinguishes `"error"` from
+`"warning"`, and a document with only warnings is still admissible
+(`validateDocument` keeps `ok: true` and surfaces the warnings alongside).
+
+```ts
+import { validateSemantics, semanticErrors } from "@yey-boats/midl";
+
+validateSemantics(doc);  // every Issue, errors + warnings
+semanticErrors(doc);     // error-severity issues only
+```
 
 ## A capability manifest (what a device advertises)
 

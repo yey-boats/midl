@@ -14,7 +14,7 @@ const manifest = {
 test("built dist exposes a working validator with inlined schemas", () => {
   expect(validateManifestStructure(manifest)).toEqual([]);
   const r = validateDocument(
-    '{"midl":"1.0.0","screens":[{"id":"d","elements":{"a":{"type":"single-value"}},"layout":{"element":"a"}}]}',
+    '{"midl":"1.0.0","screens":[{"id":"d","elements":{"a":{"type":"single-value","bindings":{"value":{"kind":"signalk","path":"x"}}}},"layout":{"element":"a"}}]}',
     manifest, "square-480",
   );
   expect(r.ok).toBe(true);
