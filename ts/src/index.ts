@@ -10,6 +10,8 @@ export { expand, countTiles, depth, PRESETS } from "./presets";
 export { parseDoc, toCanonicalJson, toYaml } from "./canonicalize";
 export { validateConfigStructure, validateManifestStructure } from "./validate";
 export { satisfies } from "./satisfy";
+export { migrateDocument, registerMigration } from "./migrate";
+export type { Migration } from "./migrate";
 
 export interface ValidationResult { ok: boolean; issues: Issue[]; }
 
