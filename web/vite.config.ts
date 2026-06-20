@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
+
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
+
 // Host generator: emits the YB-MIDL capabilities manifest JSON for one
 // resolution class to stdout. Build with a host C++17 compiler; no
 // Arduino/ESP deps. Usage: yb_midl_gen <class-id> <board>

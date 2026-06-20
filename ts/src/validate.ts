@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
+
 // Use the 2020-12 dialect build of Ajv: the schemas use $defs / oneOf and
 // declare $schema draft 2020-12. The default Ajv export is draft-07.
 import Ajv2020 from "ajv/dist/2020";

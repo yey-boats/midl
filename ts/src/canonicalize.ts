@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
+
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 // YAML is a JSON superset, so this parses both YAML and JSON input.

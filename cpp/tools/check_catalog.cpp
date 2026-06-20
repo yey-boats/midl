@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
+
 // Host consistency check: the catalog's element WidgetKind names must
 // exactly match the firmware's 9 painters (include/ui_layouts.h
 // WidgetKind). Update BOTH this list and the catalog when adding a
