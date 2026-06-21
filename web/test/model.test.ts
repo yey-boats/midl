@@ -42,6 +42,60 @@ test("compass angle converts radians to degrees and reads dir binding", () => {
   expect(m.dirDeg).toBeCloseTo(180, 4);
 });
 
+test("markers resolve dir source to angleDeg, cap glyph/color/kind", () => {
+  const el: Element = {
+    type: "compass",
+    bindings: { value: { kind: "signalk", path: "navigation.headingTrue" } },
+    markers: [
+      { glyph: "diamond", color: "good", dir: { kind: "signalk", path: "environment.wind.directionTrue" } },
+      { dir: { kind: "signalk", path: "missing.path" } }, // no value -> no angle, defaults
+    ],
+  } as unknown as Element;
+  const p = new MockDataProvider({
+    "navigation.headingTrue": { value: 0, sourceUnit: "rad" },
+    "environment.wind.directionTrue": { value: Math.PI, sourceUnit: "rad" },
+  });
+  const m = resolveElement(el, p);
+  expect(m.markers).toHaveLength(2);
+  expect(m.markers![0]).toMatchObject({ glyph: "diamond", color: "good", kind: "rim" });
+  expect(m.markers![0].angleDeg).toBeCloseTo(180, 4);
+  expect(m.markers![1]).toMatchObject({ glyph: "triangle", color: "accent" });
+  expect(m.markers![1].angleDeg).toBeUndefined();
+});
+
+test("markers cap at 12 per dial", () => {
+  const markers = Array.from({ length: 20 }, () => ({ glyph: "circle", color: "fg" }));
+  const el = { type: "compass", bindings: { value: { kind: "signalk", path: "x" } }, markers } as unknown as Element;
+  const p = new MockDataProvider({ x: { value: 0, sourceUnit: "rad" } });
+  expect(resolveElement(el, p).markers).toHaveLength(12);
+});
+
+test("zones pick the first threshold above the fraction", () => {
+  const el = sv("tanks.fuel.0.currentLevel", undefined, { range: [0, 1], zones: [{ lt: 0.25, color: "bad" }, { lt: 0.5, color: "warn" }] }, "bar");
+  const lo = new MockDataProvider({ "tanks.fuel.0.currentLevel": { value: 0.1 } });
+  expect(resolveElement(el, lo).zoneColor).toBe("bad");
+  const mid = new MockDataProvider({ "tanks.fuel.0.currentLevel": { value: 0.4 } });
+  expect(resolveElement(el, mid).zoneColor).toBe("warn");
+  const hi = new MockDataProvider({ "tanks.fuel.0.currentLevel": { value: 0.9 } });
+  expect(resolveElement(el, hi).zoneColor).toBeUndefined();
+});
+
+test("sectors resolve from style.sectors", () => {
+  const el = sv("environment.wind.angleApparent", undefined, { sectors: [{ from: -30, to: 0, color: "port" }, { from: 0, to: 30, color: "starboard" }] }, "windrose");
+  const p = new MockDataProvider({ "environment.wind.angleApparent": { value: 0.5, sourceUnit: "rad" } });
+  const m = resolveElement(el, p);
+  expect(m.sectors).toEqual([{ from: -30, to: 0, color: "port" }, { from: 0, to: 30, color: "starboard" }]);
+});
+
+test("format.side maps signed angle to magnitude + P/S", () => {
+  const stbd = resolveElement(sv("environment.wind.angleApparent", { side: true }), new MockDataProvider({ "environment.wind.angleApparent": { value: 0.7330, sourceUnit: "rad" } }));
+  expect(stbd.side).toBe("S");
+  expect(stbd.text).toBe("42");
+  const port = resolveElement(sv("environment.wind.angleApparent", { side: true }), new MockDataProvider({ "environment.wind.angleApparent": { value: -0.7330, sourceUnit: "rad" } }));
+  expect(port.side).toBe("P");
+  expect(port.text).toBe("42");
+});
+
 test("stale value keeps its last reading but reports stale state", () => {
   // generic provider returning a stale-but-present value (transport-agnostic stub)
   const stale: DataProvider = {

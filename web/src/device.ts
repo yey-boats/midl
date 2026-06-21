@@ -8,6 +8,7 @@
 export { renderDashboard, prepareDashboard, paintPrepared, TrendBuffers } from "./render";
 export type { RenderResult, PreparedDashboard } from "./render";
 export { paintScreen } from "./paint";
+export { renderDashboardSvg, paintScreenSvg } from "./svg/render-svg";
 export { MockDataProvider, collectBindings } from "./data";
 export type { DataProvider, ResolvedValue } from "./data";
 export { resolveElement } from "./model";

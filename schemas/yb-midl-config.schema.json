@@ -70,9 +70,48 @@
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/source" }
         },
-        "style": { "description": "Optional visual style overrides (color, size, …).", "type": "object" },
-        "format": { "description": "Optional value formatting (unit, precision, …).", "type": "object" },
-        "markers": { "description": "Optional dial markers (for compass/windrose), each an object with an optional glyph.", "type": "array" },
+        "style": {
+          "description": "Optional visual style overrides (color, size, …). Free-form; renderer-understood marine keys include `sectors` (bow-relative angular sectors), `hull` (boat-silhouette hint), `shape` (round|band dial), and `center` (center-zero reference for a bar). All optional and additive.",
+          "type": "object",
+          "properties": {
+            "sectors": {
+              "description": "Optional bow-relative angular sectors drawn on a compass/windrose dial (e.g. close-hauled or no-go zones). Each `from`/`to` is in degrees and `color` is a theme token or #rrggbb.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["from", "to", "color"],
+                "properties": {
+                  "from": { "description": "Sector start angle in degrees (bow-relative).", "type": "number" },
+                  "to": { "description": "Sector end angle in degrees (bow-relative).", "type": "number" },
+                  "color": { "description": "Sector fill color (theme token or #rrggbb).", "type": "string" }
+                }
+              }
+            },
+            "hull": { "description": "Render hint: draw a boat-hull silhouette in the dial center.", "type": "boolean" },
+            "shape": { "description": "Dial geometry: `round` (default) or `band` (rolling heading-band compass).", "type": "string", "enum": ["round", "band"] },
+            "center": { "description": "Center-zero reference for a `bar` (e.g. an XTE cross-track needle), drawn as deviation around this value.", "type": "number" }
+          }
+        },
+        "format": {
+          "description": "Optional value formatting (unit, precision, …). Free-form; the renderer-understood marine key `side` formats a signed angle as magnitude + side suffix (e.g. 42 -> \"42S\"). All optional and additive.",
+          "type": "object",
+          "properties": {
+            "side": { "description": "Format a signed angle with a port/starboard side indication. `true` appends a magnitude + P/S suffix (e.g. 42 -> \"42S\"); a string selects a side-rendering style (e.g. \"port-stbd\"). Optional and additive.", "type": ["boolean", "string"] }
+          }
+        },
+        "markers": {
+          "description": "Optional dial markers (for compass/windrose). Each is an object with optional `glyph` (shape), `color` (theme token or #rrggbb), `dir` (a data source whose value is the marker's bow-relative angle), and `kind` (`rim` rim marker, default, or `vector` center vector e.g. tide/current). Additional keys are permitted for forward-compatibility.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "glyph": { "description": "Marker glyph/shape (e.g. triangle, diamond, chevron_out).", "type": "string" },
+              "color": { "description": "Marker color (theme token or #rrggbb).", "type": "string" },
+              "dir": { "description": "Data source whose value gives the marker's bow-relative angle.", "$ref": "#/$defs/source" },
+              "kind": { "description": "Marker kind: `rim` (default, orbits the dial rim) or `vector` (center vector, e.g. tide/current).", "type": "string", "enum": ["rim", "vector"] }
+            }
+          }
+        },
         "action": { "description": "Optional interaction performed when the element is activated (e.g. a button).", "$ref": "#/$defs/action" },
         "zoom": { "description": "Optional zoom/detail level hint for the element.", "type": "string" }
       }

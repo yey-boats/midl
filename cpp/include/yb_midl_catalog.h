@@ -24,11 +24,18 @@ inline constexpr const char *B_VALUE[] = {"value", nullptr};
 inline constexpr const char *B_VALUE_DIR[] = {"value", "dir", nullptr};
 inline constexpr const char *B_NONE[] = {nullptr};
 
-inline constexpr const char *A_NUM[] = {"title", "format", "size", "unit", "color", nullptr};
-inline constexpr const char *A_RANGE[] = {"title", "size",  "unit", "color",
-                                          "range", "zones", nullptr};
+// Attribute (style/format) tokens advertised per element. Marine SVG-renderer
+// extensions are additive: `side` (format) on numeric/wind readouts; `sectors`,
+// `hull`, `shape` (style) on dials; `center` (style) on bars. Firmware and
+// older renderers ignore unknown attrs (capability layer tolerates them).
+inline constexpr const char *A_NUM[] = {"title", "format", "size", "unit", "color", "side", nullptr};
+inline constexpr const char *A_RANGE[] = {"title", "size",   "unit",  "color",
+                                          "range", "zones",  "center", nullptr};
 inline constexpr const char *A_BASIC[] = {"title", "size", "color", nullptr};
-inline constexpr const char *A_WIND[] = {"title", "format", "size", "unit", "color", nullptr};
+inline constexpr const char *A_DIAL[] = {"title", "size",  "color",
+                                         "sectors", "hull", "shape", nullptr};
+inline constexpr const char *A_WIND[] = {"title", "format", "size",  "unit",  "color",
+                                         "side",  "sectors", "hull", "shape", nullptr};
 inline constexpr const char *A_TREND[] = {"title", "size", "unit", "color", nullptr};
 
 inline constexpr ElementType ELEMENTS[] = {
@@ -36,7 +43,7 @@ inline constexpr ElementType ELEMENTS[] = {
     {"text", "Text", B_VALUE, A_BASIC, false},
     {"gauge", "Gauge", B_VALUE, A_RANGE, false},
     {"bar", "Bar", B_VALUE, A_RANGE, false},
-    {"compass", "Compass", B_VALUE_DIR, A_BASIC, true},
+    {"compass", "Compass", B_VALUE_DIR, A_DIAL, true},
     {"windrose", "WindRose", B_VALUE_DIR, A_WIND, true},
     {"trend", "Trend", B_VALUE, A_TREND, false},
     {"autopilot", "Autopilot", B_VALUE, A_BASIC, false},
@@ -51,7 +58,10 @@ inline constexpr const char *GLYPHS[] = {
 };
 inline constexpr size_t GLYPH_COUNT = (sizeof(GLYPHS) / sizeof(GLYPHS[0])) - 1;
 
-inline constexpr const char *SOURCES[] = {"signalk", nullptr};
+// `local` advertises onboard sensor/diagnostic ids (the firmware system
+// screens bind local sensor ids, e.g. net.ip, sys.heap); `signalk` is the
+// network source. Additive — adding a source kind only widens what validates.
+inline constexpr const char *SOURCES[] = {"signalk", "local", nullptr};
 inline constexpr size_t SOURCE_COUNT = (sizeof(SOURCES) / sizeof(SOURCES[0])) - 1;
 
 inline constexpr const char *ACTION_KINDS[] = {"nav", "command", nullptr};
