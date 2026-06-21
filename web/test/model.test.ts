@@ -96,6 +96,24 @@ test("format.side maps signed angle to magnitude + P/S", () => {
   expect(port.text).toBe("42");
 });
 
+test("format.side accepts the design's 'port-stbd' string and keeps a distance magnitude+unit", () => {
+  // XTE: a distance in metres displayed as nm with side. -12 m -> Port, magnitude formatted with unit.
+  const el = sv("navigation.courseRhumbline.crossTrackError", { unit: "nm", decimals: 2, side: "port-stbd" });
+  const m = resolveElement(el, new MockDataProvider({ "navigation.courseRhumbline.crossTrackError": { value: -12, sourceUnit: "m" } }));
+  expect(m.side).toBe("P");
+  expect(m.text).toBe("0.01 nm");
+  const s = resolveElement(el, new MockDataProvider({ "navigation.courseRhumbline.crossTrackError": { value: 12, sourceUnit: "m" } }));
+  expect(s.side).toBe("S");
+  expect(s.text).toBe("0.01 nm");
+});
+
+test("text widget renders a SignalK position object as two lat/lon lines", () => {
+  const el = sv("navigation.position", undefined, undefined, "text");
+  const m = resolveElement(el, new MockDataProvider({ "navigation.position": { value: { latitude: 41.386, longitude: 2.1738 } } }));
+  expect(m.state).toBe("ok");
+  expect(m.text).toBe("41°23.16'N\n2°10.43'E");
+});
+
 test("stale value keeps its last reading but reports stale state", () => {
   // generic provider returning a stale-but-present value (transport-agnostic stub)
   const stale: DataProvider = {

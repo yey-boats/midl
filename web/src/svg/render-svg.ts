@@ -82,12 +82,15 @@ export function paintScreenSvg(
     try { m = resolveElement(el, provider); }
     catch { m = { state: "bad", text: "--" }; } // one bad binding never stops the loop
     const round = ROUND_TYPES.has(el.type);
+    // A button carries no value binding (it is an action), so its model is
+    // always "no-data" — it must still render its label, never the em-dash.
+    const isButton = el.type === "button";
     // The frame draws the top-left caption for NON-round tiles; round dials own
     // their centre caption, so pass "" for them to avoid a double caption.
     const style = el.style ?? {};
-    const frameTitle = round ? "" : (str(style.title) ?? el.name ?? "");
-    out.push(frameSvg(p.rect, frameTitle, th, { noData: m.state === "no-data", stale: m.state === "stale", round }));
-    if (m.state === "no-data") { out.push(noDataSvg(p.rect, th)); continue; }
+    const frameTitle = round || isButton ? "" : (str(style.title) ?? el.name ?? "");
+    out.push(frameSvg(p.rect, frameTitle, th, { noData: m.state === "no-data" && !isButton, stale: m.state === "stale", round }));
+    if (m.state === "no-data" && !isButton) { out.push(noDataSvg(p.rect, th)); continue; }
     out.push(widgetSvg(el, p, m, th, trends));
   }
   return out.join("");

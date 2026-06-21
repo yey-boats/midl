@@ -14,6 +14,9 @@ const FACTORS: Record<string, number> = {
   "m->km": 1 / 1000,
   "s->h": 1 / 3600,
   "s->min": 1 / 60,
+  "Hz->rpm": 60,        // engine revolutions: rev/s -> rev/min
+  "Pa->bar": 1e-5,      // pressure: pascals -> bar
+  "Pa->kPa": 1e-3,
 };
 
 export function convert(value: number, fromUnit: string | undefined, toUnit: string | undefined): number {

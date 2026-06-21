@@ -56,6 +56,33 @@ function colorToken(v: unknown, fallback: string): string {
   return typeof v === "string" && v.length > 0 ? v : fallback;
 }
 
+// format.side is enabled by any truthy value: the boolean `true` or a string
+// such as the design's "port-stbd". Only an explicit false/absent disables it.
+function sideEnabled(v: unknown): boolean {
+  return v === true || (typeof v === "string" && v.length > 0);
+}
+
+// A SignalK navigation.position value: { latitude, longitude } in decimal deg.
+function isPosition(v: unknown): v is { latitude: number; longitude: number } {
+  return typeof v === "object" && v !== null
+    && typeof (v as { latitude?: unknown }).latitude === "number"
+    && typeof (v as { longitude?: unknown }).longitude === "number";
+}
+
+// Render a position as two lines of degrees + decimal minutes with a hemisphere
+// suffix, e.g. "41°23.16'N\n2°10.43'E" — matching the design's text-position
+// widget. The renderer's text widget splits on "\n" into stacked lines.
+function formatPosition(p: { latitude: number; longitude: number }): string {
+  const fmt = (val: number, pos: string, neg: string): string => {
+    const hemi = val >= 0 ? pos : neg;
+    const a = Math.abs(val);
+    const deg = Math.floor(a);
+    const min = (a - deg) * 60;
+    return `${deg}°${min.toFixed(2)}'${hemi}`;
+  };
+  return `${fmt(p.latitude, "N", "S")}\n${fmt(p.longitude, "E", "W")}`;
+}
+
 function resolveMarkers(el: Element, provider: DataProvider): ResolvedMarker[] | undefined {
   const raw = el.markers;
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
@@ -119,7 +146,16 @@ export function resolveElement(el: Element, provider: DataProvider): ElementMode
 
   // Non-numeric values (e.g. autopilot.state "auto", text/status fields) keep
   // their string — formatValue only renders numbers and would otherwise show "--".
-  const text = fmt.numeric == null && typeof rv.value === "string" && rv.value.length > 0 ? rv.value : fmt.text;
+  // A SignalK position object {latitude, longitude} is rendered as a two-line
+  // lat/lon text block so a `text` widget bound to navigation.position shows
+  // coordinates instead of "--".
+  let text: string;
+  if (fmt.numeric == null && isPosition(rv.value)) {
+    text = formatPosition(rv.value as { latitude: number; longitude: number });
+    if (state === "bad") state = "ok"; // position is a valid non-numeric value
+  } else {
+    text = fmt.numeric == null && typeof rv.value === "string" && rv.value.length > 0 ? rv.value : fmt.text;
+  }
   const m: ElementModel = { state, text, numeric: fmt.numeric };
 
   if (el.type === "bar" || el.type === "gauge") {
@@ -139,13 +175,29 @@ export function resolveElement(el: Element, provider: DataProvider): ElementMode
     }
   }
 
-  // format.side: present a signed angle as magnitude + Port/Starboard suffix.
-  // Convention (device): -180..180, positive = Starboard, negative = Port.
-  if (el.format?.side === true && typeof rv.value === "number" && Number.isFinite(rv.value)) {
-    const deg = convert(rv.value, rv.sourceUnit, "deg");
-    const signed = norm360(deg + 180) - 180; // -180..180
-    m.side = signed >= 0 ? "S" : "P";
-    m.text = String(Math.round(Math.abs(signed)));
+  // format.side: present a signed angle/distance as magnitude + Port/Starboard
+  // suffix. Convention (device): positive = Starboard, negative = Port. Accept
+  // any truthy value (e.g. `true` or the design's `"port-stbd"` string), not
+  // only the boolean `true`, so XTE screens authored with side:"port-stbd"
+  // resolve. For angle types the signed value is wrapped into -180..180; for
+  // plain numerics (XTE distance) the sign is taken as-is.
+  if (sideEnabled(el.format?.side) && typeof rv.value === "number" && Number.isFinite(rv.value)) {
+    const unit = el.format?.unit as string | undefined;
+    const isAngle = ANGLE_TYPES.has(el.type) || unit === "deg" || unit === "rad" || unit == null;
+    if (isAngle) {
+      const deg = convert(rv.value, rv.sourceUnit, "deg");
+      const signed = norm360(deg + 180) - 180; // -180..180
+      m.side = signed >= 0 ? "S" : "P";
+      m.text = String(Math.round(Math.abs(signed)));
+    } else {
+      // Distance/offset (e.g. XTE in nm): keep the formatted magnitude + unit,
+      // record the side from the sign. fmt.numeric is the display-unit value.
+      const dv = m.numeric ?? convert(rv.value, rv.sourceUnit, unit);
+      m.side = dv >= 0 ? "S" : "P";
+      const mag = formatValue(Math.abs(rv.value), el.format, rv.sourceUnit);
+      m.text = mag.text;
+      m.numeric = mag.numeric;
+    }
   }
 
   const markers = resolveMarkers(el, provider);
