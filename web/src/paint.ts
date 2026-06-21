@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
-import type { Element } from "@yey-boats/midl";
-import type { Placement } from "./solve";
+import type { Element, Placement } from "@yey-boats/midl";
 
 type Ctx = CanvasRenderingContext2D;
 

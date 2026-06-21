@@ -3,6 +3,17 @@
 
 export interface MidlVersion { major: number; minor: number; build: number; }
 
+// Optional descriptive metadata carried at document/screen/element level.
+// Informational only — renderers and firmware ignore it; it powers library
+// search and agent selection of dashboards. Additive and backward-compatible.
+export interface Meta {
+  title?: string;
+  description?: string;
+  useCase?: string;
+  agentNotes?: string;
+  tags?: string[];
+}
+
 export type Source =
   | { kind: "signalk"; path: string }
   | { kind: "local"; id: string }
@@ -14,6 +25,7 @@ export interface Action { kind: "put" | "nav" | "command"; target?: string; valu
 export interface Element {
   type: string;
   name?: string;
+  meta?: Meta;
   bindings?: Record<string, Source>;
   style?: Record<string, unknown>;
   format?: Record<string, unknown>;
@@ -33,6 +45,7 @@ export interface Variant { class: string; layout: Node; }
 export interface Screen {
   id: string;
   title?: string;
+  meta?: Meta;
   elements: Record<string, Element>;
   layout: Node;
   variants?: Variant[];
@@ -40,6 +53,7 @@ export interface Screen {
 
 export interface ConfigDoc {
   midl: string;
+  meta?: Meta;
   settings?: Record<string, unknown>;
   defaults?: Record<string, unknown>;
   screens: Screen[];

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
-import { validateDocument, parseDoc, expand } from "@yey-boats/midl";
-import type { ConfigDoc, Element, Manifest, Node } from "@yey-boats/midl";
-import { solveLayout, type Placement, type Rect } from "./solve";
+import { validateDocument, parseDoc, expand, solveLayout } from "@yey-boats/midl";
+import type { ConfigDoc, Element, Manifest, Node, Placement, Rect } from "@yey-boats/midl";
 
 export interface ScreenPlan { screenId: string; placements: Placement[]; }
 export interface PreviewResult {

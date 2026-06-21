@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
-
-import type { Node } from "@yey-boats/midl";
+import type { Node } from "./types";
 
 export interface Rect { x: number; y: number; w: number; h: number; }
 export interface Placement { elementId: string; rect: Rect; }

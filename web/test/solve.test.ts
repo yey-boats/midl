@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
-// midl/web/test/solve.test.ts
+// midl/web/test/solve.test.ts — solver now lives in @yey-boats/midl (web alias).
 import { test, expect } from "vitest";
-import { solveLayout, type Rect } from "../src/solve";
+import { solveLayout, type Rect } from "@yey-boats/midl";
 
 const vp: Rect = { x: 0, y: 0, w: 480, h: 480 };
 

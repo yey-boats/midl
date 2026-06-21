@@ -24,7 +24,8 @@
       "type": "array",
       "items": { "$ref": "#/$defs/alarm" }
     },
-    "presets": { "description": "Optional document-local named layout presets (in addition to the built-in registry). Free-form object.", "type": "object" }
+    "presets": { "description": "Optional document-local named layout presets (in addition to the built-in registry). Free-form object.", "type": "object" },
+    "meta": { "$ref": "#/$defs/meta" }
   },
   "$defs": {
     "screen": {
@@ -34,6 +35,7 @@
       "properties": {
         "id": { "description": "Unique screen identifier (must be unique across the document; used for navigation and addressing).", "type": "string", "minLength": 1 },
         "title": { "description": "Optional human-readable screen title shown in the UI.", "type": "string" },
+        "meta": { "$ref": "#/$defs/meta" },
         "elements": {
           "description": "Map of element-id -> element definition for this screen. Must be non-empty; the layout tree references these ids by key.",
           "type": "object",
@@ -62,6 +64,7 @@
       "properties": {
         "type": { "description": "Element kind, e.g. single-value, text, gauge, bar, trend, autopilot, compass, windrose, button. Known types have required bindings enforced by the semantic pass; unknown types are allowed but warned.", "type": "string", "minLength": 1 },
         "name": { "description": "Optional label / title for the element.", "type": "string" },
+        "meta": { "$ref": "#/$defs/meta" },
         "bindings": {
           "description": "Map of binding-field -> data source. E.g. `value` for the primary reading; compass/windrose also accept `dir`. Required bindings per type are checked semantically.",
           "type": "object",
@@ -148,6 +151,17 @@
         { "required": ["lt"] },
         { "required": ["gt"] }
       ]
+    },
+    "meta": {
+      "type": "object",
+      "description": "Optional descriptive metadata: human- and agent-readable explanation, use case and tags. Informational only — ignored by renderers/firmware; used for library search and agent selection.",
+      "properties": {
+        "title": { "description": "Short human label.", "type": "string" },
+        "description": { "description": "Human-readable explanation (1-2 sentences).", "type": "string" },
+        "useCase": { "description": "When/why to use this dashboard/screen/visualization.", "type": "string" },
+        "agentNotes": { "description": "Agent-readable hint for selecting/authoring.", "type": "string" },
+        "tags": { "description": "Free-form keywords.", "type": "array", "items": { "type": "string" } }
+      }
     }
   }
 }

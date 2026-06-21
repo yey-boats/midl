@@ -17,6 +17,10 @@ export { validateSemantics, semanticErrors } from "./semantic";
 export { satisfies } from "./satisfy";
 export { migrateDocument, registerMigration } from "./migrate";
 export type { Migration } from "./migrate";
+export { solveLayout } from "./solve";
+export type { Rect, Placement } from "./solve";
+export { layoutSummary } from "./summary";
+export type { LayoutSummary } from "./summary";
 
 export interface ValidationResult { ok: boolean; issues: Issue[]; }
 
