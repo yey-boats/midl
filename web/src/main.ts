@@ -2,7 +2,9 @@
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
 import { previewConfig } from "./preview";
-import { paintScreen, type ValueFn } from "./paint";
+import { paintScreen } from "./paint";
+import { MockDataProvider } from "./data";
+import { theme } from "./theme";
 import type { Manifest } from "@yey-boats/midl";
 
 const SAMPLE = `midl: 1.0.0
@@ -35,10 +37,12 @@ const MANIFEST: Manifest = {
   sources: ["signalk"],
 };
 
-const SAMPLE_VALUES: Record<string, string> = {
-  windrose: "12.4", "single-value": "6.1", bar: "78%",
-};
-const valueFn: ValueFn = (el) => SAMPLE_VALUES[el.type] ?? "--";
+const provider = new MockDataProvider({
+  "environment.wind.speedApparent": { value: 6.4, sourceUnit: "m/s" },
+  "navigation.speedOverGround": { value: 3.1, sourceUnit: "m/s" },
+  "environment.depth.belowTransducer": { value: 2.6, sourceUnit: "m" },
+  "electrical.batteries.house.stateOfCharge": { value: 0.78 },
+});
 
 function render(className: string): void {
   const cls = MANIFEST.classes.find((c) => c.id === className)!;
@@ -53,7 +57,7 @@ function render(className: string): void {
   const issues = document.getElementById("issues")!;
   if (!res.ok) { issues.textContent = res.issues.map((i) => `${i.path}: ${i.message}`).join("\n"); return; }
   issues.textContent = "";
-  for (const sp of res.screens) paintScreen(ctx, sp.placements, res.elements[sp.screenId], valueFn);
+  for (const sp of res.screens) paintScreen(ctx, sp.placements, res.elements[sp.screenId], provider, theme("night"));
 }
 
 const sel = document.getElementById("cls") as HTMLSelectElement;
