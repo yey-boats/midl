@@ -2,13 +2,14 @@
 
 The executable cross-language parity contract for MIDL validation. [`cases.yaml`](cases.yaml) holds
 documents + their `targetClass`; [`expected.json`](expected.json) holds each case's frozen verdict
-`{ ok, issues: [sorted unique issue paths] }`.
+`{ ok, paths: [ordered distinct issue paths, first-occurrence order] }`.
 
 - The **TypeScript** validator runs it in [`../ts/test/conformance.test.ts`](../ts/test/conformance.test.ts).
 - The **Python** validator runs the same `cases.yaml`/`expected.json` and must produce identical
   verdicts; a divergence is a parity failure.
 
-Severities/messages are advisory — only `ok` + the issue-path set are contractual (see
+Severities/messages are advisory; per-pointer multiplicity is normalized out — only `ok` + the
+ordered distinct issue-path list are contractual (see
 [`../docs/validation-conformance.md`](../docs/validation-conformance.md)).
 
 Re-bless after an intentional validator change:
