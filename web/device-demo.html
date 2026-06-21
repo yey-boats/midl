@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<!-- Self-contained device preview: ONE <script> tag, NO backend, NO framework.
+     Proves @yey-boats/midl-web can render a MIDL dashboard from flash on a device
+     (or in the Instruments-manager preview). Build first: npm run build:device. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>MIDL device preview</title>
+    <style>body{margin:0;background:#06090d}canvas{display:block;margin:0 auto}</style>
+  </head>
+  <body>
+    <canvas id="cv" width="480" height="480"></canvas>
+    <script src="./dist-device/midl-device.global.js"></script>
+    <script>
+      // A device serves its own capability manifest at /api/midl/manifest; inlined here for the demo.
+      const manifest = {
+        midl: "1.0.0", board: "demo",
+        classes: [{ id: "square-480", width: 480, height: 480, maxTiles: 4, maxDepth: 3,
+          elements: ["single-value", "bar", "compass", "windrose"] }],
+        elements: [
+          { type: "single-value", bindings: ["value"] },
+          { type: "bar", bindings: ["value"] },
+          { type: "compass", bindings: ["value", "dir"] },
+          { type: "windrose", bindings: ["value", "dir"] },
+        ],
+        sources: ["signalk"],
+      };
+      const doc = `midl: 1.0.0
+screens:
+  - id: dash
+    elements:
+      wind: { type: windrose, name: WIND, bindings: { value: { kind: signalk, path: environment.wind.speedApparent }, dir: { kind: signalk, path: environment.wind.angleApparent } } }
+      sog:  { type: single-value, name: SOG, format: { unit: kn, decimals: 1 }, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+      hdg:  { type: compass, name: HDG, bindings: { value: { kind: signalk, path: navigation.headingTrue }, dir: { kind: signalk, path: navigation.headingTrue } } }
+      batt: { type: bar, name: BATT, style: { range: [0, 1] }, bindings: { value: { kind: signalk, path: electrical.batteries.house.capacity.stateOfCharge } } }
+    layout: { rows: 2, cols: 2, cells: [ { element: wind }, { element: sog }, { element: hdg }, { element: batt } ] }
+`;
+      // Live data would come from the device; a fixed provider here (no backend).
+      const provider = new MidlWeb.MockDataProvider({
+        "environment.wind.speedApparent": { value: 6.2, sourceUnit: "m/s" },
+        "environment.wind.angleApparent": { value: 0.6, sourceUnit: "rad" },
+        "navigation.speedOverGround": { value: 3.1, sourceUnit: "m/s" },
+        "navigation.headingTrue": { value: 1.57, sourceUnit: "rad" },
+        "electrical.batteries.house.capacity.stateOfCharge": { value: 0.78 },
+      });
+      const ctx = document.getElementById("cv").getContext("2d");
+      const r = MidlWeb.renderDashboard(ctx, doc, manifest, "square-480", { x: 0, y: 0, w: 480, h: 480 }, provider);
+      window.__midlResult = r; // { ok, issues, paths } — asserted by the verification screenshot
+      document.title = r.ok ? "MIDL device preview — OK" : "MIDL device preview — INVALID";
+    </script>
+  </body>
+</html>
