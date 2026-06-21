@@ -1,0 +1,50 @@
+midl: 1.0.0
+meta:
+  title: Wind & Steering
+  description: Apparent-wind rose with SOG and heading for upwind steering.
+  useCase: Trimming and steering upwind on a beat.
+  agentNotes: Choose when the user is sailing upwind or asks about wind angle / VMG.
+  tags: [sailing, upwind, wind, steering]
+screens:
+  - id: dash
+    meta:
+      title: Wind
+      useCase: Read wind angle and speed while steering.
+    elements:
+      wind:
+        type: windrose
+        name: WIND
+        meta: { description: Apparent wind angle and speed. }
+        bindings:
+          value: { kind: signalk, path: environment.wind.speedApparent }
+          dir: { kind: signalk, path: environment.wind.angleApparent }
+      sog:
+        type: single-value
+        name: SOG
+        format: { unit: kn }
+        bindings:
+          value: { kind: signalk, path: navigation.speedOverGround }
+      hdg:
+        type: compass
+        name: HDG
+        bindings:
+          value: { kind: signalk, path: navigation.headingTrue }
+          dir: { kind: signalk, path: navigation.headingTrue }
+    layout:
+      flow: row
+      children:
+        - element: wind
+        - flow: col
+          children:
+            - element: sog
+            - element: hdg
+    variants:
+      - class: square-480
+        layout:
+          flow: row
+          children:
+            - element: wind
+            - flow: col
+              children:
+                - element: sog
+                - element: hdg

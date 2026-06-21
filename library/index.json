@@ -1,0 +1,130 @@
+[
+  {
+    "id": "anchor-watch",
+    "file": "anchor-watch.midl.yaml",
+    "title": "Anchor Watch",
+    "description": "Depth below transducer, heading and anchor status while at anchor.",
+    "useCase": "Riding at anchor and watching depth and swing.",
+    "tags": [
+      "anchor",
+      "depth",
+      "anchorage",
+      "watch"
+    ],
+    "classes": [
+      "square-480"
+    ],
+    "elements": [
+      "single-value",
+      "compass",
+      "text"
+    ]
+  },
+  {
+    "id": "electrical",
+    "file": "electrical.midl.yaml",
+    "title": "Electrical",
+    "description": "Battery state of charge, bus voltage, charge current and a solar trend.",
+    "useCase": "Watching the house bank and charging at anchor or under way.",
+    "tags": [
+      "electrical",
+      "battery",
+      "power",
+      "solar"
+    ],
+    "classes": [
+      "square-480"
+    ],
+    "elements": [
+      "bar",
+      "gauge",
+      "trend",
+      "single-value"
+    ]
+  },
+  {
+    "id": "engine-systems",
+    "file": "engine-systems.midl.yaml",
+    "title": "Engine & Systems",
+    "description": "Engine RPM and coolant temperature gauges, fuel level and oil pressure.",
+    "useCase": "Motoring or monitoring the engine and tanks.",
+    "tags": [
+      "engine",
+      "systems",
+      "motor",
+      "fuel"
+    ],
+    "classes": [
+      "square-480"
+    ],
+    "elements": [
+      "gauge",
+      "bar",
+      "single-value"
+    ]
+  },
+  {
+    "id": "navigation",
+    "file": "navigation.midl.yaml",
+    "title": "Navigation",
+    "description": "Course to the next waypoint — distance, bearing, COG and cross-track error.",
+    "useCase": "Making a passage toward a waypoint or destination.",
+    "tags": [
+      "navigation",
+      "course",
+      "waypoint",
+      "passage"
+    ],
+    "classes": [
+      "square-480"
+    ],
+    "elements": [
+      "single-value",
+      "compass",
+      "bar"
+    ]
+  },
+  {
+    "id": "racing-vmg",
+    "file": "racing-vmg.midl.yaml",
+    "title": "Racing / VMG",
+    "description": "Apparent-wind rose, a VMG trend, autopilot state and a tack button.",
+    "useCase": "Performance sailing and racing — chasing VMG and managing tacks.",
+    "tags": [
+      "racing",
+      "vmg",
+      "performance",
+      "sailing"
+    ],
+    "classes": [
+      "square-480"
+    ],
+    "elements": [
+      "windrose",
+      "trend",
+      "autopilot",
+      "button"
+    ]
+  },
+  {
+    "id": "wind-steering",
+    "file": "wind-steering.midl.yaml",
+    "title": "Wind & Steering",
+    "description": "Apparent-wind rose with SOG and heading for upwind steering.",
+    "useCase": "Trimming and steering upwind on a beat.",
+    "tags": [
+      "sailing",
+      "upwind",
+      "wind",
+      "steering"
+    ],
+    "classes": [
+      "square-480"
+    ],
+    "elements": [
+      "windrose",
+      "single-value",
+      "compass"
+    ]
+  }
+]
