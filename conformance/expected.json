@@ -1,50 +1,57 @@
 {
   "valid-minimal": {
     "ok": true,
-    "issues": []
+    "paths": []
   },
   "valid-meta": {
     "ok": true,
-    "issues": []
+    "paths": []
   },
   "valid-grid-4": {
     "ok": true,
-    "issues": []
+    "paths": []
   },
   "invalid-unknown-element": {
     "ok": false,
-    "issues": [
+    "paths": [
       "/screens/0/elements/x/type"
     ]
   },
   "invalid-too-many-tiles": {
     "ok": false,
-    "issues": [
+    "paths": [
       "/screens/0/layout"
     ]
   },
   "invalid-incompatible-version": {
     "ok": false,
-    "issues": [
+    "paths": [
       "/midl"
     ]
   },
   "invalid-structural-no-screens": {
     "ok": false,
-    "issues": [
+    "paths": [
       "/"
     ]
   },
   "invalid-signalk-source-no-path": {
     "ok": false,
-    "issues": [
+    "paths": [
       "/screens/0/elements/sog/bindings/value"
     ]
   },
   "invalid-layout-ref-missing": {
     "ok": false,
-    "issues": [
+    "paths": [
       "/screens/0/layout/element"
+    ]
+  },
+  "invalid-two-missing-bindings": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/a/bindings/value",
+      "/screens/0/elements/b/bindings/value"
     ]
   }
 }

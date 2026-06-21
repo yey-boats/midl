@@ -28,9 +28,12 @@ the rules those cases pin. Both validators consume the **same** artifacts — th
 
 ## Verdict contract
 
-A verdict is `{ ok: boolean, issues: <sorted unique set of issue paths> }`. **Severities and messages
-are advisory** and not part of the parity contract — only `ok` and the path set must match across
-languages. Warnings are merged into `issues` on an `ok:true` document so callers see them.
+A verdict is `{ ok: boolean, paths: <ordered distinct issue paths, first-occurrence order> }`. The
+issue **order is contractual**; per-pointer multiplicity is normalized out (consecutive/repeat errors
+at the *same* JSON Pointer collapse to one — a JSON-Schema-engine artifact, e.g. AJV splitting one
+`if/then/required` into two). **Severities and messages stay advisory** — only `ok` and the ordered
+distinct path list must match across languages. Both validators emit issues in document order
+(structural before semantic before capability; within a stage, in source order), so the lists align.
 
 ## Versioning
 
