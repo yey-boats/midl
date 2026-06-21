@@ -1,0 +1,117 @@
+# MIDL validation conformance corpus (S0).
+#
+# The single cross-language parity contract for MIDL validation. Each case is run
+# through the canonical validation pipeline (validateDocument) for its targetClass;
+# both the TypeScript suite (ts/test/conformance.test.ts) and the Python validator
+# assert the same verdict recorded in conformance/expected.json: `ok` plus the
+# SORTED SET of issue paths (severities/messages are advisory, not part of the
+# contract).
+#
+# Re-bless expected.json after an intentional validator change:
+#   npm --prefix ts run build && node conformance/gen-expected.mjs
+# then hand-review the diff. A change that alters a verdict is a contract change.
+
+cases:
+  - name: valid-minimal
+    targetClass: square-480
+    note: smallest admissible document
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: sog }
+
+  - name: valid-meta
+    targetClass: square-480
+    note: additive meta at doc/screen/element is admissible at 1.0.0
+    doc: |
+      midl: 1.0.0
+      meta: { title: Demo, useCase: demo, tags: [demo] }
+      screens:
+        - id: s
+          meta: { title: One }
+          elements:
+            sog: { type: single-value, meta: { description: speed }, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: sog }
+
+  - name: valid-grid-4
+    targetClass: square-480
+    note: a full 2x2 grid is exactly maxTiles for square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+            b: { type: gauge, bindings: { value: { kind: signalk, path: propulsion.main.revolutions } } }
+            c: { type: bar, bindings: { value: { kind: signalk, path: tanks.fuel.0.currentLevel } } }
+            d: { type: compass, bindings: { value: { kind: signalk, path: navigation.headingTrue }, dir: { kind: signalk, path: navigation.headingTrue } } }
+          layout: { rows: 2, cols: 2, cells: [ { element: a }, { element: b }, { element: c }, { element: d } ] }
+
+  - name: invalid-unknown-element
+    targetClass: square-480
+    note: an element type the device class does not advertise
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            x: { type: frobnicator, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: x }
+
+  - name: invalid-too-many-tiles
+    targetClass: square-480
+    note: five leaves exceeds square-480 maxTiles (4)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a } } }
+            b: { type: single-value, bindings: { value: { kind: signalk, path: b } } }
+            c: { type: single-value, bindings: { value: { kind: signalk, path: c } } }
+            d: { type: single-value, bindings: { value: { kind: signalk, path: d } } }
+            e: { type: single-value, bindings: { value: { kind: signalk, path: e } } }
+          layout: { flow: row, children: [ { element: a }, { element: b }, { element: c }, { element: d }, { element: e } ] }
+
+  - name: invalid-incompatible-version
+    targetClass: square-480
+    note: doc major/minor newer than the device manifest (1.0.0)
+    doc: |
+      midl: 2.0.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: sog }
+
+  - name: invalid-structural-no-screens
+    targetClass: square-480
+    note: missing the required `screens` array
+    doc: |
+      midl: 1.0.0
+      settings: {}
+
+  - name: invalid-signalk-source-no-path
+    targetClass: square-480
+    note: a signalk source missing its required `path`
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk } } }
+          layout: { element: sog }
+
+  - name: invalid-layout-ref-missing
+    targetClass: square-480
+    note: layout references an element id that does not exist
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: nope }
