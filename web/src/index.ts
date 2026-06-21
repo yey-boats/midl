@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 export { MidlDashboard, type MidlDashboardProps } from "./MidlDashboard";
-export { renderDashboard, TrendBuffers, type RenderResult } from "./render";
+export { renderDashboard, prepareDashboard, paintPrepared, TrendBuffers, type RenderResult, type PreparedDashboard } from "./render";
 export { SignalKDataProvider, MockDataProvider, collectBindings } from "./data";
 export type { PathSample, PathSampleBatch, DataProvider, ResolvedValue, SignalKProviderOptions } from "./data";
 export { resolveElement, type ElementModel, type ModelState } from "./model";
