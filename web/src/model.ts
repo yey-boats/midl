@@ -23,9 +23,14 @@ export function resolveElement(el: Element, provider: DataProvider): ElementMode
 
   const fmt = formatValue(rv.value, el.format, rv.sourceUnit);
   const numericRequired = NUMERIC_TYPES.has(el.type);
-  if (numericRequired && fmt.numeric == null) return { state: "bad", text: "--" };
 
-  const m: ElementModel = { state: rv.stale ? "stale" : "ok", text: fmt.text, numeric: fmt.numeric };
+  // State priority: no-data (above) -> stale -> bad -> ok.
+  let state: ModelState;
+  if (rv.stale) state = "stale";
+  else if (numericRequired && fmt.numeric == null) state = "bad";
+  else state = "ok";
+
+  const m: ElementModel = { state, text: fmt.text, numeric: fmt.numeric };
 
   if (el.type === "bar" || el.type === "gauge") {
     const range = (el.style?.range as [number, number] | undefined) ?? [0, 1];

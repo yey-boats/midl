@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 import { test, expect } from "vitest";
 import { resolveElement } from "../src/model";
-import { MockDataProvider } from "../src/data";
+import { MockDataProvider, SignalKDataProvider } from "../src/data";
 import type { Element } from "@yey-boats/midl";
 
 const sv = (path: string, format?: Record<string, unknown>, style?: Record<string, unknown>, type = "single-value"): Element =>
@@ -40,4 +40,14 @@ test("compass angle converts radians to degrees and reads dir binding", () => {
   const m = resolveElement(el, p);
   expect(m.angleDeg).toBeCloseTo(90, 4);
   expect(m.dirDeg).toBeCloseTo(180, 4);
+});
+
+test("stale value keeps its last reading but reports stale state", () => {
+  let clock = 0;
+  const sk = new SignalKDataProvider({ freshnessMs: 10, now: () => clock });
+  sk.ingestBatch({ schema: "yey.signalk.paths.v1", context: "vessels.self", generatedAt: "t", samples: [{ path: "navigation.speedOverGround", value: 3.086, sourceUnit: "m/s" }] });
+  clock = 1000;
+  const m = resolveElement(sv("navigation.speedOverGround", { unit: "kn", decimals: 1 }), sk);
+  expect(m.state).toBe("stale");
+  expect(m.text).toBe("6.0 kn");
 });
