@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 import { test, expect } from "vitest";
 import { paintScreen, TrendBuffers } from "../src/paint";
-import { MockDataProvider, SignalKDataProvider } from "../src/data";
+import { MockDataProvider, type DataProvider } from "../src/data";
 import { THEMES } from "../src/theme";
 import type { Element, Placement } from "@yey-boats/midl";
 
@@ -44,11 +44,13 @@ test("bar fill width is proportional to fraction", () => {
 test("stale value paints with the stale token", () => {
   const { ctx, calls } = recorder();
   const els: Record<string, Element> = { s: { type: "single-value", bindings: { value: { kind: "signalk", path: "x" } } } };
-  // a SignalK provider with an old sample => stale
-  let clock = 0; const sk = new SignalKDataProvider({ freshnessMs: 10, now: () => clock });
-  sk.ingestBatch({ schema: "yey.signalk.paths.v1", context: "vessels.self", generatedAt: "t", samples: [{ path: "x", value: 5 }] });
-  clock = 1000;
-  paintScreen(ctx, [place("s")], els, sk, THEMES.night);
+  // a generic provider returning a stale value (transport-agnostic stub)
+  const staleProvider: DataProvider = {
+    now: () => 1000,
+    getValue: () => ({ value: 5, stale: true, present: true, updatedAt: 0 }),
+    subscribe: () => () => {},
+  };
+  paintScreen(ctx, [place("s")], els, staleProvider, THEMES.night);
   expect(calls.some((k) => k.fn === "set:fillStyle" && k.args[0] === THEMES.night.stale)).toBe(true);
 });
 

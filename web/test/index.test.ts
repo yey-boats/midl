@@ -4,7 +4,7 @@ import { test, expect } from "vitest";
 import * as midlWeb from "../src/index";
 
 test("public surface is exported", () => {
-  for (const name of ["MidlDashboard", "renderDashboard", "TrendBuffers", "SignalKDataProvider", "MockDataProvider", "collectBindings", "THEMES", "theme", "resolveElement", "formatValue", "convert"]) {
+  for (const name of ["MidlDashboard", "renderDashboard", "TrendBuffers", "MockDataProvider", "collectBindings", "THEMES", "theme", "resolveElement", "formatValue", "convert"]) {
     expect(midlWeb).toHaveProperty(name);
   }
 });
