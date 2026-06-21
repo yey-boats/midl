@@ -3,9 +3,20 @@
   "version": "0.1.0",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
+  "main": "./dist/midl-web.umd.cjs",
+  "module": "./dist/midl-web.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/midl-web.js",
+      "require": "./dist/midl-web.umd.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:lib": "vite build --config vite.lib.config.ts",
     "test": "vitest run"
   },
   "dependencies": {
