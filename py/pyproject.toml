@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yey-boats-midl"
+version = "0.1.0"
+description = "Pure MIDL validator (Python), parity-locked to the TypeScript reference by the conformance corpus."
+requires-python = ">=3.12"
+dependencies = ["jsonschema>=4.21", "pyyaml>=6.0"]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+yey_boats_midl = ["py.typed"]
