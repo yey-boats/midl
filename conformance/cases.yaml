@@ -4,8 +4,9 @@
 # through the canonical validation pipeline (validateDocument) for its targetClass;
 # both the TypeScript suite (ts/test/conformance.test.ts) and the Python validator
 # assert the same verdict recorded in conformance/expected.json: `ok` plus the
-# SORTED SET of issue paths (severities/messages are advisory, not part of the
-# contract).
+# ORDERED DISTINCT list of issue paths (first-occurrence order; order is
+# contractual, per-pointer multiplicity normalized out; severities/messages are
+# advisory).
 #
 # Re-bless expected.json after an intentional validator change:
 #   npm --prefix ts run build && node conformance/gen-expected.mjs
@@ -115,3 +116,15 @@ cases:
           elements:
             sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
           layout: { element: nope }
+
+  - name: invalid-two-missing-bindings
+    targetClass: square-480
+    note: two elements each missing a required binding — exercises ORDERED multi-path parity
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value }
+            b: { type: gauge }
+          layout: { flow: row, children: [ { element: a }, { element: b } ] }

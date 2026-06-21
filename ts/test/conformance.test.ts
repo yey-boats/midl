@@ -18,8 +18,10 @@ const cases = (parseYaml(readFileSync(join(root, "conformance", "cases.yaml"), "
 }).cases;
 const expected = JSON.parse(readFileSync(join(root, "conformance", "expected.json"), "utf8")) as Record<
   string,
-  { ok: boolean; issues: string[] }
+  { ok: boolean; paths: string[] }
 >;
+/** First-occurrence order, duplicates removed (per-pointer multiplicity is engine-specific). */
+const orderedDistinct = (xs: string[]): string[] => xs.filter((x, i) => xs.indexOf(x) === i);
 const manifest = (cls: string): Manifest =>
   JSON.parse(readFileSync(join(root, "schemas", "gen", `yb-midl-capabilities.${cls}.json`), "utf8"));
 
@@ -31,8 +33,8 @@ describe("validation conformance corpus (TS)", () => {
   for (const c of cases) {
     it(`${c.name}`, () => {
       const res = validateDocument(c.doc, manifest(c.targetClass), c.targetClass);
-      const issues = [...new Set(res.issues.map((i) => i.path))].sort();
-      expect({ ok: res.ok, issues }).toEqual(expected[c.name]);
+      const paths = orderedDistinct(res.issues.map((i) => i.path));
+      expect({ ok: res.ok, paths }).toEqual(expected[c.name]);
     });
   }
 });
