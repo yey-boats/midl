@@ -18,6 +18,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:lib": "vite build --config vite.lib.config.ts",
+    "build:device": "vite build --config vite.device.config.ts",
     "test": "vitest run"
   },
   "dependencies": {
