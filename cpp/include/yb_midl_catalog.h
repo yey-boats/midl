@@ -71,7 +71,7 @@ struct ResClass {
     int width, height, cols, rows, max_tiles, max_depth;
 };
 inline constexpr ResClass CLASSES[] = {
-    {"square-480", 480, 480, 2, 2, 4, 3},
+    {"square-480", 480, 480, 3, 3, 9, 3},
     {"landscape-800x480", 800, 480, 3, 2, 6, 3},
     {"landscape-1024x600", 1024, 600, 3, 2, 6, 4},
 };
