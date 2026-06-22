@@ -6,16 +6,16 @@
   "type": "module",
   "main": "./dist/midl-editor.umd.cjs",
   "module": "./dist/midl-editor.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/editor/src/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/midl-editor.js",
       "require": "./dist/midl-editor.umd.cjs",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/types/editor/src/index.d.ts"
     }
   },
   "scripts": {
-    "build:lib": "vite build --config vite.lib.config.ts",
+    "build:lib": "vite build --config vite.lib.config.ts && tsc --project tsconfig.build.json",
     "test": "vitest run"
   },
   "dependencies": {

@@ -13,6 +13,7 @@ import { addElement, assignElementToCell } from "./layout-ops";
 import { Palette } from "./visual/Palette";
 import { GridCanvas } from "./visual/GridCanvas";
 import { Inspector } from "./visual/Inspector";
+import { SourceEditor } from "./source/SourceEditor";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -310,6 +311,12 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
               onChange={setModel}
             />
           </div>
+        ) : mode === "source" && manifest ? (
+          <SourceEditor
+            model={model}
+            manifest={manifest}
+            onModelChange={setModel}
+          />
         ) : (
           mode
         )}
