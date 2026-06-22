@@ -1,0 +1,54 @@
+midl: 1.0.0
+meta:
+  title: Electrical
+  description: Battery state of charge, bus voltage, charge current and a solar trend.
+  useCase: Watching the house bank and charging at anchor or under way.
+  agentNotes: Choose when the user asks about batteries, charge, voltage, solar or power.
+  tags: [electrical, battery, power, solar]
+screens:
+  - id: power
+    meta:
+      title: Power
+      useCase: Monitor the house bank and charging.
+    elements:
+      soc:
+        type: bar
+        name: SOC
+        bindings:
+          value: { kind: signalk, path: electrical.batteries.house.capacity.stateOfCharge }
+      volts:
+        type: gauge
+        name: VOLTS
+        format: { unit: V }
+        bindings:
+          value: { kind: signalk, path: electrical.batteries.house.voltage }
+      solar:
+        type: trend
+        name: SOLAR
+        format: { unit: W }
+        bindings:
+          value: { kind: signalk, path: electrical.solar.0.panelPower }
+      amps:
+        type: single-value
+        name: CURRENT
+        format: { unit: A }
+        bindings:
+          value: { kind: signalk, path: electrical.batteries.house.current }
+    layout:
+      rows: 2
+      cols: 2
+      cells:
+        - element: soc
+        - element: volts
+        - element: solar
+        - element: amps
+    variants:
+      - class: square-480
+        layout:
+          rows: 2
+          cols: 2
+          cells:
+            - element: soc
+            - element: volts
+            - element: solar
+            - element: amps
