@@ -178,6 +178,58 @@ describe("specific element survival round-trip", () => {
   });
 });
 
+describe("document-level meta (docMeta) round-trip", () => {
+  it("parseMidl captures doc.meta from navigation fixture into model.docMeta", () => {
+    const src = loadFixture("navigation.midl.yaml");
+    const model = parseMidl(src);
+
+    expect(model.docMeta).toBeDefined();
+    expect(model.docMeta?.title).toBe("Navigation");
+    expect(model.docMeta?.description).toContain("waypoint");
+    expect(model.docMeta?.tags).toEqual(expect.arrayContaining(["navigation", "course"]));
+    expect(model.docMeta?.agentNotes).toBeDefined();
+  });
+
+  it("docMeta survives yaml round-trip for navigation fixture (deep-equal)", () => {
+    const src = loadFixture("navigation.midl.yaml");
+    const model1 = parseMidl(src);
+    const model2 = parseMidl(serializeMidl(model1, "yaml"));
+
+    expect(model2.docMeta).toEqual(model1.docMeta);
+  });
+
+  it("docMeta survives json round-trip for electrical fixture (deep-equal)", () => {
+    const src = loadFixture("electrical.midl.yaml");
+    const model1 = parseMidl(src);
+    const model2 = parseMidl(serializeMidl(model1, "json"));
+
+    expect(model2.docMeta).toEqual(model1.docMeta);
+    expect(model1.docMeta?.title).toBe("Electrical");
+    expect(model1.docMeta?.tags).toEqual(expect.arrayContaining(["electrical", "battery"]));
+  });
+
+  it("doc without top-level meta produces undefined docMeta and no spurious meta on round-trip", () => {
+    const noMeta = `midl: 1.0.0
+screens:
+  - id: test
+    elements: {}
+    layout:
+      rows: 1
+      cols: 1
+      cells: []
+`;
+    const model1 = parseMidl(noMeta);
+    expect(model1.docMeta).toBeUndefined();
+
+    const model2 = parseMidl(serializeMidl(model1, "yaml"));
+    expect(model2.docMeta).toBeUndefined();
+  });
+
+  it("full model deep-equal round-trip is preserved for wind-steering (docMeta included)", () => {
+    assertRoundTrip(loadFixture("wind-steering.midl.yaml"), "yaml");
+  });
+});
+
 describe("wind-steering flow-layout fixture", () => {
   it("parseMidl succeeds on flow-based layout (no grid)", () => {
     const src = loadFixture("wind-steering.midl.yaml");

@@ -53,6 +53,16 @@ export interface EditorVariant {
 
 export interface EditorModel {
   midl: string;
+  // Document-level meta block (ConfigDoc.meta) — preserved verbatim for lossless round-trips.
+  // Absent when the source document has no top-level meta.
+  docMeta?: {
+    title?: string;
+    description?: string;
+    useCase?: string;
+    agentNotes?: string;
+    tags?: string[];
+    [k: string]: unknown;
+  };
   screenId: string;
   title: string;
   elements: Record<string, EditorElement>;

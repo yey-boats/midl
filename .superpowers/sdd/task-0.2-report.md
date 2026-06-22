@@ -81,3 +81,9 @@ The `Node` type in ConfigDoc is a union:
 4. **Empty cells in grid**: Cells that are NOT `{element: string}` (e.g. empty `{}`) are preserved as `{}` in EditorModel and reconstructed as `{}` on serialization. Current fixtures don't have empty cells but the code handles them.
 
 5. **TypeScript import of Marker/Action/Meta**: Uses inline `import type` in return position casts in midl-io.ts — works fine under bundler module resolution.
+
+## Fix note (post-commit patch, 2026-06-22)
+
+**Concern 3 resolved — doc-level `meta` now preserved losslessly.**
+
+`EditorModel` gained a `docMeta?` field (typed as the `Meta` shape plus index signature for forward-compat). `parseMidl` copies `doc.meta` into `model.docMeta` when present; `serializeMidl` writes it back to `ConfigDoc.meta` when present and omits it when absent — no spurious empty meta on round-trip. Five new tests cover: (1) docMeta captured from navigation fixture, (2) yaml round-trip deep-equal for navigation, (3) json round-trip deep-equal for electrical, (4) no-meta doc stays stable, (5) full wind-steering model round-trip. All 22 tests pass.

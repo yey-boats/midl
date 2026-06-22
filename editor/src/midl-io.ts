@@ -100,7 +100,7 @@ function screenToEditorModel(doc: ConfigDoc, screen: Screen): EditorModel {
     layout: nodeToLayoutNode(v.layout),
   }));
 
-  return {
+  const model: EditorModel = {
     midl: doc.midl,
     screenId: screen.id,
     title: screen.meta?.title ?? screen.id,
@@ -108,6 +108,10 @@ function screenToEditorModel(doc: ConfigDoc, screen: Screen): EditorModel {
     layout,
     variants,
   };
+  if (doc.meta !== undefined) {
+    model.docMeta = { ...(doc.meta as Record<string, unknown>) };
+  }
+  return model;
 }
 
 // ── parseMidl ─────────────────────────────────────────────────────────────────
@@ -209,6 +213,10 @@ function editorModelToConfigDoc(model: EditorModel): ConfigDoc {
     midl: model.midl,
     screens: [screen],
   };
+
+  if (model.docMeta !== undefined) {
+    doc.meta = model.docMeta as import("@yey-boats/midl").Meta;
+  }
 
   return doc;
 }
