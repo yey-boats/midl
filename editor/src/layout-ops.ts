@@ -58,6 +58,12 @@ export function addCol(m: EditorModel): EditorModel {
 
 export function removeRow(m: EditorModel, row: number): EditorModel {
   const g = assertGrid(m);
+  if (g.rows <= 1) {
+    throw new EditorError("removeRow: cannot remove the last row");
+  }
+  if (row < 0 || row >= g.rows) {
+    throw new EditorError(`removeRow: row index ${row} out of bounds (rows=${g.rows})`);
+  }
   const start = row * g.cols;
   const end = start + g.cols;
   const newCells = [
@@ -79,6 +85,12 @@ export function removeRow(m: EditorModel, row: number): EditorModel {
 
 export function removeCol(m: EditorModel, col: number): EditorModel {
   const g = assertGrid(m);
+  if (g.cols <= 1) {
+    throw new EditorError("removeCol: cannot remove the last column");
+  }
+  if (col < 0 || col >= g.cols) {
+    throw new EditorError(`removeCol: col index ${col} out of bounds (cols=${g.cols})`);
+  }
   const newCells: GridCell[] = [];
   for (let r = 0; r < g.rows; r++) {
     for (let c = 0; c < g.cols; c++) {
@@ -152,14 +164,15 @@ export function clearCell(m: EditorModel, cellIndex: number): EditorModel {
 // ── addElement ────────────────────────────────────────────────────────────────
 
 export function addElement(m: EditorModel, el: EditorElement): EditorModel {
-  assertGrid(m);
+  // No assertGrid here — addElement only touches the elements map, not the layout cells.
+  // Cell-mutating ops (assignElementToCell, clearCell, removeElement, addRow/Col, removeRow/Col)
+  // still require a grid via assertGrid.
   if (el.id in m.elements) {
     throw new EditorError(`addElement: element id "${el.id}" already exists`);
   }
   return {
     ...m,
     elements: { ...m.elements, [el.id]: { ...el } },
-    layout: { ...(m.layout as { rows: number; cols: number; cells: GridCell[] }), cells: [...(m.layout as { rows: number; cols: number; cells: GridCell[] }).cells.map(c => ({ ...c }))] },
   };
 }
 

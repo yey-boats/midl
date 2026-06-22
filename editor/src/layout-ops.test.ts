@@ -201,6 +201,22 @@ describe("removeRow", () => {
   it("throws EditorError for non-grid layout", () => {
     expect(() => removeRow(makeFlowModel(), 0)).toThrow(EditorError);
   });
+
+  // I1 — last row / out-of-range
+  it("throws EditorError when removing the last row (rows===1)", () => {
+    const m = makeGridModel(1, 2);
+    expect(() => removeRow(m, 0)).toThrow(EditorError);
+  });
+
+  it("throws EditorError for out-of-range row index (negative)", () => {
+    const m = makeGridModel(3, 2);
+    expect(() => removeRow(m, -1)).toThrow(EditorError);
+  });
+
+  it("throws EditorError for out-of-range row index (>= rows)", () => {
+    const m = makeGridModel(3, 2);
+    expect(() => removeRow(m, 3)).toThrow(EditorError);
+  });
 });
 
 // ── removeCol ─────────────────────────────────────────────────────────────────
@@ -260,6 +276,22 @@ describe("removeCol", () => {
 
   it("throws EditorError for non-grid layout", () => {
     expect(() => removeCol(makeFlowModel(), 0)).toThrow(EditorError);
+  });
+
+  // I1 — last col / out-of-range
+  it("throws EditorError when removing the last column (cols===1)", () => {
+    const m = makeGridModel(2, 1);
+    expect(() => removeCol(m, 0)).toThrow(EditorError);
+  });
+
+  it("throws EditorError for out-of-range col index (negative)", () => {
+    const m = makeGridModel(2, 3);
+    expect(() => removeCol(m, -1)).toThrow(EditorError);
+  });
+
+  it("throws EditorError for out-of-range col index (>= cols)", () => {
+    const m = makeGridModel(2, 3);
+    expect(() => removeCol(m, 3)).toThrow(EditorError);
   });
 });
 
@@ -373,13 +405,14 @@ describe("addElement", () => {
     expect(m.elements["new"]).toBeUndefined();
   });
 
-  it("works on non-grid layout (elements are layout-independent)", () => {
-    // addElement does NOT require grid — it only touches the elements map
-    // But per the task spec, we need to check: does the spec say throw on non-grid?
-    // Re-reading: "every op throws EditorError on a non-grid (flow) layout"
-    // addElement only touches elements map, not layout — but spec says every op.
+  it("works on a flow-layout model (elements are layout-independent)", () => {
+    // M3: addElement no longer requires grid — it only touches the elements map.
+    // Cell-mutating ops still require grid.
     const flow = makeFlowModel();
-    expect(() => addElement(flow, { id: "el1", type: "t" })).toThrow(EditorError);
+    const result = addElement(flow, { id: "el1", type: "gauge" });
+    expect(result.elements["el1"]).toEqual({ id: "el1", type: "gauge" });
+    // Layout is unchanged
+    expect(result.layout).toEqual(flow.layout);
   });
 });
 

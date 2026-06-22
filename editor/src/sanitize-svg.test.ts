@@ -75,6 +75,52 @@ describe("sanitizeSvg — malicious inputs neutralized", () => {
     const out = sanitizeSvg("<<<not svg at all>>>");
     expect(out).toBe(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`);
   });
+
+  // C1 — uppercase/mixed-case tag names must be removed too
+  it("removes <SCRIPT> (uppercase) element", () => {
+    const input = `<svg xmlns="http://www.w3.org/2000/svg"><SCRIPT>alert(1)</SCRIPT><rect/></svg>`;
+    const out = sanitizeSvg(input);
+    const doc = parse(out);
+    // No element whose lowercased tag is "script"
+    const scripts = Array.from(doc.querySelectorAll("*")).filter(
+      (el) => el.tagName.toLowerCase() === "script"
+    );
+    expect(scripts).toHaveLength(0);
+    expect(doc.querySelectorAll("rect")).toHaveLength(1);
+  });
+
+  it("removes <ForeignObject> (mixed-case) element", () => {
+    const input = `<svg xmlns="http://www.w3.org/2000/svg"><ForeignObject><div onclick="evil()"></div></ForeignObject></svg>`;
+    const out = sanitizeSvg(input);
+    const doc = parse(out);
+    const fos = Array.from(doc.querySelectorAll("*")).filter(
+      (el) => el.tagName.toLowerCase() === "foreignobject"
+    );
+    expect(fos).toHaveLength(0);
+    const divs = Array.from(doc.querySelectorAll("*")).filter(
+      (el) => el.tagName.toLowerCase() === "div"
+    );
+    expect(divs).toHaveLength(0);
+  });
+
+  // M2 — data: href stripped on <image> and <use>
+  it("strips data: href from <image> element", () => {
+    const input = `<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,abc"/></svg>`;
+    const out = sanitizeSvg(input);
+    const doc = parse(out);
+    const image = doc.querySelector("image");
+    expect(image).not.toBeNull();
+    expect(image!.hasAttribute("href")).toBe(false);
+  });
+
+  it("strips data: xlink:href from <use> element", () => {
+    const xlinkNs = "http://www.w3.org/1999/xlink";
+    const input = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="${xlinkNs}"><use xlink:href="data:text/html;base64,xyz"/></svg>`;
+    const out = sanitizeSvg(input);
+    const doc = parse(out);
+    const useEl = doc.querySelector("use");
+    expect(useEl?.getAttributeNS(xlinkNs, "href") ?? null).toBeNull();
+  });
 });
 
 describe("sanitizeSvg — benign SVG survives structurally unchanged", () => {

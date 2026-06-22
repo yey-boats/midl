@@ -146,9 +146,18 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
           expectedRevision: overwrite ? undefined : revisionRef.current,
         });
         // Update tracking state on success
-        idRef.current = result.ref.id;
-        // Try to get new revision from validation metadata if present
-        revisionRef.current = undefined; // server will set new revision
+        const savedId = result.ref.id;
+        idRef.current = savedId;
+        // Refresh revision so the next save can send expectedRevision (optimistic concurrency).
+        // Attempt to get the latest revision from the store; if not available, keep the last
+        // known revision rather than nulling it (nulling would lose optimistic concurrency).
+        try {
+          const { metadata } = await store.get(savedId);
+          revisionRef.current = metadata.revision;
+        } catch {
+          // TODO: if store.get fails here, revisionRef.current retains its pre-save value
+          // (better than undefined — at least the next save sends *something*).
+        }
         setConflictVisible(false);
         onSaved?.(result.ref);
       } catch (err) {
@@ -191,20 +200,30 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
 
   const handleAddElement = useCallback(
     (type: string) => {
-      const id = `el-${Date.now()}`;
-      const newEl = { id, type };
-      const withEl = addElement(model, newEl);
-      // Assign to selected cell or first empty cell
-      const layout = withEl.layout as { rows: number; cols: number; cells: Array<{ element?: string }> };
-      const targetCell =
-        selectedCell !== null && !layout.cells[selectedCell]?.element
-          ? selectedCell
-          : layout.cells.findIndex((c) => !c.element);
-      const finalModel = targetCell >= 0
-        ? assignElementToCell(withEl, targetCell, id)
-        : withEl;
-      setModel(finalModel);
-      if (targetCell >= 0) setSelectedCell(targetCell);
+      try {
+        const id = crypto.randomUUID();
+        const newEl = { id, type };
+        const withEl = addElement(model, newEl);
+        // Assign to selected cell or first empty cell (only meaningful for grid layouts)
+        const isGrid =
+          "rows" in withEl.layout && "cols" in withEl.layout && "cells" in withEl.layout;
+        if (!isGrid) {
+          setModel(withEl);
+          return;
+        }
+        const layout = withEl.layout as { rows: number; cols: number; cells: Array<{ element?: string }> };
+        const targetCell =
+          selectedCell !== null && !layout.cells[selectedCell]?.element
+            ? selectedCell
+            : layout.cells.findIndex((c) => !c.element);
+        const finalModel = targetCell >= 0
+          ? assignElementToCell(withEl, targetCell, id)
+          : withEl;
+        setModel(finalModel);
+        if (targetCell >= 0) setSelectedCell(targetCell);
+      } catch {
+        // Ignore element-add errors (e.g. duplicate id — should not happen with UUID)
+      }
     },
     [model, selectedCell],
   );

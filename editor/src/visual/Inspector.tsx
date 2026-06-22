@@ -61,12 +61,10 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
 
   function handlePathChange(path: string) {
     if (!selectedElement) return;
-    const currentBinding = selectedElement.bindings?.["value"];
-    const newBinding: BindingSource = {
-      kind: "signalk",
-      ...currentBinding,
-      path,
-    };
+    // Always produce a clean signalk binding — do NOT spread currentBinding,
+    // as that would let a non-signalk binding's `kind` field clobber the one
+    // we are setting here, causing the path to be silently dropped later.
+    const newBinding: BindingSource = { kind: "signalk", path };
     updateElement({
       ...selectedElement,
       bindings: { ...selectedElement.bindings, value: newBinding },

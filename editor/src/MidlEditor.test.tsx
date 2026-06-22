@@ -240,6 +240,53 @@ test("clicking Save calls store.save with serialized source + name", async () =>
   expect(onSaved).toHaveBeenCalled();
 });
 
+test("second consecutive save sends expectedRevision from the revision refreshed after first save", async () => {
+  // I6: after a successful save the component re-fetches the dashboard to get the new
+  // revision (the fake store returns "rev-1" for every get). The second save must include
+  // expectedRevision so optimistic concurrency is maintained.
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+    />,
+  );
+
+  // Wait for init (loads dashboard, sets revisionRef to "rev-1")
+  await waitFor(() => {
+    expect(getByTestId("save-button")).toBeTruthy();
+  });
+
+  // First save
+  await act(async () => {
+    fireEvent.click(getByTestId("save-button"));
+  });
+
+  await waitFor(() => {
+    expect(store.savedCalls.length).toBe(1);
+  });
+
+  // After the first save the component calls store.get, which returns revision "rev-1".
+  // So the second save must carry expectedRevision: "rev-1".
+
+  // Second save
+  await act(async () => {
+    fireEvent.click(getByTestId("save-button"));
+  });
+
+  await waitFor(() => {
+    expect(store.savedCalls.length).toBe(2);
+  });
+
+  const secondCall = store.savedCalls[1];
+  expect(secondCall.expectedRevision).toBe("rev-1");
+});
+
 test("save that throws RevisionConflict shows conflict-banner and Overwrite retries", async () => {
   const store = makeFakeStore();
   store.conflictOnNext = true;

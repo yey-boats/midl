@@ -34,7 +34,8 @@ export function SourceEditor({
   // The text currently in the textarea.
   const [text, setText] = useState(() => serializeMidl(model, "yaml"));
   // Validation / parse issues to show below the textarea.
-  const [issues, setIssues] = useState<Issue[]>([]);
+  // Initialize from the current model so issues are visible immediately on mount.
+  const [issues, setIssues] = useState<Issue[]>(() => validateModel(model, manifest).issues);
   // Whether the textarea is focused (user is editing).
   const focusedRef = useRef(false);
   // Debounce timer reference.

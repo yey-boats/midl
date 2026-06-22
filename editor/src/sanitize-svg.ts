@@ -8,6 +8,14 @@ function isJavascriptUri(value: string): boolean {
   return /^\s*javascript:/i.test(value);
 }
 
+/** Returns true when the attribute value is a data: URI. */
+function isDataUri(value: string): boolean {
+  return /^\s*data:/i.test(value);
+}
+
+/** Elements for which data: href/xlink:href should also be stripped. */
+const DATA_HREF_STRIP_TAGS = new Set(["image", "use"]);
+
 /**
  * Removes dangerous content from an SVG string while leaving benign
  * structure and attributes intact.
@@ -29,14 +37,14 @@ export function sanitizeSvg(svg: string): string {
     return SAFE_EMPTY_SVG;
   }
 
-  // Remove <script> elements
-  for (const el of Array.from(doc.querySelectorAll("script"))) {
-    el.parentNode?.removeChild(el);
-  }
-
-  // Remove <foreignObject> elements
-  for (const el of Array.from(doc.querySelectorAll("foreignObject"))) {
-    el.parentNode?.removeChild(el);
+  // Remove <script> and <foreignObject> elements — walk ALL elements and match by
+  // lowercase tagName so uppercase/mixed-case variants (e.g. <SCRIPT>, <ForeignObject>)
+  // are caught too. (querySelectorAll is case-sensitive in XML documents.)
+  const DANGEROUS_TAGS = new Set(["script", "foreignobject"]);
+  for (const el of Array.from(doc.querySelectorAll("*"))) {
+    if (DANGEROUS_TAGS.has(el.tagName.toLowerCase())) {
+      el.parentNode?.removeChild(el);
+    }
   }
 
   // Walk every element and clean dangerous attributes
@@ -51,10 +59,11 @@ export function sanitizeSvg(svg: string): string {
         continue;
       }
 
-      // Remove href / xlink:href that carry javascript: URIs
+      // Remove href / xlink:href that carry javascript: or (for image/use) data: URIs
       if (localName === "href" || name === "xlink:href") {
         const value = el.getAttribute(name) ?? el.getAttributeNS("http://www.w3.org/1999/xlink", "href") ?? "";
-        if (isJavascriptUri(value)) {
+        const tagLower = el.tagName.toLowerCase();
+        if (isJavascriptUri(value) || (isDataUri(value) && DATA_HREF_STRIP_TAGS.has(tagLower))) {
           el.removeAttribute(name);
         }
       }
@@ -62,8 +71,11 @@ export function sanitizeSvg(svg: string): string {
 
     // Also check namespaced xlink:href explicitly
     const xlinkHref = el.getAttributeNS("http://www.w3.org/1999/xlink", "href");
-    if (xlinkHref !== null && isJavascriptUri(xlinkHref)) {
-      el.removeAttributeNS("http://www.w3.org/1999/xlink", "href");
+    if (xlinkHref !== null) {
+      const tagLower = el.tagName.toLowerCase();
+      if (isJavascriptUri(xlinkHref) || (isDataUri(xlinkHref) && DATA_HREF_STRIP_TAGS.has(tagLower))) {
+        el.removeAttributeNS("http://www.w3.org/1999/xlink", "href");
+      }
     }
   }
 

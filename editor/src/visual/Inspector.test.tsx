@@ -192,6 +192,46 @@ test("shows empty state when no cell is selected", () => {
   expect(getByText(/select a cell/i)).toBeTruthy();
 });
 
+// I2 — handlePathChange must produce kind:signalk even when current binding is not signalk
+test("changing path when current value binding is kind:local produces a signalk binding with new path", () => {
+  const model = makeGridModel({
+    elements: {
+      sog: {
+        id: "sog",
+        type: "single-value",
+        name: "SOG",
+        // start with a local binding, NOT signalk
+        bindings: { value: { kind: "local", id: "my-local-source" } },
+      },
+    },
+  });
+  const provider = new MockDataProvider({});
+  const onChange = vi.fn();
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  const picker = getByTestId("path-picker");
+  fireEvent.change(picker, { target: { value: "navigation.headingTrue" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  const nextModel: EditorModel = onChange.mock.calls[0][0];
+  const binding = nextModel.elements["sog"]?.bindings?.["value"];
+  expect(binding).toBeDefined();
+  // Must be signalk — not local
+  expect(binding!.kind).toBe("signalk");
+  expect((binding as { kind: string; path: string }).path).toBe("navigation.headingTrue");
+  // Must NOT carry the old `id` field from the local binding
+  expect((binding as Record<string, unknown>)["id"]).toBeUndefined();
+});
+
 test("shows empty state when selected cell is empty (no element)", () => {
   const model = makeGridModel();
   const provider = new MockDataProvider({});

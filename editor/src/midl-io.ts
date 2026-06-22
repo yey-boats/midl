@@ -111,6 +111,13 @@ function screenToEditorModel(doc: ConfigDoc, screen: Screen): EditorModel {
   if (doc.meta !== undefined) {
     model.docMeta = { ...(doc.meta as Record<string, unknown>) };
   }
+  // Preserve all screen-level meta fields beyond title so they survive round-trips.
+  if (screen.meta !== undefined) {
+    const { title: _title, ...rest } = screen.meta as Record<string, unknown>;
+    if (Object.keys(rest).length > 0) {
+      model.screenMeta = rest;
+    }
+  }
   return model;
 }
 
@@ -197,7 +204,8 @@ function editorModelToConfigDoc(model: EditorModel): ConfigDoc {
 
   const screen: Screen = {
     id: model.screenId,
-    meta: { title: model.title },
+    // Merge screenMeta back, then override/set title from model.title to preserve field order.
+    meta: { ...(model.screenMeta ?? {}), title: model.title },
     elements,
     layout: layoutNodeToNode(model.layout),
   };

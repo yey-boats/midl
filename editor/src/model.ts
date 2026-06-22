@@ -65,6 +65,9 @@ export interface EditorModel {
   };
   screenId: string;
   title: string;
+  // Screen-level meta fields beyond title (e.g. useCase, description, agentNotes).
+  // Preserved verbatim for lossless round-trips. Absent when the screen has no extra meta.
+  screenMeta?: Record<string, unknown>;
   elements: Record<string, EditorElement>;
   // The screen's default layout node (grid or flow).
   layout: LayoutNode;

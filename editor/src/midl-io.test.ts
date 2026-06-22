@@ -230,6 +230,55 @@ screens:
   });
 });
 
+describe("screen-level meta (screenMeta) round-trip", () => {
+  it("parseMidl captures screen.meta.useCase into model.screenMeta from navigation fixture", () => {
+    const src = loadFixture("navigation.midl.yaml");
+    const model = parseMidl(src);
+
+    expect(model.screenMeta).toBeDefined();
+    expect((model.screenMeta as Record<string, unknown>)["useCase"]).toBe(
+      "Watch progress toward the active waypoint."
+    );
+  });
+
+  it("screen.meta.useCase survives a source→model→source→model round-trip (navigation fixture)", () => {
+    const src = loadFixture("navigation.midl.yaml");
+    const model1 = parseMidl(src);
+    const serialized = serializeMidl(model1, "yaml");
+    const model2 = parseMidl(serialized);
+
+    expect((model2.screenMeta as Record<string, unknown> | undefined)?.["useCase"]).toBe(
+      (model1.screenMeta as Record<string, unknown> | undefined)?.["useCase"]
+    );
+  });
+
+  it("screen.meta.useCase survives round-trip for electrical fixture", () => {
+    const src = loadFixture("electrical.midl.yaml");
+    const model1 = parseMidl(src);
+
+    expect((model1.screenMeta as Record<string, unknown> | undefined)?.["useCase"]).toBeDefined();
+
+    const model2 = parseMidl(serializeMidl(model1, "yaml"));
+    expect(model2.screenMeta).toEqual(model1.screenMeta);
+  });
+
+  it("screenMeta is undefined when screen has no extra meta beyond title", () => {
+    const noExtraMeta = `midl: 1.0.0
+screens:
+  - id: test
+    meta:
+      title: Just Title
+    elements: {}
+    layout:
+      rows: 1
+      cols: 1
+      cells: []
+`;
+    const model = parseMidl(noExtraMeta);
+    expect(model.screenMeta).toBeUndefined();
+  });
+});
+
 describe("wind-steering flow-layout fixture", () => {
   it("parseMidl succeeds on flow-based layout (no grid)", () => {
     const src = loadFixture("wind-steering.midl.yaml");

@@ -165,15 +165,39 @@ describe("validateModel — Validation shape", () => {
     }
   });
 
-  it("ok field is true iff no issue has severity 'error' (or omitted severity)", () => {
+  it("ok:false for a model with an element type that is completely unknown (concrete invalid model)", () => {
+    // Use a minimal, hand-crafted invalid model — not a re-derivation of impl logic.
+    const invalidModel: import("./model").EditorModel = {
+      midl: "1.0.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        bad: { id: "bad", type: "totally-unknown-widget-zzz" },
+      },
+      layout: { rows: 1, cols: 1, cells: [{ element: "bad" }] },
+      variants: [],
+    };
+
+    const result = validateModel(invalidModel, SQUARE_480_MANIFEST);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.length).toBeGreaterThan(0);
+    // At least one issue must have a non-empty message
+    const hasMessage = result.issues.some((i) => i.message.length > 0);
+    expect(hasMessage).toBe(true);
+  });
+
+  it("ok:true for a valid model with zero error-severity issues", () => {
+    // navigation fixture is known-valid against SQUARE_480_MANIFEST
     const src = loadFixture("navigation.midl.yaml");
     const model = parseMidl(src);
     const result = validateModel(model, SQUARE_480_MANIFEST);
 
-    const hasErrors = result.issues.some(
+    expect(result.ok).toBe(true);
+    // Confirm there are genuinely no error issues (not just relying on the ok flag)
+    const errorIssues = result.issues.filter(
       (i) => i.severity === "error" || i.severity === undefined
     );
-    // ok should be true when no errors
-    expect(result.ok).toBe(!hasErrors);
+    expect(errorIssues).toHaveLength(0);
   });
 });

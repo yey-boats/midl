@@ -158,11 +158,10 @@ describe("SourceEditor", () => {
     expect(issuesList.textContent).toBeTruthy();
   });
 
-  it("renders validation issues list for a valid but semantically-invalid doc", async () => {
+  it("renders validation issues list with issue text for a semantically-invalid doc", async () => {
     const onModelChange = vi.fn();
 
-    // Build a model with an element type that doesn't exist in the manifest's allowed list
-    // (compass is not in MINIMAL_MANIFEST's elements list — only single-value is)
+    // compass is not in MINIMAL_MANIFEST.elements (only single-value is)
     const modelWithUnknownElement: EditorModel = {
       midl: "1.0.0",
       screenId: "screen",
@@ -170,7 +169,7 @@ describe("SourceEditor", () => {
       elements: {
         myCompass: {
           id: "myCompass",
-          type: "compass", // not in MINIMAL_MANIFEST.elements
+          type: "compass",
           bindings: {},
         },
       },
@@ -186,10 +185,16 @@ describe("SourceEditor", () => {
       />,
     );
 
+    // The SourceEditor runs validateModel on mount, which should produce issues
+    // because compass is not a supported type in MINIMAL_MANIFEST.
+    const validation = validateModel(modelWithUnknownElement, MINIMAL_MANIFEST);
+    expect(validation.ok).toBe(false);
+    expect(validation.issues.length).toBeGreaterThan(0);
+
     const issuesList = getByTestId("source-issues");
-    // Should show at least one issue (element type not found in manifest)
-    expect(issuesList).toBeTruthy();
-    // Issues may or may not be present for just this; the list container should be rendered
+    const listText = issuesList.textContent ?? "";
+    // At least one known issue message must appear in the rendered list
+    expect(listText).toContain(validation.issues[0].message);
   });
 
   it("textarea reflects a new model when model prop changes (and textarea is not focused)", async () => {
@@ -221,11 +226,13 @@ describe("SourceEditor", () => {
     expect(textarea.value).toBe(expectedYaml);
   });
 
-  it("textarea value shows issues path and message for known issues", async () => {
+  it("issues list is empty (no <li> items) when model is valid", async () => {
     const onModelChange = vi.fn();
 
-    // MODEL_WITH_ELEMENT has a valid structure — get known issues from validateModel
+    // MODEL_WITH_ELEMENT uses single-value which IS in MINIMAL_MANIFEST — should be valid
     const validation = validateModel(MODEL_WITH_ELEMENT, MINIMAL_MANIFEST);
+    // Confirm this is actually a valid model for this test to be meaningful
+    expect(validation.ok).toBe(true);
 
     const { getByTestId } = render(
       <SourceEditor
@@ -236,16 +243,9 @@ describe("SourceEditor", () => {
     );
 
     const issuesList = getByTestId("source-issues");
-
-    if (validation.issues.length > 0) {
-      // Check that at least one issue path or message appears in the list
-      const firstIssue = validation.issues[0];
-      const text = issuesList.textContent ?? "";
-      expect(text).toContain(firstIssue.message);
-    } else {
-      // No issues — list should be empty or say "No issues"
-      expect(issuesList).toBeTruthy();
-    }
+    // No <li> issue items should be rendered for a valid model
+    const items = issuesList.querySelectorAll("li");
+    expect(items.length).toBe(0);
   });
 });
 
