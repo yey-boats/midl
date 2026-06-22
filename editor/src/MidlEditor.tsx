@@ -1,0 +1,265 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import type { Manifest } from "@yey-boats/midl";
+import type { DataProvider } from "@yey-boats/midl-web";
+import type { DashboardStoreAdapter, ManifestSource, DashboardRef } from "./adapters";
+import { RevisionConflict } from "./adapters";
+import type { EditorModel } from "./model";
+import { parseMidl, serializeMidl } from "./midl-io";
+import { usePreview } from "./usePreview";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+export interface MidlEditorProps {
+  store: DashboardStoreAdapter;
+  provider: DataProvider;
+  manifest: ManifestSource;
+  initialId?: string;
+  targetClass?: string;
+  onSaved?: (ref: DashboardRef) => void;
+}
+
+type Mode = "visual" | "source";
+type Theme = "night" | "day";
+
+// Supported class values for the class-switch dropdown
+const SUPPORTED_CLASSES = ["square-480", "landscape-800x480", "landscape-1024x600"];
+
+// ── Blank model factory ────────────────────────────────────────────────────────
+
+function makeBlankModel(targetClass: string): EditorModel {
+  return {
+    midl: "1.0.0",
+    screenId: "screen",
+    title: "New Dashboard",
+    elements: {},
+    layout: { rows: 1, cols: 1, cells: [{}] },
+    variants: [],
+  };
+}
+
+// ── MidlEditor component ───────────────────────────────────────────────────────
+
+export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
+  const { store, provider, manifest: manifestSource, initialId, onSaved } = props;
+  const defaultClass = props.targetClass ?? "square-480";
+
+  // ── State ────────────────────────────────────────────────────────────────────
+
+  const [model, setModel] = useState<EditorModel>(() => makeBlankModel(defaultClass));
+  const [manifest, setManifest] = useState<Manifest | null>(null);
+  const [name, setName] = useState("New Dashboard");
+  const [mode, setMode] = useState<Mode>("visual");
+  const [themeChoice, setThemeChoice] = useState<Theme>("night");
+  const [className, setClassName] = useState(defaultClass);
+
+  // Revision tracking for optimistic concurrency
+  const revisionRef = useRef<string | undefined>(undefined);
+  const idRef = useRef<string | undefined>(initialId);
+
+  // Save UI state
+  const [saving, setSaving] = useState(false);
+  const [conflictVisible, setConflictVisible] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // ── Init on mount ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function init() {
+      // Load manifest
+      const mf = await manifestSource.get(className);
+      if (cancelled) return;
+      setManifest(mf);
+
+      // Load existing dashboard
+      if (initialId) {
+        try {
+          const { doc, metadata } = await store.get(initialId);
+          if (cancelled) return;
+          const parsed = parseMidl(doc);
+          setModel(parsed);
+          setName(parsed.title);
+          revisionRef.current = metadata.revision;
+          idRef.current = initialId;
+        } catch {
+          // If load fails, start from blank
+        }
+      }
+    }
+
+    void init();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-fetch manifest when className changes (after initial mount)
+  const isFirstMount = useRef(true);
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    manifestSource.get(className).then(setManifest).catch(() => {});
+  }, [className, manifestSource]);
+
+  // ── Preview ──────────────────────────────────────────────────────────────────
+
+  const previewManifest = manifest ?? {
+    midl: "1.0.0",
+    board: "preview",
+    classes: [{ id: className, width: 480, height: 480, maxTiles: 4, maxDepth: 3, elements: [] }],
+    elements: [],
+    sources: [],
+  };
+
+  const previewOpts = { theme: themeChoice, className };
+  const { svg: previewSvg, error: previewError } = usePreview(
+    model,
+    provider,
+    previewManifest,
+    previewOpts,
+  );
+
+  // ── Save ─────────────────────────────────────────────────────────────────────
+
+  const doSave = useCallback(
+    async (overwrite: boolean) => {
+      setSaving(true);
+      setSaveError(null);
+      try {
+        const source = serializeMidl(model, "yaml");
+        const result = await store.save({
+          id: idRef.current,
+          source,
+          name,
+          targetClass: className,
+          expectedRevision: overwrite ? undefined : revisionRef.current,
+        });
+        // Update tracking state on success
+        idRef.current = result.ref.id;
+        // Try to get new revision from validation metadata if present
+        revisionRef.current = undefined; // server will set new revision
+        setConflictVisible(false);
+        onSaved?.(result.ref);
+      } catch (err) {
+        if (err instanceof RevisionConflict) {
+          setConflictVisible(true);
+        } else {
+          setSaveError(err instanceof Error ? err.message : String(err));
+        }
+      } finally {
+        setSaving(false);
+      }
+    },
+    [model, name, className, store, onSaved],
+  );
+
+  const handleSave = useCallback(() => {
+    setConflictVisible(false);
+    void doSave(false);
+  }, [doSave]);
+
+  const handleOverwrite = useCallback(() => {
+    void doSave(true);
+  }, [doSave]);
+
+  const handleReload = useCallback(async () => {
+    if (!idRef.current) return;
+    try {
+      const { doc, metadata } = await store.get(idRef.current);
+      const parsed = parseMidl(doc);
+      setModel(parsed);
+      setName(parsed.title);
+      revisionRef.current = metadata.revision;
+      setConflictVisible(false);
+    } catch {
+      // Ignore reload errors
+    }
+  }, [store]);
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  return (
+    <div data-component="midl-editor">
+      {/* Header bar */}
+      <div data-testid="editor-header" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        <button
+          data-testid="mode-toggle"
+          onClick={() => setMode((m) => (m === "visual" ? "source" : "visual"))}
+        >
+          {mode === "visual" ? "Source" : "Visual"}
+        </button>
+
+        <button
+          data-testid="theme-switch"
+          onClick={() => setThemeChoice((t) => (t === "night" ? "day" : "night"))}
+        >
+          {themeChoice === "night" ? "Day" : "Night"}
+        </button>
+
+        <select
+          data-testid="class-switch"
+          value={className}
+          onChange={(e) => setClassName(e.target.value)}
+        >
+          {SUPPORTED_CLASSES.map((cls) => (
+            <option key={cls} value={cls}>{cls}</option>
+          ))}
+        </select>
+
+        <input
+          data-testid="name-input"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Dashboard name"
+        />
+
+        <button
+          data-testid="save-button"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+
+      {/* Conflict banner */}
+      {conflictVisible && (
+        <div data-testid="conflict-banner" role="alert">
+          <span>Revision conflict — the dashboard was updated elsewhere.</span>
+          <button data-action="reload" onClick={() => void handleReload()}>Reload</button>
+          <button data-action="overwrite" onClick={handleOverwrite}>Overwrite</button>
+        </div>
+      )}
+
+      {/* Save error banner */}
+      {saveError && (
+        <div data-testid="save-error-banner" role="alert">
+          {saveError}
+        </div>
+      )}
+
+      {/* Preview pane */}
+      <div
+        data-testid="preview-host"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: previewSvg }}
+      />
+
+      {/* Preview error indicator */}
+      {previewError && (
+        <div data-testid="preview-error">{previewError}</div>
+      )}
+
+      {/* Mode body — visual/source editors mount here in later tasks */}
+      <div data-testid="mode-body">
+        {mode}
+      </div>
+    </div>
+  );
+}
