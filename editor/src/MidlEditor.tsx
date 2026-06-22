@@ -9,6 +9,10 @@ import { RevisionConflict } from "./adapters";
 import type { EditorModel } from "./model";
 import { parseMidl, serializeMidl } from "./midl-io";
 import { usePreview } from "./usePreview";
+import { addElement, assignElementToCell } from "./layout-ops";
+import { Palette } from "./visual/Palette";
+import { GridCanvas } from "./visual/GridCanvas";
+import { Inspector } from "./visual/Inspector";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -54,6 +58,7 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
   const [mode, setMode] = useState<Mode>("visual");
   const [themeChoice, setThemeChoice] = useState<Theme>("night");
   const [className, setClassName] = useState(defaultClass);
+  const [selectedCell, setSelectedCell] = useState<number | null>(null);
 
   // Revision tracking for optimistic concurrency
   const revisionRef = useRef<string | undefined>(undefined);
@@ -181,6 +186,28 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     }
   }, [store]);
 
+  // ── Visual mode: add element from palette ────────────────────────────────────
+
+  const handleAddElement = useCallback(
+    (type: string) => {
+      const id = `el-${Date.now()}`;
+      const newEl = { id, type };
+      const withEl = addElement(model, newEl);
+      // Assign to selected cell or first empty cell
+      const layout = withEl.layout as { rows: number; cols: number; cells: Array<{ element?: string }> };
+      const targetCell =
+        selectedCell !== null && !layout.cells[selectedCell]?.element
+          ? selectedCell
+          : layout.cells.findIndex((c) => !c.element);
+      const finalModel = targetCell >= 0
+        ? assignElementToCell(withEl, targetCell, id)
+        : withEl;
+      setModel(finalModel);
+      if (targetCell >= 0) setSelectedCell(targetCell);
+    },
+    [model, selectedCell],
+  );
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -244,21 +271,48 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
         </div>
       )}
 
-      {/* Preview pane */}
-      <div
-        data-testid="preview-host"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: previewSvg }}
-      />
+      {/* Preview pane with grid overlay */}
+      <div style={{ position: "relative" }}>
+        <div
+          data-testid="preview-host"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: previewSvg }}
+        />
+        {mode === "visual" && (
+          <div style={{ position: "absolute", inset: 0 }}>
+            <GridCanvas
+              model={model}
+              viewport={{ w: 480, h: 480 }}
+              selected={selectedCell}
+              onSelect={setSelectedCell}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Preview error indicator */}
       {previewError && (
         <div data-testid="preview-error">{previewError}</div>
       )}
 
-      {/* Mode body — visual/source editors mount here in later tasks */}
-      <div data-testid="mode-body">
-        {mode}
+      {/* Mode body */}
+      <div data-testid="mode-body" data-mode={mode}>
+        {/* Mode label for tests / accessibility */}
+        <span style={{ display: "none" }}>{mode}</span>
+        {mode === "visual" && manifest ? (
+          <div data-testid="visual-mode-body" style={{ display: "flex", gap: "16px" }}>
+            <Palette manifest={manifest} onAdd={handleAddElement} />
+            <Inspector
+              model={model}
+              selectedCell={selectedCell}
+              manifest={manifest}
+              provider={provider}
+              onChange={setModel}
+            />
+          </div>
+        ) : (
+          mode
+        )}
       </div>
     </div>
   );
