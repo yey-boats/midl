@@ -16,6 +16,7 @@
   },
   "scripts": {
     "build:lib": "vite build --config vite.lib.config.ts && tsc --project tsconfig.build.json",
+    "build:global": "vite build --config vite.global.config.ts",
     "test": "vitest run"
   },
   "dependencies": {
