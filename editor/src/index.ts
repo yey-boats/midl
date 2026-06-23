@@ -17,6 +17,8 @@ export { validateModel } from "./validate";
 
 export { sanitizeSvg } from "./sanitize-svg";
 
+export { parseDoc, toCanonicalJson } from "@yey-boats/midl";
+
 export * as layoutOps from "./layout-ops";
 
 export { mount } from "./mount";

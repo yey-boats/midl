@@ -70,6 +70,12 @@ try {
   if (typeof exports.mount !== "function") throw new Error("window.MidlEditor.mount is not a function");
   console.log("  ✓ window.MidlEditor.mount is a function");
 
+  if (typeof exports.parseDoc !== "function") throw new Error("window.MidlEditor.parseDoc is not a function");
+  console.log("  ✓ window.MidlEditor.parseDoc is a function");
+
+  if (typeof exports.toCanonicalJson !== "function") throw new Error("window.MidlEditor.toCanonicalJson is not a function");
+  console.log("  ✓ window.MidlEditor.toCanonicalJson is a function");
+
 } catch (e) {
   if (!jsdomAvailable) {
     console.log("  (jsdom not available — skipping eval assertions, string checks passed)");
