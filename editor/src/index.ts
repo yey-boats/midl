@@ -18,3 +18,5 @@ export { validateModel } from "./validate";
 export { sanitizeSvg } from "./sanitize-svg";
 
 export * as layoutOps from "./layout-ops";
+
+export { mount } from "./mount";

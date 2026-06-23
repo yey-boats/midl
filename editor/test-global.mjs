@@ -67,6 +67,9 @@ try {
   if (!exports.layoutOps || typeof exports.layoutOps !== "object") throw new Error("window.MidlEditor.layoutOps is not an object");
   console.log("  ✓ window.MidlEditor.layoutOps is an object");
 
+  if (typeof exports.mount !== "function") throw new Error("window.MidlEditor.mount is not a function");
+  console.log("  ✓ window.MidlEditor.mount is a function");
+
 } catch (e) {
   if (!jsdomAvailable) {
     console.log("  (jsdom not available — skipping eval assertions, string checks passed)");
