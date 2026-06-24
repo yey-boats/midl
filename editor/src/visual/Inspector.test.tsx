@@ -8,6 +8,7 @@ import React from "react";
 import type { Manifest } from "@yey-boats/midl";
 import { MockDataProvider } from "@yey-boats/midl-web";
 import type { EditorModel } from "../model";
+import { parseMidl, serializeMidl } from "../midl-io";
 import { Inspector } from "./Inspector";
 
 afterEach(() => cleanup());
@@ -249,4 +250,155 @@ test("shows empty state when selected cell is empty (no element)", () => {
   );
 
   expect(getByText(/no element/i)).toBeTruthy();
+});
+
+// ── New inspector fields: span / sided / colorRole / scale / live-value ────────
+
+test("changing span updates element.style.span and round-trips through serializeMidl→parseMidl", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("span-select"), { target: { value: "1x2" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  expect(captured.elements["sog"]?.style?.span).toBe("1x2");
+
+  // Round-trip
+  const yaml = serializeMidl(captured, "yaml");
+  const reparsed = parseMidl(yaml);
+  expect(reparsed.elements["sog"]?.style?.span).toBe("1x2");
+});
+
+test("toggling sided updates element.style.sided and round-trips", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.click(getByTestId("sided-toggle"));
+
+  expect(onChange).toHaveBeenCalledOnce();
+  // Default was undefined/false; after toggle it should be "P" (truthy)
+  expect(captured.elements["sog"]?.style?.sided).toBeTruthy();
+
+  // Round-trip
+  const yaml = serializeMidl(captured, "yaml");
+  const reparsed = parseMidl(yaml);
+  expect(reparsed.elements["sog"]?.style?.sided).toBeTruthy();
+});
+
+test("changing colorRole updates element.style.colorRole and round-trips", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("color-role-select"), { target: { value: "warn" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  expect(captured.elements["sog"]?.style?.colorRole).toBe("warn");
+
+  const yaml = serializeMidl(captured, "yaml");
+  const reparsed = parseMidl(yaml);
+  expect(reparsed.elements["sog"]?.style?.colorRole).toBe("warn");
+});
+
+test("changing scale updates element.style.scale and round-trips", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("scale-select"), { target: { value: "metric" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  expect(captured.elements["sog"]?.style?.scale).toBe("metric");
+
+  const yaml = serializeMidl(captured, "yaml");
+  const reparsed = parseMidl(yaml);
+  expect(reparsed.elements["sog"]?.style?.scale).toBe("metric");
+});
+
+test("live value readout shows provider value when path has present data", () => {
+  const model = makeGridModel(); // sog bound to navigation.speedOverGround
+  const provider = new MockDataProvider({ "navigation.speedOverGround": { value: 4.5 } });
+  const onChange = vi.fn();
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  const readout = getByTestId("live-value-readout");
+  expect(readout.textContent).toContain("4.5");
+  // Green dot should be present
+  const dot = getByTestId("live-dot");
+  expect(dot).toBeTruthy();
+});
+
+test("live value readout shows stale/no-data state when path has no data", () => {
+  const model = makeGridModel(); // sog bound to navigation.speedOverGround
+  const provider = new MockDataProvider({}); // no data
+  const onChange = vi.fn();
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  const readout = getByTestId("live-value-readout");
+  // Should show "no data" or "—" when present is false
+  expect(readout.textContent).toMatch(/no data|—/i);
 });
