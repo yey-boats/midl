@@ -158,7 +158,16 @@
   background: var(--surface);
 }
 
-/* ── Main body layout ─────────────────────────────────────────────────────── */
+/* ── Body row (fills remaining height between header and status bar) ─────────── */
+[data-component="midl-editor"] [data-testid="mode-body"] {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Visual mode body — 3-column grid ────────────────────────────────────────── */
 [data-component="midl-editor"] [data-testid="visual-mode-body"] {
   display: grid;
   grid-template-columns: 210px 1fr 220px;
@@ -235,12 +244,7 @@
   border-color: var(--line2);
 }
 
-/* ── Center canvas ─────────────────────────────────────────────────────────── */
-[data-component="midl-editor"] [data-testid="preview-host"] {
-  position: relative;
-  z-index: 2;
-}
-
+/* ── Center canvas column ─────────────────────────────────────────────────────── */
 [data-component="midl-editor"] .canvas-area {
   background: var(--bg);
   display: flex;
@@ -259,6 +263,8 @@
   background-size: 20px 20px;
   pointer-events: none;
 }
+
+/* ── Device frame (centered, fixed-aspect) ────────────────────────────────────── */
 [data-component="midl-editor"] .device-frame {
   background: var(--elev);
   border: 2px solid var(--line2);
@@ -269,6 +275,27 @@
   overflow: hidden;
   position: relative;
   z-index: 2;
+  width: min(440px, calc(100% - 32px));
+  aspect-ratio: 1 / 1;  /* default: square-480 */
+}
+[data-component="midl-editor"] .device-frame > [data-testid="preview-host"] {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 2;
+}
+[data-component="midl-editor"] .device-frame > [data-testid="preview-host"] svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── Preview host — now lives inside .device-frame ──────────────────────────── */
+[data-component="midl-editor"] [data-testid="preview-host"] {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
 }
 
 /* ── Inspector ─────────────────────────────────────────────────────────────── */

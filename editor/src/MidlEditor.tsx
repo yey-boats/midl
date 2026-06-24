@@ -370,37 +370,14 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
         </div>
       )}
 
-      {/* Preview pane with grid overlay */}
-      <div style={{ position: "relative" }}>
-        <div
-          data-testid="preview-host"
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: previewSvg }}
-        />
-        {mode === "visual" && (
-          <div style={{ position: "absolute", inset: 0 }}>
-            <GridCanvas
-              model={model}
-              viewport={{ w: 480, h: 480 }}
-              selected={selectedCell}
-              onSelect={setSelectedCell}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Preview error indicator */}
-      {previewError && (
-        <div data-testid="preview-error">{previewError}</div>
-      )}
-
-      {/* Mode body */}
-      <div data-testid="mode-body" data-mode={mode}>
+      {/* Row 2: Body */}
+      <div data-testid="mode-body" data-mode={mode} className="body-row">
         {/* Mode label for tests / accessibility */}
         <span style={{ display: "none" }}>{mode}</span>
+
         {mode === "visual" && manifest ? (
-          <div data-testid="visual-mode-body" style={{ display: "flex", gap: "16px" }}>
-            {/* Left rail with Elements / Data tabs */}
+          <div data-testid="visual-mode-body" className="visual-body">
+            {/* Left rail */}
             <div data-section="left-rail">
               <div data-section="rail-tabs" style={{ display: "flex", gap: "0" }}>
                 <button
@@ -430,6 +407,27 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
                 />
               )}
             </div>
+
+            {/* Center canvas */}
+            <div className="canvas-area">
+              <div className="device-frame">
+                <div
+                  data-testid="preview-host"
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: previewSvg }}
+                />
+                <div style={{ position: "absolute", inset: 0 }}>
+                  <GridCanvas
+                    model={model}
+                    viewport={{ w: 480, h: 480 }}
+                    selected={selectedCell}
+                    onSelect={setSelectedCell}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right inspector */}
             <Inspector
               model={model}
               selectedCell={selectedCell}
@@ -445,9 +443,14 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
             onModelChange={setModel}
           />
         ) : (
-          mode
+          <>{mode}</>
         )}
       </div>
+
+      {/* Preview error indicator */}
+      {previewError && (
+        <div data-testid="preview-error">{previewError}</div>
+      )}
 
       {/* Status bar — shown once manifest is available */}
       {manifest && (
