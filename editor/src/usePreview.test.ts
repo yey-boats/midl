@@ -39,15 +39,6 @@ const MODEL_WITH_BINDING: EditorModel = {
   variants: [],
 };
 
-const MODEL_EMPTY: EditorModel = {
-  midl: "1.0.0",
-  screenId: "dash",
-  title: "Empty",
-  elements: {},
-  layout: { rows: 1, cols: 1, cells: [{}] },
-  variants: [],
-};
-
 // ── Fake provider factory ──────────────────────────────────────────────────────
 
 function makeFakeProvider(initialValue = 0) {
@@ -55,8 +46,6 @@ function makeFakeProvider(initialValue = 0) {
   const subscribers: Map<number, { paths: Set<string>; cb: () => void }> = new Map();
   const unsubMocks: ReturnType<typeof vi.fn>[] = [];
   let subIdCounter = 0;
-
-  const unsubscribeCalls: string[][] = [];
 
   const provider: DataProvider & { onChange: (cb: () => void) => () => void } = {
     now: () => Date.now(),
@@ -69,7 +58,6 @@ function makeFakeProvider(initialValue = 0) {
       subscribers.set(id, { paths: new Set(paths), cb });
       const unsub = vi.fn(() => {
         subscribers.delete(id);
-        unsubscribeCalls.push(paths);
       });
       unsubMocks.push(unsub);
       return unsub;
@@ -87,7 +75,7 @@ function makeFakeProvider(initialValue = 0) {
     }
   }
 
-  return { provider, tick, unsubscribeCalls, unsubMocks };
+  return { provider, tick, unsubMocks };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -128,6 +116,7 @@ describe("usePreview — live data subscription", () => {
     const svgAfter = result.current.svg;
     // The SVG should have changed because renderDashboardSvg is called with the new value
     expect(svgAfter).toContain("<svg");
+    expect(svgAfter).not.toBe(svgBefore);  // re-render produced a new string after tick
     // provider.subscribe was called with the bound path
     expect(provider.subscribe).toHaveBeenCalledWith(
       expect.arrayContaining(["navigation.speedOverGround"]),
