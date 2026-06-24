@@ -36,11 +36,24 @@ export interface PreviewState {
 
 const EMPTY_SVG = `<svg xmlns="http://www.w3.org/2000/svg"></svg>`;
 
+/** Extract all SignalK paths bound in the model's elements. */
+function getBoundPaths(model: EditorModel): string[] {
+  const out = new Set<string>();
+  for (const el of Object.values(model.elements)) {
+    for (const src of Object.values(el.bindings ?? {})) {
+      if (src.kind === "signalk" && src.path) out.add(src.path);
+    }
+  }
+  return [...out];
+}
+
 /**
  * Derives a sanitized SVG preview from `model`, throttled by requestAnimationFrame.
  * - If validation fails (any issue with severity "error" or undefined), keeps last good svg
  *   and sets `error` to the first issue message.
  * - If valid, calls renderDashboardSvg → sanitizeSvg; clears error.
+ * - Re-renders automatically when bound SignalK paths update in the provider
+ *   (via provider.subscribe) or when the provider emits onChange (injected values).
  */
 export function usePreview(
   model: EditorModel,
@@ -65,8 +78,8 @@ export function usePreview(
   manifestRef.current = manifest;
   optsRef.current = opts;
 
-  useEffect(() => {
-    // Cancel any pending RAF
+  // Shared render scheduler — cancels any pending RAF, schedules a new one.
+  const scheduleRender = useRef(() => {
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
     }
@@ -78,19 +91,16 @@ export function usePreview(
       const mf = manifestRef.current;
       const o = optsRef.current;
 
-      // Validate
       const validation = validateModel(m, mf);
       const firstError = validation.issues.find(
         (i) => i.severity === "error" || i.severity === undefined,
       );
 
       if (!validation.ok && firstError !== undefined) {
-        // Keep last good svg, set error
         setState((prev) => ({ svg: lastGoodSvgRef.current ?? prev.svg, error: firstError.message }));
         return;
       }
 
-      // Render
       try {
         const serialized = serializeMidl(m, "yaml");
         const viewport = viewportForClass(o.className);
@@ -105,16 +115,45 @@ export function usePreview(
         setState((prev) => ({ svg: lastGoodSvgRef.current ?? prev.svg, error: msg }));
       }
     });
+  });
 
+  // Effect 1: Re-render when model/manifest/opts change (existing behavior)
+  useEffect(() => {
+    scheduleRender.current();
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
     };
-  // Re-run whenever any input changes (model, provider, manifest, opts)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model, provider, manifest, opts.theme, opts.className]);
+
+  // Effect 2: Subscribe to live provider updates for bound paths.
+  // Re-subscribes whenever model or provider changes (bound paths may change).
+  useEffect(() => {
+    const boundPaths = getBoundPaths(model);
+
+    // Subscribe to path-specific updates.
+    const unsubPaths = provider.subscribe(boundPaths, () => {
+      scheduleRender.current();
+    });
+
+    // Also subscribe to onChange if available (covers inject() + "all" mode providers).
+    let unsubChange: (() => void) | null = null;
+    const providerWithChange = provider as unknown as { onChange?: (cb: () => void) => () => void };
+    if (typeof providerWithChange.onChange === "function") {
+      unsubChange = providerWithChange.onChange(() => {
+        scheduleRender.current();
+      });
+    }
+
+    return () => {
+      unsubPaths();
+      unsubChange?.();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, provider]);
 
   return state;
 }
