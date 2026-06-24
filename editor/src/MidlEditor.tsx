@@ -13,7 +13,9 @@ import { addElement, assignElementToCell } from "./layout-ops";
 import { Palette } from "./visual/Palette";
 import { GridCanvas } from "./visual/GridCanvas";
 import { Inspector } from "./visual/Inspector";
+import { DataTree } from "./visual/DataTree";
 import { SourceEditor } from "./source/SourceEditor";
+import type { LivePathSource } from "./adapters";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -28,6 +30,7 @@ export interface MidlEditorProps {
 
 type Mode = "visual" | "source";
 type Theme = "night" | "day";
+type LeftTab = "elements" | "data";
 
 // Supported class values for the class-switch dropdown
 const SUPPORTED_CLASSES = ["square-480", "landscape-800x480", "landscape-1024x600"];
@@ -60,6 +63,7 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
   const [themeChoice, setThemeChoice] = useState<Theme>("night");
   const [className, setClassName] = useState(defaultClass);
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
+  const [leftTab, setLeftTab] = useState<LeftTab>("elements");
 
   // Revision tracking for optimistic concurrency
   const revisionRef = useRef<string | undefined>(undefined);
@@ -196,6 +200,40 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     }
   }, [store]);
 
+  // ── Derive selected element id from selected cell ─────────────────────────────
+
+  const selectedElementId: string | null = useCallback((): string | null => {
+    if (selectedCell === null) return null;
+    const isGrid = "rows" in model.layout && "cols" in model.layout && "cells" in model.layout;
+    if (!isGrid) return null;
+    const cells = (model.layout as { cells: Array<{ element?: string }> }).cells;
+    return cells[selectedCell]?.element ?? null;
+  }, [model, selectedCell])();
+
+  // ── Visual mode: bind path from DataTree to selected element ─────────────────
+
+  const handleBindPath = useCallback(
+    (path: string) => {
+      if (!selectedElementId) return;
+      const element = model.elements[selectedElementId];
+      if (!element) return;
+      setModel({
+        ...model,
+        elements: {
+          ...model.elements,
+          [selectedElementId]: {
+            ...element,
+            bindings: {
+              ...element.bindings,
+              value: { kind: "signalk" as const, path },
+            },
+          },
+        },
+      });
+    },
+    [model, selectedElementId],
+  );
+
   // ── Visual mode: add element from palette ────────────────────────────────────
 
   const handleAddElement = useCallback(
@@ -321,7 +359,36 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
         <span style={{ display: "none" }}>{mode}</span>
         {mode === "visual" && manifest ? (
           <div data-testid="visual-mode-body" style={{ display: "flex", gap: "16px" }}>
-            <Palette manifest={manifest} onAdd={handleAddElement} />
+            {/* Left rail with Elements / Data tabs */}
+            <div data-section="left-rail">
+              <div data-section="rail-tabs" style={{ display: "flex", gap: "0" }}>
+                <button
+                  data-testid="tab-elements"
+                  aria-selected={leftTab === "elements"}
+                  onClick={() => setLeftTab("elements")}
+                  style={{ fontWeight: leftTab === "elements" ? 700 : 400 }}
+                >
+                  Elements
+                </button>
+                <button
+                  data-testid="tab-data"
+                  aria-selected={leftTab === "data"}
+                  onClick={() => setLeftTab("data")}
+                  style={{ fontWeight: leftTab === "data" ? 700 : 400 }}
+                >
+                  Data
+                </button>
+              </div>
+              {leftTab === "elements" ? (
+                <Palette manifest={manifest} onAdd={handleAddElement} />
+              ) : (
+                <DataTree
+                  provider={provider as unknown as LivePathSource}
+                  selectedElementId={selectedElementId}
+                  onBindPath={handleBindPath}
+                />
+              )}
+            </div>
             <Inspector
               model={model}
               selectedCell={selectedCell}

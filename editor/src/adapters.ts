@@ -89,6 +89,39 @@ export type { DataProvider, ResolvedValue } from "@yey-boats/midl-web";
 import type { DataProvider } from "@yey-boats/midl-web";
 export type LiveDataProvider = DataProvider;
 
+// ── Live path source — feature-detected on providers ──────────────────────────
+
+/** Single entry in the live path catalogue. */
+export interface PathInfo {
+  path: string;
+  value: unknown;
+  sourceUnit?: string;
+  updatedAt: number;
+  /** True when the value was set by inject() rather than received from live deltas. */
+  injected?: boolean;
+}
+
+/**
+ * Optional capability that a DataProvider may expose.
+ * createSignalKProvider satisfies this interface.
+ * Feature-detected at runtime — cast to this type if the provider has these methods.
+ */
+export interface LivePathSource {
+  /** All paths seen so far (live deltas + injected), sorted by path. */
+  knownPaths(): PathInfo[];
+  /**
+   * Overlay a session value for a path.
+   * Injected values are ephemeral (never persisted).
+   * getValue() returns the injected value when present.
+   */
+  inject(path: string, value: unknown, sourceUnit?: string): void;
+  /**
+   * Subscribe to path catalogue changes (new paths, value updates).
+   * Returns an unsubscribe function.
+   */
+  onChange(cb: () => void): () => void;
+}
+
 // ── Typed errors ───────────────────────────────────────────────────────────────
 
 /** Thrown by adapter implementations when an optimistic-concurrency revision check fails.

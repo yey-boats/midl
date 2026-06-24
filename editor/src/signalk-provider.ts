@@ -21,6 +21,7 @@
 
 import type { DataProvider, ResolvedValue } from "@yey-boats/midl-web";
 import type { Source } from "@yey-boats/midl";
+import type { PathInfo, LivePathSource } from "./adapters";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -129,9 +130,13 @@ interface Subscriber {
 
 // ── Internal provider implementation ──────────────────────────────────────────
 
-class SignalKProviderImpl implements DataProvider {
+class SignalKProviderImpl implements DataProvider, LivePathSource {
   private values: Record<string, StoredValue> = Object.create(null);
+  private injected: Record<string, StoredValue & { injected: true }> = Object.create(null);
   private subs: Set<Subscriber> = new Set();
+  private changeListeners: Set<() => void> = new Set();
+  /** Pending throttle timer for onChange notifications (16 ms ≈ 1 frame). */
+  private changeThrottleTimer: ReturnType<typeof setTimeout> | null = null;
 
   now(): number {
     return Date.now();
@@ -150,6 +155,18 @@ class SignalKProviderImpl implements DataProvider {
     }
     if (binding.kind !== "signalk") {
       return { value: undefined, stale: false, present: false };
+    }
+
+    // Injected values take precedence over live data
+    const inj = this.injected[binding.path];
+    if (inj) {
+      return {
+        value: inj.value,
+        sourceUnit: inj.sourceUnit,
+        updatedAt: inj.updatedAt,
+        present: true,
+        stale: false,
+      };
     }
 
     const live = this.values[binding.path];
@@ -195,7 +212,86 @@ class SignalKProviderImpl implements DataProvider {
     this.subs.forEach((s) => {
       if (s.paths.has(path)) s.cb();
     });
+
+    // Notify catalogue change listeners (throttled)
+    this.notifyChange();
     return true;
+  }
+
+  // ── LivePathSource methods ──────────────────────────────────────────────────
+
+  /** All paths seen so far (live deltas + injected), sorted alphabetically by path. */
+  knownPaths(): PathInfo[] {
+    const result: PathInfo[] = [];
+
+    // Live paths
+    for (const path of Object.keys(this.values)) {
+      const stored = this.values[path];
+      result.push({
+        path,
+        value: stored.value,
+        sourceUnit: stored.sourceUnit,
+        updatedAt: stored.updatedAt,
+      });
+    }
+
+    // Injected paths — merge into live or append
+    for (const path of Object.keys(this.injected)) {
+      const existing = result.find((r) => r.path === path);
+      const inj = this.injected[path];
+      if (existing) {
+        // Overlay: show injected value in the same entry
+        existing.value = inj.value;
+        existing.sourceUnit = inj.sourceUnit;
+        existing.updatedAt = inj.updatedAt;
+        existing.injected = true;
+      } else {
+        result.push({
+          path,
+          value: inj.value,
+          sourceUnit: inj.sourceUnit,
+          updatedAt: inj.updatedAt,
+          injected: true,
+        });
+      }
+    }
+
+    // Sort alphabetically by path
+    result.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+    return result;
+  }
+
+  /**
+   * Set a SESSION value for a path.
+   * Overlays live data; getValue returns the injected value.
+   * Injected values are ephemeral and never persisted.
+   */
+  inject(path: string, value: unknown, sourceUnit?: string): void {
+    this.injected[path] = {
+      value,
+      sourceUnit,
+      updatedAt: Date.now(),
+      injected: true,
+    };
+    this.notifyChange();
+  }
+
+  /**
+   * Subscribe to path catalogue changes (throttled per animation frame).
+   * Returns an unsubscribe function.
+   */
+  onChange(cb: () => void): () => void {
+    this.changeListeners.add(cb);
+    return () => { this.changeListeners.delete(cb); };
+  }
+
+  /** Fire change listeners, throttled to ~16 ms. */
+  private notifyChange(): void {
+    if (this.changeThrottleTimer !== null) return;
+    this.changeThrottleTimer = setTimeout(() => {
+      this.changeThrottleTimer = null;
+      this.changeListeners.forEach((cb) => cb());
+    }, 16);
   }
 }
 
@@ -239,7 +335,7 @@ export interface CreateSignalKProviderOpts {
  */
 export function createSignalKProvider(
   opts?: CreateSignalKProviderOpts,
-): DataProvider & { close(): void } {
+): DataProvider & LivePathSource & { close(): void } {
   const provider = new SignalKProviderImpl();
 
   // Resolve paths
@@ -382,7 +478,7 @@ export function createSignalKProvider(
   openSocket();
 
   // Attach close() to the provider object so callers can tear down cleanly
-  const result = provider as DataProvider & { close(): void };
+  const result = provider as unknown as DataProvider & LivePathSource & { close(): void };
   result.close = () => {
     closed = true;
     clearKeepalive();
