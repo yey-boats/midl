@@ -17,7 +17,21 @@ import { Inspector } from "./visual/Inspector";
 import { DataTree } from "./visual/DataTree";
 import { SourceEditor } from "./source/SourceEditor";
 import type { LivePathSource } from "./adapters";
-import "./midl-editor.css";
+import midlEditorCss from "./midl-editor.css?inline";
+
+// ── Self-contained style injection ────────────────────────────────────────────
+// The IIFE global build (midl-editor.global.js) is loaded with a single
+// <script> tag — no companion stylesheet. Inject the CSS once into <head> so
+// the editor is fully styled even when there is no external style.css.
+function injectEditorStyles(): void {
+  if (typeof document === "undefined") return; // SSR guard
+  if (document.getElementById("midl-editor-styles")) return; // already injected
+  const style = document.createElement("style");
+  style.id = "midl-editor-styles";
+  style.textContent = midlEditorCss;
+  document.head.appendChild(style);
+}
+injectEditorStyles();
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
