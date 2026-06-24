@@ -333,3 +333,57 @@ test("save that throws RevisionConflict shows conflict-banner and Overwrite retr
     expect(queryByTestId("conflict-banner")).toBeNull();
   });
 });
+
+// ── New: status-bar + top-push ─────────────────────────────────────────────
+
+test("status-bar shows valid state when model validates", async () => {
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    const statusBar = getByTestId("status-bar");
+    expect(statusBar).toBeTruthy();
+    // After loading a valid model, status bar should contain "valid" text
+    expect(statusBar.textContent?.toLowerCase()).toMatch(/valid/i);
+  }, { timeout: 3000 });
+});
+
+test("top-push button triggers store.save", async () => {
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("top-push")).toBeTruthy();
+  });
+
+  const prevCount = store.savedCalls.length;
+
+  await act(async () => {
+    fireEvent.click(getByTestId("top-push"));
+  });
+
+  await waitFor(() => {
+    expect(store.savedCalls.length).toBeGreaterThan(prevCount);
+  });
+});

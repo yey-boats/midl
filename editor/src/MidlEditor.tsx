@@ -9,6 +9,7 @@ import { RevisionConflict } from "./adapters";
 import type { EditorModel } from "./model";
 import { parseMidl, serializeMidl } from "./midl-io";
 import { usePreview } from "./usePreview";
+import { validateModel } from "./validate";
 import { addElement, assignElementToCell } from "./layout-ops";
 import { Palette } from "./visual/Palette";
 import { GridCanvas } from "./visual/GridCanvas";
@@ -16,6 +17,7 @@ import { Inspector } from "./visual/Inspector";
 import { DataTree } from "./visual/DataTree";
 import { SourceEditor } from "./source/SourceEditor";
 import type { LivePathSource } from "./adapters";
+import "./midl-editor.css";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -272,44 +274,83 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     <div data-component="midl-editor">
       {/* Header bar */}
       <div data-testid="editor-header" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-        <button
-          data-testid="mode-toggle"
-          onClick={() => setMode((m) => (m === "visual" ? "source" : "visual"))}
-        >
-          {mode === "visual" ? "Source" : "Visual"}
-        </button>
+        {/* Logo */}
+        <span className="editor-logo-mark">YEY</span>
+        <span className="editor-logo-text">Instruments Manager</span>
+        <div className="topbar-divider" />
 
-        <button
-          data-testid="theme-switch"
-          onClick={() => setThemeChoice((t) => (t === "night" ? "day" : "night"))}
-        >
-          {themeChoice === "night" ? "Day" : "Night"}
-        </button>
+        {/* Mode tabs */}
+        <div className="mode-tabs">
+          <button
+            data-testid="mode-toggle"
+            className={`mode-tab${mode === "visual" ? " active" : ""}`}
+            onClick={() => setMode((m) => (m === "visual" ? "source" : "visual"))}
+          >
+            Visual
+          </button>
+          <button
+            className={`mode-tab${mode === "source" ? " active" : ""}`}
+            onClick={() => setMode((m) => (m === "visual" ? "source" : "visual"))}
+          >
+            Source
+          </button>
+        </div>
 
-        <select
-          data-testid="class-switch"
-          value={className}
-          onChange={(e) => setClassName(e.target.value)}
-        >
-          {SUPPORTED_CLASSES.map((cls) => (
-            <option key={cls} value={cls}>{cls}</option>
-          ))}
-        </select>
+        {/* Device / class selector — keep existing testid, wrap with new alias */}
+        <div data-testid="top-class-select">
+          <select
+            data-testid="class-switch"
+            className="topbar-select"
+            value={className}
+            onChange={(e) => setClassName(e.target.value)}
+          >
+            {SUPPORTED_CLASSES.map((cls) => (
+              <option key={cls} value={cls}>{cls}</option>
+            ))}
+          </select>
+        </div>
 
+        {/* Theme selector — keep existing testid, wrap with new alias */}
+        <div data-testid="top-theme-select">
+          <select
+            data-testid="theme-switch"
+            className="topbar-select"
+            value={themeChoice}
+            onChange={(e) => setThemeChoice(e.target.value as Theme)}
+          >
+            <option value="night">Night</option>
+            <option value="day">Day</option>
+          </select>
+        </div>
+
+        {/* Name input */}
         <input
           data-testid="name-input"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Dashboard name"
+          style={{ flex: 1, minWidth: 0 }}
         />
 
+        {/* Save button */}
         <button
           data-testid="save-button"
+          className="btn-ghost"
           onClick={handleSave}
           disabled={saving}
         >
           {saving ? "Saving…" : "Save"}
+        </button>
+
+        {/* Push to device — primary CTA, wired to same save path */}
+        <button
+          data-testid="top-push"
+          className="btn-primary"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          Push to device ▸
         </button>
       </div>
 
@@ -407,6 +448,32 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
           mode
         )}
       </div>
+
+      {/* Status bar — shown once manifest is available */}
+      {manifest && (
+        <div data-testid="status-bar">
+          {(() => {
+            const v = validateModel(model, manifest);
+            if (v.ok) {
+              return (
+                <>
+                  <span className="status-valid-indicator">✓ Valid for {className}</span>
+                  <span style={{ color: "var(--ink-faint, #5b7286)", fontSize: "10px" }}>· structural · semantic · capability</span>
+                  <span className="status-spacer" />
+                  <span className="status-autosave">autosaved</span>
+                </>
+              );
+            }
+            const errorCount = v.issues.filter((i) => i.severity !== "warning").length;
+            return (
+              <>
+                <span className="status-error-indicator">⚠ {errorCount} error{errorCount !== 1 ? "s" : ""}</span>
+                <span style={{ color: "var(--ink-faint, #5b7286)", fontSize: "10px" }}>{v.issues[0]?.message}</span>
+              </>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }
