@@ -22,3 +22,6 @@ export { parseDoc, toCanonicalJson } from "@yey-boats/midl";
 export * as layoutOps from "./layout-ops";
 
 export { mount } from "./mount";
+
+export { createSignalKProvider } from "./signalk-provider";
+export type { CreateSignalKProviderOpts } from "./signalk-provider";
