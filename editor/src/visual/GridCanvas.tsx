@@ -51,9 +51,9 @@ export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: G
               width: `${cellW}%`,
               height: `${cellH}%`,
               boxSizing: "border-box",
-              border: i === selected ? "2px solid #3b82f6" : "1px dashed rgba(255,255,255,0.3)",
+              border: i === selected ? "2px solid var(--accent, #57c7d8)" : "1px dashed rgba(93,120,146,0.3)",
+              backgroundColor: i === selected ? "rgba(87,199,216,0.04)" : "transparent",
               cursor: "pointer",
-              backgroundColor: "transparent",
             }}
           >
             {cell.element ?? ""}

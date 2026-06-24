@@ -11,7 +11,7 @@ export interface PaletteProps {
 
 export function Palette({ manifest, onAdd }: PaletteProps): React.JSX.Element {
   return (
-    <div data-component="palette" style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+    <div data-component="palette" style={{ display: "flex", flexDirection: "column", gap: "3px", padding: "8px", flex: 1, overflowY: "auto" }}>
       {manifest.elements.map((el) => (
         <button
           key={el.type}
