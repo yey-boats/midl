@@ -529,3 +529,113 @@ test("colSpan/rowSpan round-trip through serializeMidl → parseMidl", () => {
   expect(layout.cells[0].colSpan).toBe(2);
   expect(layout.cells[0].rowSpan).toBe(2);
 });
+
+// ── setCellSpan integration: Bug 1 (overflow) and Bug 2 (stale span display) ──
+
+test("setting Span=2x1 on a full 2×2 grid produces a valid model (no overflow) and select shows '2x1'", () => {
+  // Full 2×2 grid: 4 cells. Setting colSpan=2 on cell 0 must remove cell 1 (covered).
+  const fullModel: EditorModel = {
+    midl: "1.0.0",
+    screenId: "screen",
+    title: "Test",
+    elements: {
+      sog: { id: "sog", type: "single-value", name: "SOG",
+             bindings: { value: { kind: "signalk", path: "navigation.speedOverGround" } },
+             format: { unit: "kn", decimals: 1 } },
+      hdg: { id: "hdg", type: "single-value" },
+      dtw: { id: "dtw", type: "single-value" },
+      btw: { id: "btw", type: "single-value" },
+    },
+    layout: {
+      rows: 2,
+      cols: 2,
+      cells: [{ element: "sog" }, { element: "hdg" }, { element: "dtw" }, { element: "btw" }],
+    },
+    variants: [],
+  };
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = fullModel;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={fullModel}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("span-select"), { target: { value: "2x1" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  const layout = captured.layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number }> };
+  // Must have 3 cells (one removed — the covered slot 1)
+  expect(layout.cells.length).toBe(3);
+  expect(layout.cells[0].colSpan).toBe(2);
+
+  // Serialization must NOT throw (no overflow error)
+  expect(() => serializeMidl(captured, "yaml")).not.toThrow();
+
+  // Re-render with captured model to verify select shows "2x1"
+  cleanup();
+  const { getByTestId: getByTestId2 } = render(
+    <Inspector
+      model={captured}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+  const spanSelect = getByTestId2("span-select") as HTMLSelectElement;
+  expect(spanSelect.value).toBe("2x1");
+});
+
+test("loading a model whose cell already has colSpan:2 shows the span select as '2x1' (not '1x1')", () => {
+  // Simulate a model that was loaded from a MIDL file with a spanned cell.
+  // parseMidl sets colSpan on the GridCell but NOT on element.style.span.
+  // The Inspector must derive currentSpan from the GridCell, not element.style.span.
+  const spannedModel: EditorModel = {
+    midl: "1.0.0",
+    screenId: "screen",
+    title: "Test",
+    elements: {
+      sog: {
+        id: "sog",
+        type: "single-value",
+        name: "SOG",
+        bindings: { value: { kind: "signalk", path: "navigation.speedOverGround" } },
+        format: { unit: "kn", decimals: 1 },
+        // Note: NO style.span set — this is what parseMidl produces
+      },
+    },
+    layout: {
+      rows: 2,
+      cols: 2,
+      cells: [
+        { element: "sog", colSpan: 2 }, // colSpan from parseMidl
+        {},
+        {},
+      ],
+    },
+    variants: [],
+  };
+  const provider = new MockDataProvider({});
+  const onChange = vi.fn();
+
+  const { getByTestId } = render(
+    <Inspector
+      model={spannedModel}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  const spanSelect = getByTestId("span-select") as HTMLSelectElement;
+  // Must show "2x1" — derived from cell.colSpan=2, cell.rowSpan=undefined→1
+  expect(spanSelect.value).toBe("2x1");
+});

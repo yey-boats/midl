@@ -7,7 +7,7 @@ import type { Source } from "@yey-boats/midl";
 import type { DataProvider } from "@yey-boats/midl-web";
 import { formatValue } from "@yey-boats/midl-web";
 import type { EditorModel, EditorElement, BindingSource } from "../model";
-import { addRow, addCol, removeRow, removeCol, removeElement } from "../layout-ops";
+import { addRow, addCol, removeRow, removeCol, removeElement, setCellSpan } from "../layout-ops";
 import { PathPicker } from "./PathPicker";
 
 export interface InspectorProps {
@@ -92,26 +92,18 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
     const [colPart, rowPart] = span.split("x");
     const colSpan = parseInt(colPart ?? "1", 10) || 1;
     const rowSpan = parseInt(rowPart ?? "1", 10) || 1;
-    // Updated element: keep element.style.span for backward-compat / round-trip.
+    // Keep element.style.span for backward-compat with style round-trips.
     const updatedElement = { ...selectedElement, style: { ...selectedElement.style, span } };
-    // If in a grid, also write colSpan/rowSpan onto the grid cell for GridCanvas overlay.
     if (selectedCell !== null && isGrid) {
-      const g = model.layout as { rows: number; cols: number; cells: import("../model").GridCell[] };
-      const newCells = g.cells.map((c, i) => {
-        if (i !== selectedCell) return { ...c };
-        const updated = { ...c };
-        if (colSpan === 1) delete updated.colSpan; else updated.colSpan = colSpan;
-        if (rowSpan === 1) delete updated.rowSpan; else updated.rowSpan = rowSpan;
-        return updated;
-      });
+      // Atomically adjust cells array: remove covered cells, restore freed ones.
+      const modelWithSpan = setCellSpan(model, selectedCell, colSpan, rowSpan);
       onChange({
-        ...model,
-        elements: { ...model.elements, [selectedElement.id]: updatedElement },
-        layout: { ...g, cells: newCells },
+        ...modelWithSpan,
+        elements: { ...modelWithSpan.elements, [selectedElement.id]: updatedElement },
       });
       return;
     }
-    // Non-grid: just update the element style.
+    // Non-grid: just update element style.
     updateElement(updatedElement);
   }
 
@@ -193,7 +185,18 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
 
   const elementTypes = manifest.elements.map((e) => e.type);
 
-  const currentSpan = String(selectedElement.style?.span ?? "1x1");
+  // Derive currentSpan from the grid cell's colSpan/rowSpan (authoritative after parseMidl).
+  // Fall back to element.style.span only for non-grid layouts.
+  let currentSpan: string;
+  if (selectedCell !== null && isGrid) {
+    const cells = (model.layout as { cells: Array<{ colSpan?: number; rowSpan?: number }> }).cells;
+    const cell = cells[selectedCell];
+    const cs = cell?.colSpan ?? 1;
+    const rs = cell?.rowSpan ?? 1;
+    currentSpan = `${cs}x${rs}`;
+  } else {
+    currentSpan = String(selectedElement.style?.span ?? "1x1");
+  }
   const currentSided = Boolean(selectedElement.style?.sided);
   const currentColorRole = String(selectedElement.style?.colorRole ?? "default");
   const currentScale = String(selectedElement.style?.scale ?? "fixed");
