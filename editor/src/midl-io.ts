@@ -73,8 +73,11 @@ function nodeToLayoutNode(node: Node): LayoutNode {
   if ("rows" in n) {
     const cells = (n["cells"] as Node[]).map((c) => {
       const cell = c as Record<string, unknown>;
-      if ("element" in cell) return { element: cell["element"] as string };
-      return {};
+      const gc: import("./model").GridCell = {};
+      if ("element" in cell) gc.element = cell["element"] as string;
+      if (typeof cell["colSpan"] === "number" && cell["colSpan"] !== 1) gc.colSpan = cell["colSpan"] as number;
+      if (typeof cell["rowSpan"] === "number" && cell["rowSpan"] !== 1) gc.rowSpan = cell["rowSpan"] as number;
+      return gc;
     });
     return { rows: n["rows"] as number, cols: n["cols"] as number, cells };
   }
@@ -164,9 +167,12 @@ function layoutNodeToNode(node: LayoutNode): Node {
     return result as unknown as Node;
   }
   if ("rows" in n) {
-    const cells = (n["cells"] as Array<{ element?: string }>).map((c) => {
-      if (c.element !== undefined) return { element: c.element } as Node;
-      return {} as Node;
+    const cells = (n["cells"] as Array<import("./model").GridCell>).map((c) => {
+      const out: Record<string, unknown> = {};
+      if (c.element !== undefined) out["element"] = c.element;
+      if (c.colSpan !== undefined && c.colSpan !== 1) out["colSpan"] = c.colSpan;
+      if (c.rowSpan !== undefined && c.rowSpan !== 1) out["rowSpan"] = c.rowSpan;
+      return out as unknown as Node;
     });
     return { rows: n["rows"] as number, cols: n["cols"] as number, cells } as unknown as Node;
   }

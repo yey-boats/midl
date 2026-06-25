@@ -5,6 +5,7 @@ import React from "react";
 import type { Manifest } from "@yey-boats/midl";
 import type { Source } from "@yey-boats/midl";
 import type { DataProvider } from "@yey-boats/midl-web";
+import { formatValue } from "@yey-boats/midl-web";
 import type { EditorModel, EditorElement, BindingSource } from "../model";
 import { addRow, addCol, removeRow, removeCol, removeElement } from "../layout-ops";
 import { PathPicker } from "./PathPicker";
@@ -87,7 +88,31 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
 
   function handleSpanChange(span: string) {
     if (!selectedElement) return;
-    updateElement({ ...selectedElement, style: { ...selectedElement.style, span } });
+    // "colsXrows" format: "1x2" → colSpan=1, rowSpan=2; "2x1" → colSpan=2, rowSpan=1; etc.
+    const [colPart, rowPart] = span.split("x");
+    const colSpan = parseInt(colPart ?? "1", 10) || 1;
+    const rowSpan = parseInt(rowPart ?? "1", 10) || 1;
+    // Updated element: keep element.style.span for backward-compat / round-trip.
+    const updatedElement = { ...selectedElement, style: { ...selectedElement.style, span } };
+    // If in a grid, also write colSpan/rowSpan onto the grid cell for GridCanvas overlay.
+    if (selectedCell !== null && isGrid) {
+      const g = model.layout as { rows: number; cols: number; cells: import("../model").GridCell[] };
+      const newCells = g.cells.map((c, i) => {
+        if (i !== selectedCell) return { ...c };
+        const updated = { ...c };
+        if (colSpan === 1) delete updated.colSpan; else updated.colSpan = colSpan;
+        if (rowSpan === 1) delete updated.rowSpan; else updated.rowSpan = rowSpan;
+        return updated;
+      });
+      onChange({
+        ...model,
+        elements: { ...model.elements, [selectedElement.id]: updatedElement },
+        layout: { ...g, cells: newCells },
+      });
+      return;
+    }
+    // Non-grid: just update the element style.
+    updateElement(updatedElement);
   }
 
   function handleSidedToggle() {
@@ -159,7 +184,11 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
 
   const livePresent = liveResult?.present === true && liveResult?.stale !== true;
   const liveDisplay = livePresent
-    ? String(liveResult!.value ?? "")
+    ? formatValue(
+        liveResult!.value,
+        selectedElement.format as Record<string, unknown> | undefined,
+        liveResult!.sourceUnit,
+      ).text
     : "—";
 
   const elementTypes = manifest.elements.map((e) => e.type);
@@ -226,9 +255,8 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
                     flexShrink: 0,
                   }}
                 />
-                <span style={{ fontFamily: "monospace", fontSize: "0.85em" }}>
+                <span data-testid="live-value-text" style={{ fontFamily: "monospace", fontSize: "0.85em" }}>
                   {liveDisplay}
-                  {liveResult?.sourceUnit ? ` ${liveResult.sourceUnit}` : ""}
                 </span>
               </>
             ) : (

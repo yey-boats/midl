@@ -133,3 +133,48 @@ test("flow layout model shows source-mode note and no cell-N elements", () => {
   expect(getByText(/flow layout/i)).toBeTruthy();
   expect(queryByTestId("cell-0")).toBeNull();
 });
+
+// ── Span: colSpan/rowSpan rendering ──────────────────────────────────────────
+
+test("cell with colSpan=2 in a 2-col grid occupies 100% width", () => {
+  // 2×2 grid, cell-0 has colSpan=2 → should render at width 100%
+  const cells = [{ element: "sog", colSpan: 2 }, {}, {}, {}];
+  const model: EditorModel = {
+    midl: "1.0.0",
+    screenId: "screen",
+    title: "Test",
+    elements: {},
+    layout: { rows: 2, cols: 2, cells },
+    variants: [],
+  };
+
+  const { getByTestId } = render(
+    <GridCanvas model={model} viewport={VIEWPORT} selected={null} onSelect={vi.fn()} />,
+  );
+
+  // cell-0 colSpan=2: width = 2 * (100/2) = 100%
+  expect(getByTestId("cell-0").style.width).toBe("100%");
+  // cell-1 (no span): width = 50%
+  expect(getByTestId("cell-1").style.width).toBe("50%");
+});
+
+test("cell with rowSpan=2 in a 2-row grid occupies 100% height", () => {
+  // 2×2 grid, cell-0 has rowSpan=2 → should render at height 100%
+  const cells = [{ element: "sog", rowSpan: 2 }, {}, {}, {}];
+  const model: EditorModel = {
+    midl: "1.0.0",
+    screenId: "screen",
+    title: "Test",
+    elements: {},
+    layout: { rows: 2, cols: 2, cells },
+    variants: [],
+  };
+
+  const { getByTestId } = render(
+    <GridCanvas model={model} viewport={VIEWPORT} selected={null} onSelect={vi.fn()} />,
+  );
+
+  // cell-0 rowSpan=2: height = 2 * (100/2) = 100%
+  expect(getByTestId("cell-0").style.height).toBe("100%");
+  expect(getByTestId("cell-1").style.height).toBe("50%");
+});

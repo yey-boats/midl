@@ -23,7 +23,7 @@ export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: G
     );
   }
 
-  const { rows, cols, cells } = layout as { rows: number; cols: number; cells: Array<{ element?: string }> };
+  const { rows, cols, cells } = layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number; rowSpan?: number }> };
   const cellW = 100 / cols;
   const cellH = 100 / rows;
 
@@ -37,6 +37,10 @@ export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: G
         const col = i % cols;
         const leftPct = col * cellW;
         const topPct = row * cellH;
+        const colSpan = cell.colSpan ?? 1;
+        const rowSpan = cell.rowSpan ?? 1;
+        const widthPct = cellW * colSpan;
+        const heightPct = cellH * rowSpan;
 
         return (
           <div
@@ -48,8 +52,8 @@ export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: G
               position: "absolute",
               left: `${leftPct}%`,
               top: `${topPct}%`,
-              width: `${cellW}%`,
-              height: `${cellH}%`,
+              width: `${widthPct}%`,
+              height: `${heightPct}%`,
               boxSizing: "border-box",
               border: i === selected ? "2px solid var(--accent, #57c7d8)" : "1px dashed rgba(93,120,146,0.3)",
               backgroundColor: i === selected ? "rgba(87,199,216,0.04)" : "transparent",

@@ -291,3 +291,101 @@ describe("wind-steering flow-layout fixture", () => {
     );
   });
 });
+
+describe("colSpan/rowSpan grid cell round-trip", () => {
+  it("parseMidl captures colSpan and rowSpan from grid cell YAML", () => {
+    const src = `midl: 1.0.0
+screens:
+  - id: test
+    meta:
+      title: Span Test
+    elements:
+      sog:
+        type: single-value
+        bindings:
+          value:
+            kind: signalk
+            path: navigation.speedOverGround
+    layout:
+      rows: 2
+      cols: 2
+      cells:
+        - element: sog
+          colSpan: 2
+          rowSpan: 2
+        - {}
+        - {}
+        - {}
+`;
+    const model = parseMidl(src);
+    const layout = model.layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number; rowSpan?: number }> };
+    expect(layout.cells[0].colSpan).toBe(2);
+    expect(layout.cells[0].rowSpan).toBe(2);
+    // Cells with no span should have no colSpan/rowSpan
+    expect(layout.cells[1].colSpan).toBeUndefined();
+    expect(layout.cells[1].rowSpan).toBeUndefined();
+  });
+
+  it("serializeMidl emits colSpan/rowSpan in grid cells when non-default", () => {
+    const src = `midl: 1.0.0
+screens:
+  - id: test
+    meta:
+      title: Span Test
+    elements:
+      sog:
+        type: single-value
+        bindings:
+          value:
+            kind: signalk
+            path: navigation.speedOverGround
+    layout:
+      rows: 2
+      cols: 2
+      cells:
+        - element: sog
+          colSpan: 2
+        - {}
+        - {}
+        - {}
+`;
+    const model = parseMidl(src);
+    const yaml = serializeMidl(model, "yaml");
+    expect(yaml).toContain("colSpan: 2");
+    // rowSpan should not appear (default 1 omitted)
+    expect(yaml).not.toContain("rowSpan");
+  });
+
+  it("colSpan/rowSpan survive a full serializeMidl→parseMidl round-trip", () => {
+    const src = `midl: 1.0.0
+screens:
+  - id: test
+    meta:
+      title: Span Test
+    elements:
+      sog:
+        type: single-value
+        bindings:
+          value:
+            kind: signalk
+            path: navigation.speedOverGround
+    layout:
+      rows: 2
+      cols: 2
+      cells:
+        - element: sog
+          colSpan: 2
+          rowSpan: 2
+        - {}
+        - {}
+        - {}
+`;
+    assertRoundTrip(src, "yaml");
+    const model = parseMidl(src);
+    const yaml = serializeMidl(model, "yaml");
+    const reparsed = parseMidl(yaml);
+    const layout = reparsed.layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number; rowSpan?: number }> };
+    expect(layout.cells[0].colSpan).toBe(2);
+    expect(layout.cells[0].rowSpan).toBe(2);
+  });
+});

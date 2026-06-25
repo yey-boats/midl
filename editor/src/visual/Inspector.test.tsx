@@ -383,6 +383,33 @@ test("live value readout shows provider value when path has present data", () =>
   expect(dot).toBeTruthy();
 });
 
+test("live value readout formats the value using element format decimals and unit, not raw float", () => {
+  // sog has format: { unit: "kn", decimals: 1 }
+  // provider returns a raw float (e.g. 4.494657697249033)
+  // Expected display: "4.5 kn" (toFixed(1) + unit via formatValue)
+  const model = makeGridModel();
+  const provider = new MockDataProvider({ "navigation.speedOverGround": { value: 4.494657697249033 } });
+  const onChange = vi.fn();
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  const readout = getByTestId("live-value-readout");
+  // Must show formatted value with 1 decimal place and unit, NOT the raw float
+  expect(readout.textContent).toContain("4.5 kn");
+  expect(readout.textContent).not.toContain("4.494657697249033");
+  // Green dot should be present
+  const dot = getByTestId("live-dot");
+  expect(dot).toBeTruthy();
+});
+
 test("live value readout shows stale/no-data state when path has no data", () => {
   const model = makeGridModel(); // sog bound to navigation.speedOverGround
   const provider = new MockDataProvider({}); // no data
@@ -401,4 +428,104 @@ test("live value readout shows stale/no-data state when path has no data", () =>
   const readout = getByTestId("live-value-readout");
   // Should show "no data" or "—" when present is false
   expect(readout.textContent).toMatch(/no data|—/i);
+});
+
+// ── Span → colSpan/rowSpan on grid cell ───────────────────────────────────────
+
+test("changing span to 2x1 sets colSpan=2, rowSpan=1 on the selected grid cell", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("span-select"), { target: { value: "2x1" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  const layout = captured.layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number; rowSpan?: number }> };
+  expect(layout.cells[0].colSpan).toBe(2);
+  // rowSpan 1 is default and should not be stored
+  expect(layout.cells[0].rowSpan).toBeUndefined();
+});
+
+test("changing span to 1x2 sets rowSpan=2, colSpan omitted (default 1) on the selected grid cell", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("span-select"), { target: { value: "1x2" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  const layout = captured.layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number; rowSpan?: number }> };
+  expect(layout.cells[0].colSpan).toBeUndefined();
+  expect(layout.cells[0].rowSpan).toBe(2);
+});
+
+test("changing span to 2x2 sets colSpan=2 and rowSpan=2 on the selected grid cell", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("span-select"), { target: { value: "2x2" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  const layout = captured.layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number; rowSpan?: number }> };
+  expect(layout.cells[0].colSpan).toBe(2);
+  expect(layout.cells[0].rowSpan).toBe(2);
+});
+
+test("colSpan/rowSpan round-trip through serializeMidl → parseMidl", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("span-select"), { target: { value: "2x2" } });
+
+  const yaml = serializeMidl(captured, "yaml");
+  const reparsed = parseMidl(yaml);
+  const layout = reparsed.layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number; rowSpan?: number }> };
+  expect(layout.cells[0].colSpan).toBe(2);
+  expect(layout.cells[0].rowSpan).toBe(2);
 });

@@ -25,8 +25,13 @@ export interface EditorElement {
 }
 
 // Cell in a grid layout — may be empty or reference an element by id.
+// colSpan/rowSpan extend the cell across multiple grid columns/rows (default 1).
+// NOTE: colSpan/rowSpan are editor-level metadata; the MIDL renderer/grammar
+// does not currently support span — full parity requires a grammar+renderer change.
 export interface GridCell {
   element?: string;
+  colSpan?: number;
+  rowSpan?: number;
 }
 
 // Mirrors the Node union from types.ts for grid cells.
