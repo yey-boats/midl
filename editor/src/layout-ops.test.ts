@@ -11,9 +11,11 @@ import {
   clearCell,
   addElement,
   removeElement,
+  setCellSpan,
 } from "./layout-ops";
 import type { EditorModel, EditorElement } from "./model";
 import { EditorError } from "./model";
+import { serializeMidl, parseMidl } from "./midl-io";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -469,5 +471,126 @@ describe("removeElement", () => {
     const flow = makeFlowModel();
     flow.elements = { el1: { id: "el1", type: "t" } };
     expect(() => removeElement(flow, "el1")).toThrow(EditorError);
+  });
+});
+
+// ── setCellSpan ───────────────────────────────────────────────────────────────
+
+describe("setCellSpan", () => {
+  /** 2×2 grid with all 4 cells populated: sog, hdg, dtw, btw */
+  function makeFull2x2(): EditorModel {
+    return {
+      midl: "1.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        sog: { id: "sog", type: "single-value" },
+        hdg: { id: "hdg", type: "single-value" },
+        dtw: { id: "dtw", type: "single-value" },
+        btw: { id: "btw", type: "single-value" },
+      },
+      layout: {
+        rows: 2,
+        cols: 2,
+        cells: [
+          { element: "sog" },
+          { element: "hdg" },
+          { element: "dtw" },
+          { element: "btw" },
+        ],
+      },
+      variants: [],
+    };
+  }
+
+  it("setCellSpan(colSpan=2,rowSpan=1) on a full 2×2 grid removes the covered cell", () => {
+    const m = makeFull2x2();
+    // cell 0 (sog) gets colSpan=2 — it now covers slots 0 and 1 (top row)
+    // slot 1 was cell 1 (hdg) — hdg must be removed
+    const result = setCellSpan(m, 0, 2, 1);
+    const l = gridLayout(result);
+    // cells must be exactly 3: [sog(colSpan=2), dtw, btw]
+    expect(l.cells.length).toBe(3);
+    expect(l.cells[0]).toEqual({ element: "sog", colSpan: 2 });
+    expect(l.cells[1]).toEqual({ element: "dtw" });
+    expect(l.cells[2]).toEqual({ element: "btw" });
+  });
+
+  it("setCellSpan(2,1) on full 2×2 → serializeMidl does not throw", () => {
+    const m = makeFull2x2();
+    const result = setCellSpan(m, 0, 2, 1);
+    const l = gridLayout(result);
+    expect(l.cells.length).toBe(3);
+    // Round-trip must work without errors
+    expect(() => serializeMidl(result, "yaml")).not.toThrow();
+  });
+
+  it("setCellSpan then serializeMidl→parseMidl round-trips the span", () => {
+    const m = makeFull2x2();
+    const result = setCellSpan(m, 0, 2, 1);
+    const yaml = serializeMidl(result, "yaml");
+    const reparsed = parseMidl(yaml);
+    const l = reparsed.layout as { rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number; rowSpan?: number }> };
+    expect(l.cells[0].colSpan).toBe(2);
+    expect(l.cells[0].rowSpan).toBeUndefined();
+    expect(l.cells.length).toBe(3);
+  });
+
+  it("setCellSpan back to (1,1) restores an empty cell", () => {
+    // Start with a 2×2 where cell 0 has colSpan=2 (3 cells total)
+    const m: EditorModel = {
+      midl: "1.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        sog: { id: "sog", type: "single-value" },
+        dtw: { id: "dtw", type: "single-value" },
+        btw: { id: "btw", type: "single-value" },
+      },
+      layout: {
+        rows: 2,
+        cols: 2,
+        cells: [
+          { element: "sog", colSpan: 2 },
+          { element: "dtw" },
+          { element: "btw" },
+        ],
+      },
+      variants: [],
+    };
+    const result = setCellSpan(m, 0, 1, 1);
+    const l = gridLayout(result);
+    // Now 4 cells: sog, {}, dtw, btw
+    expect(l.cells.length).toBe(4);
+    expect(l.cells[0]).toEqual({ element: "sog" }); // no colSpan
+    expect(l.cells[1]).toEqual({}); // restored empty
+    expect(l.cells[2]).toEqual({ element: "dtw" });
+    expect(l.cells[3]).toEqual({ element: "btw" });
+  });
+
+  it("clamps colSpan to grid width when requested span exceeds bounds", () => {
+    const m = makeGridModel(2, 2);
+    const result = setCellSpan(m, 0, 5, 1); // request colSpan=5, grid is 2 wide
+    const l = gridLayout(result);
+    // colSpan clamped to 2 (full width from col 0)
+    expect(l.cells[0].colSpan).toBe(2);
+  });
+
+  it("does not mutate input model", () => {
+    const m = frozen(makeFull2x2());
+    expect(() => setCellSpan(m, 0, 2, 1)).not.toThrow();
+  });
+
+  it("throws EditorError for non-grid layout", () => {
+    expect(() => setCellSpan(makeFlowModel(), 0, 2, 1)).toThrow(EditorError);
+  });
+
+  it("setCellSpan(2,2) on a full 2×2 removes the 3 covered cells (only anchor cell remains)", () => {
+    const m = makeFull2x2();
+    const result = setCellSpan(m, 0, 2, 2);
+    const l = gridLayout(result);
+    // cell 0 covers all 4 slots — only 1 cell total
+    expect(l.cells.length).toBe(1);
+    expect(l.cells[0]).toEqual({ element: "sog", colSpan: 2, rowSpan: 2 });
   });
 });

@@ -198,3 +198,153 @@ export function removeElement(m: EditorModel, elementId: string): EditorModel {
     },
   };
 }
+
+// ── setCellSpan ───────────────────────────────────────────────────────────────
+
+/**
+ * Atomically set the colSpan/rowSpan of a cell at `cellIndex`, keeping the
+ * cells array consistent with solve.ts's occupied-slot packing:
+ * - Increasing a span REMOVES the cells whose slots are now covered.
+ * - Decreasing a span RESTORES empty cells for the freed slots.
+ * - The result always satisfies rows*cols slot coverage.
+ * - colSpan/rowSpan are clamped to the grid dimensions from the cell's anchor.
+ */
+export function setCellSpan(
+  m: EditorModel,
+  cellIndex: number,
+  colSpan: number,
+  rowSpan: number,
+): EditorModel {
+  const g = assertGrid(m);
+  const { rows, cols } = g;
+  const cells = g.cells;
+
+  // ── Step 1: simulate current packing to find each cell's anchor slot ────────
+  const occupied = new Array<boolean>(rows * cols).fill(false);
+  const cellAnchorSlot: number[] = [];
+  let slot = 0;
+  for (let i = 0; i < cells.length; i++) {
+    while (slot < occupied.length && occupied[slot]) slot++;
+    if (slot >= occupied.length) {
+      cellAnchorSlot.push(-1);
+      continue;
+    }
+    cellAnchorSlot.push(slot);
+    const r = Math.floor(slot / cols);
+    const c = slot % cols;
+    const cs = Math.min(cells[i].colSpan ?? 1, cols - c);
+    const rs = Math.min(cells[i].rowSpan ?? 1, rows - r);
+    for (let dr = 0; dr < rs; dr++)
+      for (let dc = 0; dc < cs; dc++)
+        occupied[(r + dr) * cols + (c + dc)] = true;
+  }
+
+  // ── Step 2: find anchor coords of the target cell ───────────────────────────
+  const anchorSlot = cellAnchorSlot[cellIndex];
+  if (anchorSlot < 0)
+    throw new EditorError(`setCellSpan: cellIndex ${cellIndex} out of packing range`);
+  const anchorRow = Math.floor(anchorSlot / cols);
+  const anchorCol = anchorSlot % cols;
+
+  // ── Step 3: clamp requested span ────────────────────────────────────────────
+  colSpan = Math.max(1, Math.min(colSpan, cols - anchorCol));
+  rowSpan = Math.max(1, Math.min(rowSpan, rows - anchorRow));
+
+  // ── Step 4: compute old and new covered slot sets (excluding anchor) ─────────
+  const oldCs = Math.min(cells[cellIndex].colSpan ?? 1, cols - anchorCol);
+  const oldRs = Math.min(cells[cellIndex].rowSpan ?? 1, rows - anchorRow);
+  const oldCovered = new Set<number>();
+  for (let dr = 0; dr < oldRs; dr++)
+    for (let dc = 0; dc < oldCs; dc++)
+      if (dr !== 0 || dc !== 0)
+        oldCovered.add((anchorRow + dr) * cols + (anchorCol + dc));
+  const newCovered = new Set<number>();
+  for (let dr = 0; dr < rowSpan; dr++)
+    for (let dc = 0; dc < colSpan; dc++)
+      if (dr !== 0 || dc !== 0)
+        newCovered.add((anchorRow + dr) * cols + (anchorCol + dc));
+
+  // ── Step 5: slots to remove (newly covered) and restore (newly freed) ────────
+  const slotsToRemove = new Set<number>();
+  for (const s of newCovered) if (!oldCovered.has(s)) slotsToRemove.add(s);
+  const slotsToRestore = new Set<number>();
+  for (const s of oldCovered) if (!newCovered.has(s)) slotsToRestore.add(s);
+
+  // ── Step 6: build slotToCell map ─────────────────────────────────────────────
+  const slotToCell = new Map<number, number>();
+  for (let i = 0; i < cells.length; i++) {
+    if (cellAnchorSlot[i] >= 0) slotToCell.set(cellAnchorSlot[i], i);
+  }
+
+  // ── Step 7: update target cell span ──────────────────────────────────────────
+  let newCells: GridCell[] = cells.map((c, i) => {
+    if (i !== cellIndex) return { ...c };
+    const updated = { ...c };
+    if (colSpan === 1) delete updated.colSpan;
+    else updated.colSpan = colSpan;
+    if (rowSpan === 1) delete updated.rowSpan;
+    else updated.rowSpan = rowSpan;
+    return updated;
+  });
+
+  // ── Step 8: remove cells in slotsToRemove (descending index order) ───────────
+  const cellIndicesToRemove = [...slotsToRemove]
+    .map((s) => slotToCell.get(s))
+    .filter((i): i is number => i !== undefined)
+    .sort((a, b) => b - a);
+  for (const idx of cellIndicesToRemove) {
+    newCells = [...newCells.slice(0, idx), ...newCells.slice(idx + 1)];
+  }
+
+  // ── Step 9: insert empty cells for freed slots ────────────────────────────────
+  if (slotsToRestore.size > 0) {
+    const sortedRestoreSlots = [...slotsToRestore].sort((a, b) => a - b);
+    const occ2 = new Array<boolean>(rows * cols).fill(false);
+    let slot2 = 0;
+    let cellIdx2 = 0;
+    let restoreIdx = 0;
+    const insertionPoints: number[] = [];
+    while (restoreIdx < sortedRestoreSlots.length && slot2 < rows * cols) {
+      // Advance past occupied
+      while (slot2 < rows * cols && occ2[slot2]) slot2++;
+      if (slot2 >= rows * cols) break;
+      const targetSlot = sortedRestoreSlots[restoreIdx];
+      if (slot2 === targetSlot) {
+        // This slot is unoccupied and needs an empty cell at cellIdx2
+        insertionPoints.push(cellIdx2);
+        occ2[slot2] = true;
+        slot2++;
+        restoreIdx++;
+      } else if (slot2 < targetSlot) {
+        // Consume the next real cell from newCells
+        if (cellIdx2 < newCells.length) {
+          const r2 = Math.floor(slot2 / cols);
+          const c2 = slot2 % cols;
+          const cs2 = Math.min(newCells[cellIdx2].colSpan ?? 1, cols - c2);
+          const rs2 = Math.min(newCells[cellIdx2].rowSpan ?? 1, rows - r2);
+          for (let dr = 0; dr < rs2; dr++)
+            for (let dc = 0; dc < cs2; dc++)
+              occ2[(r2 + dr) * cols + (c2 + dc)] = true;
+          slot2++;
+          cellIdx2++;
+        } else {
+          slot2++;
+        }
+      } else {
+        // slot2 > targetSlot — covered by a previous span, skip
+        restoreIdx++;
+      }
+    }
+    // Insert in reverse order so earlier insertions don't shift later indices
+    for (let k = insertionPoints.length - 1; k >= 0; k--) {
+      const ins = insertionPoints[k];
+      newCells = [...newCells.slice(0, ins), {}, ...newCells.slice(ins)];
+    }
+  }
+
+  return {
+    ...m,
+    elements: { ...m.elements },
+    layout: { rows, cols, cells: newCells },
+  };
+}
