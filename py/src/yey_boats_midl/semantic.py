@@ -73,15 +73,50 @@ def _check_node(n: Any, path: str, refs: List[Dict[str, str]], issues: List[Issu
 
     if "cells" in n:
         rows, cols = n["rows"], n["cols"]
-        expected = rows * cols
+        total = rows * cols
         cells = n["cells"]
-        if len(cells) != expected:
-            issues.append(
-                _err(
-                    f"{path}/cells",
-                    f"grid cells length must equal rows * cols ({rows} * {cols} = {expected}); got {len(cells)} cells",
-                )
+        # When any cell carries colSpan/rowSpan, fewer cells can fill the full
+        # grid. Check for span fields to decide which validation path to take.
+        has_spans = any(
+            isinstance(c, dict) and (
+                (c.get("colSpan") is not None and c.get("colSpan") != 1)
+                or (c.get("rowSpan") is not None and c.get("rowSpan") != 1)
             )
+            for c in cells
+        )
+        if has_spans:
+            # With spans: cells must not overflow the grid.
+            occupied = [False] * total
+            slot = 0
+            overflow = False
+            for c in cells:
+                while slot < total and occupied[slot]:
+                    slot += 1
+                if slot >= total:
+                    overflow = True
+                    break
+                r, col = divmod(slot, cols)
+                cs = min(c.get("colSpan", 1) if isinstance(c, dict) else 1, cols - col)
+                rs = min(c.get("rowSpan", 1) if isinstance(c, dict) else 1, rows - r)
+                for dr in range(rs):
+                    for dc in range(cs):
+                        occupied[(r + dr) * cols + (col + dc)] = True
+            if overflow:
+                issues.append(
+                    _err(
+                        f"{path}/cells",
+                        f"grid has more cells than can fit in {rows} * {cols} = {total} slots after accounting for spans",
+                    )
+                )
+        else:
+            # No spans: classic row-major check — cells.length must equal rows*cols.
+            if len(cells) != total:
+                issues.append(
+                    _err(
+                        f"{path}/cells",
+                        f"grid cells length must equal rows * cols ({rows} * {cols} = {total}); got {len(cells)} cells",
+                    )
+                )
         for i, c in enumerate(cells):
             _check_node(c, f"{path}/cells/{i}", refs, issues)
         return

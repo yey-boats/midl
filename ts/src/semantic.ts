@@ -98,14 +98,52 @@ function checkNode(
   }
 
   if ("cells" in n) {
-    const expected = n.rows * n.cols;
-    if (n.cells.length !== expected) {
-      issues.push(
-        err(
-          `${path}/cells`,
-          `grid cells length must equal rows * cols (${n.rows} * ${n.cols} = ${expected}); got ${n.cells.length} cells`,
-        ),
-      );
+    const total = n.rows * n.cols;
+    // When any cell carries colSpan/rowSpan, fewer cells can fill the full
+    // grid. Compute the effective slot count from declared spans (clamped)
+    // to check whether the cells cover the grid without overflow.
+    const hasSpans = (n.cells as unknown[]).some(
+      (c) =>
+        typeof c === "object" && c !== null &&
+        (("colSpan" in (c as object) && (c as Record<string, unknown>)["colSpan"] !== 1) ||
+         ("rowSpan" in (c as object) && (c as Record<string, unknown>)["rowSpan"] !== 1)),
+    );
+    if (hasSpans) {
+      // With spans: the cells must not overflow the grid (they may under-fill
+      // if the user left trailing empty slots, but overflow is always an error).
+      const occupied = new Array<boolean>(total).fill(false);
+      let slot = 0;
+      let overflow = false;
+      for (let ci = 0; ci < n.cells.length; ci++) {
+        while (slot < total && occupied[slot]) slot++;
+        if (slot >= total) { overflow = true; break; }
+        const r = Math.floor(slot / n.cols);
+        const c = slot % n.cols;
+        const raw = n.cells[ci] as Record<string, unknown>;
+        const cs = Math.min(typeof raw["colSpan"] === "number" ? (raw["colSpan"] as number) : 1, n.cols - c);
+        const rs = Math.min(typeof raw["rowSpan"] === "number" ? (raw["rowSpan"] as number) : 1, n.rows - r);
+        for (let dr = 0; dr < rs; dr++)
+          for (let dc = 0; dc < cs; dc++)
+            occupied[(r + dr) * n.cols + (c + dc)] = true;
+      }
+      if (overflow) {
+        issues.push(
+          err(
+            `${path}/cells`,
+            `grid has more cells than can fit in ${n.rows} * ${n.cols} = ${total} slots after accounting for spans`,
+          ),
+        );
+      }
+    } else {
+      // No spans: classic row-major check — cells.length must equal rows*cols.
+      if (n.cells.length !== total) {
+        issues.push(
+          err(
+            `${path}/cells`,
+            `grid cells length must equal rows * cols (${n.rows} * ${n.cols} = ${total}); got ${n.cells.length} cells`,
+          ),
+        );
+      }
     }
     n.cells.forEach((c, i) => checkNode(c, `${path}/cells/${i}`, refs, issues));
     return;

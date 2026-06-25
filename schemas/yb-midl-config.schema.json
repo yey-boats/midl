@@ -153,8 +153,12 @@
       "description": "A recursive layout node. Exactly one of four shapes: an element leaf, a directional split (`flow` + `children`), a grid (`rows`/`cols`/`cells`), or a `preset` reference.",
       "oneOf": [
         { "type": "object", "required": ["element"], "additionalProperties": false,
-          "description": "Leaf node: places a single element (by its id in screen.elements) filling the available rect.",
-          "properties": { "element": { "description": "Element id (a key in the enclosing screen's `elements`).", "type": "string", "minLength": 1 } } },
+          "description": "Leaf node: places a single element (by its id in screen.elements) filling the available rect. Optional `colSpan`/`rowSpan` extend the cell across multiple grid columns/rows when this node appears as a grid cell (default 1).",
+          "properties": {
+            "element": { "description": "Element id (a key in the enclosing screen's `elements`).", "type": "string", "minLength": 1 },
+            "colSpan": { "description": "How many grid columns this cell spans (default 1). Only meaningful when this node is a direct child of a grid (`rows`/`cols`/`cells`).", "type": "integer", "minimum": 1 },
+            "rowSpan": { "description": "How many grid rows this cell spans (default 1). Only meaningful when this node is a direct child of a grid (`rows`/`cols`/`cells`).", "type": "integer", "minimum": 1 }
+          } },
         { "type": "object", "required": ["flow", "children"], "additionalProperties": false,
           "description": "Directional split: arranges children along one axis. `flow: row` = horizontal main axis (children side by side); `flow: col` = vertical main axis (children stacked).",
           "properties": {
