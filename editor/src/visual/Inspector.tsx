@@ -16,13 +16,14 @@ export interface InspectorProps {
   manifest: Manifest;
   provider: DataProvider;
   onChange: (next: EditorModel) => void;
+  onBrowseData?: () => void;  // NEW: fires when PathPicker "Browse data ▸" is clicked
 }
 
 const SPAN_OPTIONS = ["1x1", "1x2", "2x1", "2x2"] as const;
 const COLOR_ROLE_OPTIONS = ["default", "accent", "warn"] as const;
 const SCALE_OPTIONS = ["fixed", "metric"] as const;
 
-export function Inspector({ model, selectedCell, manifest, provider, onChange }: InspectorProps): React.JSX.Element {
+export function Inspector({ model, selectedCell, manifest, provider, onChange, onBrowseData }: InspectorProps): React.JSX.Element {
   // ── Grid-level controls ────────────────────────────────────────────────────
   const isGrid = "rows" in model.layout && "cols" in model.layout && "cells" in model.layout;
 
@@ -130,6 +131,14 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
     updateElement({ ...selectedElement, style: { ...selectedElement.style, scale } });
   }
 
+  const FONT_SIZE_FALLBACK = [14, 20, 28, 48];
+  const fontSizes: number[] = manifest.fonts && manifest.fonts.length > 0 ? manifest.fonts : FONT_SIZE_FALLBACK;
+
+  function handleSizeChange(size: number) {
+    if (!selectedElement) return;
+    updateElement({ ...selectedElement, style: { ...selectedElement.style, size } });
+  }
+
   function handleRemoveElement() {
     if (!selectedElementId) return;
     onChange(removeElement(model, selectedElementId));
@@ -200,6 +209,9 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
   const currentSided = Boolean(selectedElement.style?.sided);
   const currentColorRole = String(selectedElement.style?.colorRole ?? "default");
   const currentScale = String(selectedElement.style?.scale ?? "fixed");
+  const currentSize: number | "" = typeof selectedElement?.style?.size === "number"
+    ? selectedElement.style.size as number
+    : "";
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -241,6 +253,7 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
               manifest={manifest}
               provider={provider}
               onChange={handlePathChange}
+              onBrowse={onBrowseData}
             />
           </div>
           {/* Live value readout */}
@@ -392,6 +405,17 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange }:
               style={{ flex: 1 }}
             >
               {SCALE_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}
+            </select>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "0.77em", opacity: 0.7, minWidth: "56px" }}>Size</span>
+            <select
+              data-testid="size-select"
+              value={String(currentSize)}
+              onChange={(e) => handleSizeChange(Number(e.target.value))}
+              style={{ flex: 1 }}
+            >
+              {fontSizes.map((s) => (<option key={s} value={String(s)}>{s}px</option>))}
             </select>
           </div>
         </div>

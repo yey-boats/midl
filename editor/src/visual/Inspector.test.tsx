@@ -639,3 +639,182 @@ test("loading a model whose cell already has colSpan:2 shows the span select as 
   // Must show "2x1" — derived from cell.colSpan=2, cell.rowSpan=undefined→1
   expect(spanSelect.value).toBe("2x1");
 });
+
+// ── Fix 2b: Browse data callback wiring ───────────────────────────────────────
+
+test("clicking 'Browse data' in PathPicker calls onBrowseData on Inspector", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  const onChange = vi.fn();
+  const onBrowseData = vi.fn();
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+      onBrowseData={onBrowseData}
+    />,
+  );
+
+  fireEvent.click(getByTestId("path-picker-browse"));
+  expect(onBrowseData).toHaveBeenCalledOnce();
+});
+
+test("Inspector renders PathPicker without Browse button when onBrowseData is not provided", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+
+  const { queryByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  // No browse button when onBrowseData is absent
+  expect(queryByTestId("path-picker-browse")).toBeNull();
+});
+
+// ── Fix 3: Size select ────────────────────────────────────────────────────────
+
+test("Inspector renders a size-select in the APPEARANCE section", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  expect(getByTestId("size-select")).toBeTruthy();
+});
+
+test("size-select options include manifest.fonts values when present", () => {
+  const manifestWithFonts: typeof MANIFEST = {
+    ...MANIFEST,
+    fonts: [14, 20, 28, 48],
+  };
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={manifestWithFonts}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  const select = getByTestId("size-select") as HTMLSelectElement;
+  const values = Array.from(select.options).map((o) => Number(o.value));
+  expect(values).toContain(14);
+  expect(values).toContain(20);
+  expect(values).toContain(28);
+  expect(values).toContain(48);
+});
+
+test("size-select defaults to fallback [14,20,28,48] when manifest has no fonts", () => {
+  const model = makeGridModel(); // MANIFEST has no fonts field
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  const select = getByTestId("size-select") as HTMLSelectElement;
+  const values = Array.from(select.options).map((o) => Number(o.value));
+  expect(values).toEqual([14, 20, 28, 48]);
+});
+
+test("changing size-select updates element.style.size with a number", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("size-select"), { target: { value: "28" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  expect(captured.elements["sog"]?.style?.size).toBe(28);
+});
+
+test("element.style.size round-trips through serializeMidl → parseMidl", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("size-select"), { target: { value: "48" } });
+
+  const yaml = serializeMidl(captured, "yaml");
+  const reparsed = parseMidl(yaml);
+  expect(reparsed.elements["sog"]?.style?.size).toBe(48);
+});
+
+test("size-select shows element's current style.size as selected value", () => {
+  const model = makeGridModel({
+    elements: {
+      sog: {
+        id: "sog",
+        type: "single-value",
+        name: "SOG",
+        bindings: { value: { kind: "signalk", path: "navigation.speedOverGround" } },
+        format: { unit: "kn", decimals: 1 },
+        style: { size: 28 },
+      },
+    },
+  });
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  const select = getByTestId("size-select") as HTMLSelectElement;
+  expect(Number(select.value)).toBe(28);
+});
