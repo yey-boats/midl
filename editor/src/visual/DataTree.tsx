@@ -2,11 +2,12 @@
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
 import React, { useState, useEffect, useCallback } from "react";
-import type { PathInfo, LivePathSource } from "../adapters";
+import type { LivePathSource } from "../adapters";
+import { SIGNALK_CATALOG, mergeCatalogWithLive } from "../signalk-catalog";
+import type { CatalogEntry } from "../signalk-catalog";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-/** Minimal interface expected from the provider — duck-typed via feature detection. */
 export type DataProvider = LivePathSource;
 
 export interface DataTreeProps {
@@ -17,27 +18,22 @@ export interface DataTreeProps {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Derive the data-testid slug for a path (dots → dashes). */
 function leafTestId(path: string): string {
   return `data-leaf-${path.replace(/\./g, "-")}`;
 }
 
-/** Group paths by their first segment (e.g. "navigation", "environment"). */
-function groupPaths(paths: PathInfo[]): Map<string, PathInfo[]> {
-  const map = new Map<string, PathInfo[]>();
-  for (const p of paths) {
-    const group = p.path.split(".")[0] ?? p.path;
-    if (!map.has(group)) map.set(group, []);
-    map.get(group)!.push(p);
+function groupEntries(entries: CatalogEntry[]): Map<string, CatalogEntry[]> {
+  const map = new Map<string, CatalogEntry[]>();
+  for (const e of entries) {
+    if (!map.has(e.group)) map.set(e.group, []);
+    map.get(e.group)!.push(e);
   }
   return map;
 }
 
-/** Format a value compactly for display. */
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "number") {
-    // Show up to 3 significant digits
     const abs = Math.abs(value);
     if (abs === 0) return "0";
     if (abs >= 1000) return value.toFixed(0);
@@ -51,28 +47,27 @@ function formatValue(value: unknown): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function DataTree({ provider, selectedElementId, onBindPath }: DataTreeProps): React.JSX.Element {
-  const [paths, setPaths] = useState<PathInfo[]>(() => provider.knownPaths());
+  const [entries, setEntries] = useState<CatalogEntry[]>(() =>
+    mergeCatalogWithLive(SIGNALK_CATALOG, provider.knownPaths()),
+  );
   const [search, setSearch] = useState("");
   const [injectOpen, setInjectOpen] = useState(false);
   const [injectPath, setInjectPath] = useState("");
   const [injectValue, setInjectValue] = useState("");
   const [injectUnit, setInjectUnit] = useState("");
 
-  // Subscribe to path catalogue changes
   useEffect(() => {
     const unsub = provider.onChange(() => {
-      setPaths(provider.knownPaths());
+      setEntries(mergeCatalogWithLive(SIGNALK_CATALOG, provider.knownPaths()));
     });
     return unsub;
   }, [provider]);
 
-  // Filter paths by search substring
   const filtered = search
-    ? paths.filter((p) => p.path.includes(search))
-    : paths;
+    ? entries.filter((e) => e.path.includes(search) || e.label.toLowerCase().includes(search.toLowerCase()))
+    : entries;
 
-  // Group by first segment
-  const grouped = groupPaths(filtered);
+  const grouped = groupEntries(filtered);
 
   const handleInjectSubmit = useCallback(() => {
     if (!injectPath) return;
@@ -107,7 +102,7 @@ export function DataTree({ provider, selectedElementId, onBindPath }: DataTreePr
 
       {/* Path tree */}
       <div data-section="path-tree">
-        {[...grouped.entries()].map(([group, groupPaths]) => (
+        {[...grouped.entries()].map(([group, groupEntries]) => (
           <div key={group} data-section="tree-group">
             <div
               data-section="group-header"
@@ -115,15 +110,16 @@ export function DataTree({ provider, selectedElementId, onBindPath }: DataTreePr
             >
               {group}
               <span style={{ marginLeft: "6px", fontWeight: 400, opacity: 0.6 }}>
-                ({groupPaths.length})
+                ({groupEntries.length})
               </span>
             </div>
-            {groupPaths.map((p) => (
+            {groupEntries.map((e) => (
               <div
-                key={p.path}
-                data-testid={leafTestId(p.path)}
-                data-injected={p.injected ? "true" : undefined}
-                onClick={() => onBindPath(p.path)}
+                key={e.path}
+                data-testid={leafTestId(e.path)}
+                data-injected={e.injected ? "true" : undefined}
+                data-live={e.live ? "true" : undefined}
+                onClick={() => onBindPath(e.path)}
                 style={{
                   padding: "3px 8px 3px 16px",
                   cursor: "pointer",
@@ -132,28 +128,30 @@ export function DataTree({ provider, selectedElementId, onBindPath }: DataTreePr
                   gap: "6px",
                 }}
               >
-                {/* Online dot */}
+                {/* Dot: purple=injected, green=live, grey=catalog-only */}
                 <span
                   data-section="dot"
                   style={{
                     width: 5,
                     height: 5,
                     borderRadius: "50%",
-                    background: p.injected ? "#c8a0ff" : "#4ac36e",
+                    background: e.injected ? "#c8a0ff" : e.live ? "#4ac36e" : "#3a4f62",
                     flexShrink: 0,
                     display: "inline-block",
                   }}
                 />
                 {/* Short path (strip the group prefix) */}
                 <span style={{ fontFamily: "monospace", fontSize: "10.5px", flex: 1 }}>
-                  {p.path.replace(`${p.path.split(".")[0]}.`, "")}
+                  {e.path.replace(`${e.group}.`, "")}
                 </span>
-                {/* Live value */}
-                <span style={{ fontFamily: "monospace", fontSize: "10px", opacity: 0.8 }}>
-                  {formatValue(p.value)}
-                  {p.sourceUnit ? ` ${p.sourceUnit}` : ""}
-                </span>
-                {p.injected && (
+                {/* Live value (only when live) */}
+                {e.live && (
+                  <span style={{ fontFamily: "monospace", fontSize: "10px", opacity: 0.8 }}>
+                    {formatValue(e.value)}
+                    {e.sourceUnit ? ` ${e.sourceUnit}` : ""}
+                  </span>
+                )}
+                {e.injected && (
                   <span style={{ fontSize: "9px", opacity: 0.7 }}>inj</span>
                 )}
               </div>

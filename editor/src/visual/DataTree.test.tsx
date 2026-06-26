@@ -178,32 +178,30 @@ test("injected paths are displayed distinctly (injected flag on leaf)", () => {
   expect(leaf.getAttribute("data-injected")).toBe("true");
 });
 
-test("tree re-renders when provider.onChange fires (new path appears)", async () => {
+test("tree re-renders when provider.onChange fires (new live-only path appears)", async () => {
   const provider = makeProviderStub([]);
 
   const { queryByTestId } = render(
     <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
   );
 
-  // No leaf yet
-  expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeNull();
+  // This custom path is NOT in the catalog — so no leaf yet
+  expect(queryByTestId("data-leaf-custom-live-only-sensor")).toBeNull();
 
   // Simulate new delta arriving
   await act(async () => {
     provider.pushPaths([
-      { path: "navigation.speedOverGround", value: 5.0, updatedAt: Date.now() },
+      { path: "custom.live.only.sensor", value: 5.0, updatedAt: Date.now() },
     ]);
   });
 
-  // Leaf should now be rendered
-  expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeTruthy();
+  // Leaf should now be rendered (appended as live-only)
+  expect(queryByTestId("data-leaf-custom-live-only-sensor")).toBeTruthy();
 });
 
 test("search clears filter and shows all leaves again after clearing", () => {
-  const provider = makeProviderStub([
-    { path: "navigation.speedOverGround", value: 3.5, updatedAt: Date.now() },
-    { path: "environment.wind.speedApparent", value: 6.2, updatedAt: Date.now() },
-  ]);
+  const provider = makeProviderStub([]);
+  // SOG and wind are in the catalog — visible without live data
 
   const { getByTestId, queryByTestId } = render(
     <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
@@ -212,14 +210,75 @@ test("search clears filter and shows all leaves again after clearing", () => {
   const search = getByTestId("data-search");
   fireEvent.change(search, { target: { value: "heading" } });
 
-  // Both leaves filtered out
+  // SOG should be filtered out — "heading" not in its path
   expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeNull();
-  expect(queryByTestId("data-leaf-environment-wind-speedApparent")).toBeNull();
+  // headingTrue should be visible
+  expect(queryByTestId("data-leaf-navigation-headingTrue")).toBeTruthy();
 
   // Clear the filter
   fireEvent.change(search, { target: { value: "" } });
 
-  // Both leaves now visible
+  // Both now visible
   expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeTruthy();
-  expect(queryByTestId("data-leaf-environment-wind-speedApparent")).toBeTruthy();
+  expect(queryByTestId("data-leaf-navigation-headingTrue")).toBeTruthy();
+});
+
+// ── Catalog-integration tests (Fix 1) ────────────────────────────────────────
+
+import { SIGNALK_CATALOG } from "../signalk-catalog";
+
+test("DataTree renders catalog entries even with zero live paths", () => {
+  // Provider with NO live data
+  const provider = makeProviderStub([]);
+  const { getByText } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+  // Catalog groups should be visible
+  expect(getByText(/navigation/i)).toBeTruthy();
+  expect(getByText(/environment/i)).toBeTruthy();
+  expect(getByText(/electrical/i)).toBeTruthy();
+});
+
+test("DataTree renders catalog leaf for navigation.speedOverGround even with zero live data", () => {
+  const provider = makeProviderStub([]);
+  const { getByTestId } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+  // The leaf for SOG must be present from the catalog
+  expect(getByTestId("data-leaf-navigation-speedOverGround")).toBeTruthy();
+});
+
+test("clicking a catalog leaf with no live data calls onBindPath", () => {
+  const provider = makeProviderStub([]);
+  const onBindPath = vi.fn();
+  const { getByTestId } = render(
+    <DataTree provider={provider} selectedElementId="some-element" onBindPath={onBindPath} />,
+  );
+  fireEvent.click(getByTestId("data-leaf-navigation-speedOverGround"));
+  expect(onBindPath).toHaveBeenCalledWith("navigation.speedOverGround");
+});
+
+test("DataTree overlays live value onto catalog entry when provider streams it", async () => {
+  const provider = makeProviderStub([
+    { path: "navigation.speedOverGround", value: 5.5, sourceUnit: "m/s", updatedAt: Date.now() },
+  ]);
+  const { getByTestId } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+  const leaf = getByTestId("data-leaf-navigation-speedOverGround");
+  // The leaf should show the live value
+  expect(leaf.textContent).toContain("5.5");
+  // The leaf should have data-live attribute
+  expect(leaf.getAttribute("data-live")).toBe("true");
+});
+
+test("DataTree appends live-only path not in catalog after merging", async () => {
+  const provider = makeProviderStub([
+    { path: "custom.exotic.sensor", value: 42, updatedAt: Date.now() },
+  ]);
+  const { getByTestId } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+  // Must appear even though "custom.exotic.sensor" is not in SIGNALK_CATALOG
+  expect(getByTestId("data-leaf-custom-exotic-sensor")).toBeTruthy();
 });
