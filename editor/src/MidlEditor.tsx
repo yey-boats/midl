@@ -282,6 +282,12 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     [model, selectedCell],
   );
 
+  // ── Visual mode: browse data button (PathPicker) ───────────────────────────
+
+  const handleBrowseData = useCallback(() => {
+    setLeftTab("data");
+  }, []);
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -448,6 +454,7 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
               manifest={manifest}
               provider={provider}
               onChange={setModel}
+              onBrowseData={handleBrowseData}
             />
           </div>
         ) : mode === "source" && manifest ? (

@@ -319,3 +319,46 @@ test("binding a path from DataTree while a cell with element is selected updates
     expect(onSaved).toHaveBeenCalled();
   }, { timeout: 3000 });
 });
+
+test("clicking 'Browse data' in Inspector's PathPicker switches left rail to Data tab", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider([
+    { path: "navigation.speedOverGround", value: 3.5, updatedAt: Date.now() },
+  ]);
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId, queryByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  // Wait for editor to load
+  await waitFor(() => {
+    expect(getByTestId("tab-elements")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Select cell 0 (which has the sog element with a path binding)
+  await act(async () => {
+    fireEvent.click(getByTestId("cell-0"));
+  });
+
+  // The Browse data button should now be visible in the inspector's PathPicker
+  await waitFor(() => {
+    expect(getByTestId("path-picker-browse")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Click Browse data
+  await act(async () => {
+    fireEvent.click(getByTestId("path-picker-browse"));
+  });
+
+  // The left rail should now show the DataTree (Data tab active)
+  await waitFor(() => {
+    expect(queryByTestId("data-tree")).toBeTruthy();
+  }, { timeout: 3000 });
+});
