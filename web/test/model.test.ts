@@ -125,3 +125,51 @@ test("stale value keeps its last reading but reports stale state", () => {
   expect(m.state).toBe("stale");
   expect(m.text).toBe("6.0 kn");
 });
+
+// ── A1: inferred sourceUnit (no sourceUnit from provider) ─────────────────────
+
+test("A1: headingTrue 2.0 rad, no sourceUnit, format.unit 'deg' → '115'", () => {
+  // Provider gives NO sourceUnit — path inference must kick in (rad → deg).
+  // 2.0 * (180/π) ≈ 114.59°, rounded → 115
+  const p = new MockDataProvider({ "navigation.headingTrue": { value: 2.0 } });
+  const m = resolveElement(sv("navigation.headingTrue", { unit: "deg", decimals: 0 }), p);
+  expect(m.state).toBe("ok");
+  expect(m.text).toBe("115 deg");
+  expect(m.numeric).toBeCloseTo(114.59, 0);
+});
+
+test("A1: stateOfCharge 0.78, no sourceUnit, format.unit '%' → '78 %'", () => {
+  // Provider gives NO sourceUnit — path inference must kick in (ratio → %).
+  const p = new MockDataProvider({ "electrical.batteries.0.capacity.stateOfCharge": { value: 0.78 } });
+  const m = resolveElement(sv("electrical.batteries.0.capacity.stateOfCharge", { unit: "%", decimals: 0 }), p);
+  expect(m.state).toBe("ok");
+  expect(m.text).toBe("78 %");
+  expect(m.numeric).toBeCloseTo(78, 1);
+});
+
+test("A1: depth.belowTransducer 3.5, no sourceUnit, format.unit 'ft' → converts m→ft", () => {
+  // Provider gives NO sourceUnit — path inference must kick in (m → ft).
+  // 3.5 m * 3.2808… ≈ 11.48 ft
+  const p = new MockDataProvider({ "environment.depth.belowTransducer": { value: 3.5 } });
+  const m = resolveElement(sv("environment.depth.belowTransducer", { unit: "ft", decimals: 1 }), p);
+  expect(m.state).toBe("ok");
+  expect(m.numeric).toBeCloseTo(11.48, 0);
+  expect(m.text).toMatch(/11\.\d ft/);
+});
+
+test("A1: provider-supplied sourceUnit wins over inference", () => {
+  // Provider explicitly tags sourceUnit:"m/s" on a headingTrue path — artificial
+  // but verifies provider value always wins.
+  const p = new MockDataProvider({ "navigation.headingTrue": { value: 1.0, sourceUnit: "m/s" } });
+  const m = resolveElement(sv("navigation.headingTrue", { unit: "kn", decimals: 2 }), p);
+  // Must use "m/s" not "rad": 1.0 m/s → 1.943844 kn
+  expect(m.numeric).toBeCloseTo(1.9438, 3);
+});
+
+test("A1: unknown path with no sourceUnit → no conversion (value unchanged)", () => {
+  // "foo.bar" has no known convention → inferSourceUnit returns undefined → no convert.
+  const p = new MockDataProvider({ "foo.bar": { value: 42.5 } });
+  const m = resolveElement(sv("foo.bar", { unit: "kn", decimals: 1 }), p);
+  // No sourceUnit → convert("kn", undefined, ...) returns value unchanged
+  expect(m.numeric).toBeCloseTo(42.5, 1);
+});

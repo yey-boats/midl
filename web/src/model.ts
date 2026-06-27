@@ -1,10 +1,24 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 import type { Element, Source } from "@yey-boats/midl";
-import type { DataProvider } from "./data";
+import type { DataProvider, ResolvedValue } from "./data";
 import { formatValue, convert } from "./format";
+import { inferSourceUnit } from "./infer-unit";
 
 export type ModelState = "ok" | "stale" | "no-data" | "bad";
+
+/**
+ * Defense-in-depth: when the provider did not tag a sourceUnit (e.g. direct
+ * SignalK WS without meta), infer the SI unit from the binding path so that
+ * unit conversion always fires.  Provider-supplied sourceUnit always wins.
+ */
+function withInferredUnit(rv: ResolvedValue, binding: Source): ResolvedValue {
+  if (rv.sourceUnit != null) return rv; // provider wins
+  if (binding.kind !== "signalk") return rv;
+  const inferred = inferSourceUnit(binding.path);
+  if (inferred == null) return rv;
+  return { ...rv, sourceUnit: inferred };
+}
 
 /** A resolved dial marker: a glyph orbiting the rim (kind 'rim') or a centre
  *  vector (kind 'vector'). `angleDeg` is the bow/north-relative bearing; markers
@@ -95,7 +109,8 @@ function resolveMarkers(el: Element, provider: DataProvider): ResolvedMarker[] |
     let angleDeg: number | undefined;
     const dir = mk.dir as Source | undefined;
     if (dir && typeof (dir as { kind?: unknown }).kind === "string") {
-      const dr = provider.getValue(dir);
+      const drRaw = provider.getValue(dir);
+      const dr = withInferredUnit(drRaw, dir);
       if (dr.present) angleDeg = asDeg(dr);
     }
     out.push({ glyph, color, kind, angleDeg });
@@ -132,7 +147,7 @@ function resolveSectors(el: Element): Array<{ from: number; to: number; color: s
 export function resolveElement(el: Element, provider: DataProvider): ElementModel {
   const valueBinding = el.bindings?.value;
   if (!valueBinding) return { state: "no-data", text: "--" };
-  const rv = provider.getValue(valueBinding);
+  const rv = withInferredUnit(provider.getValue(valueBinding), valueBinding);
   if (!rv.present) return { state: "no-data", text: "--" };
 
   const fmt = formatValue(rv.value, el.format, rv.sourceUnit);
@@ -166,7 +181,7 @@ export function resolveElement(el: Element, provider: DataProvider): ElementMode
   if (ANGLE_TYPES.has(el.type)) {
     m.angleDeg = asDeg(rv);
     const dirBinding = el.bindings?.dir;
-    if (dirBinding) { const dr = provider.getValue(dirBinding); if (dr.present) m.dirDeg = asDeg(dr); }
+    if (dirBinding) { const dr = withInferredUnit(provider.getValue(dirBinding), dirBinding); if (dr.present) m.dirDeg = asDeg(dr); }
     // A compass' value IS the heading angle; show whole degrees when the screen
     // didn't set an explicit display unit. (A windrose value is a speed, so it
     // keeps its format and is left untouched.)
