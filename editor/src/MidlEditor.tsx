@@ -11,7 +11,7 @@ import { parseMidl, serializeMidl } from "./midl-io";
 import { SIGNALK_CATALOG, applyCatalogDefaults } from "./signalk-catalog";
 import { usePreview } from "./usePreview";
 import { validateModel } from "./validate";
-import { addElement, assignElementToCell, removeElement } from "./layout-ops";
+import { addElement, assignElementToCell, removeElement, setGrid, clearWidgets } from "./layout-ops";
 import { Palette } from "./visual/Palette";
 import { GridCanvas } from "./visual/GridCanvas";
 import { Inspector } from "./visual/Inspector";
@@ -77,6 +77,124 @@ function getDeviceDimensions(cls: string): { w: number; h: number } {
   return { w: 480, h: 480 };
 }
 
+// ── Grid presets ──────────────────────────────────────────────────────────────
+
+const GRID_PRESETS: Array<{ label: string; rows: number; cols: number }> = [
+  { label: "1×1", rows: 1, cols: 1 },
+  { label: "2×1", rows: 2, cols: 1 },
+  { label: "1×2", rows: 1, cols: 2 },
+  { label: "2×2", rows: 2, cols: 2 },
+  { label: "3×1", rows: 3, cols: 1 },
+  { label: "2×3", rows: 2, cols: 3 },
+];
+
+// ── LayoutControls — shown in the "Layout" left tab ───────────────────────────
+
+interface LayoutControlsProps {
+  model: EditorModel;
+  onSelectCell: (cellIndex: number) => void;
+  onRemoveElement: (elementId: string) => void;
+  onSetGrid: (rows: number, cols: number) => void;
+  onClearWidgets: () => void;
+}
+
+function LayoutControls({
+  model,
+  onSelectCell,
+  onRemoveElement,
+  onSetGrid,
+  onClearWidgets,
+}: LayoutControlsProps): React.JSX.Element {
+  const isGrid = "rows" in model.layout && "cols" in model.layout && "cells" in model.layout;
+  const currentRows = isGrid ? (model.layout as { rows: number }).rows : 1;
+  const currentCols = isGrid ? (model.layout as { cols: number }).cols : 1;
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+      {/* Grid size controls */}
+      <div style={{ padding: "10px 10px 6px", borderBottom: "1px solid var(--line, #1d2b3a)", flexShrink: 0 }}>
+        <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.09em", opacity: 0.6, marginBottom: "8px" }}>Grid Size</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+          <span style={{ fontSize: "11px", opacity: 0.7, minWidth: "36px" }}>Rows</span>
+          <button
+            onClick={() => onSetGrid(Math.max(1, currentRows - 1), currentCols)}
+            style={{ width: 22, height: 22, padding: 0, fontSize: "14px", lineHeight: 1, background: "var(--elev)", border: "1px solid var(--line2)", borderRadius: "3px", cursor: "pointer", color: "var(--ink-dim)" }}
+          >−</button>
+          <span data-testid="layout-rows" style={{ fontFamily: "monospace", fontSize: "12px", minWidth: "20px", textAlign: "center" }}>{currentRows}</span>
+          <button
+            onClick={() => onSetGrid(currentRows + 1, currentCols)}
+            style={{ width: 22, height: 22, padding: 0, fontSize: "14px", lineHeight: 1, background: "var(--elev)", border: "1px solid var(--line2)", borderRadius: "3px", cursor: "pointer", color: "var(--ink-dim)" }}
+          >+</button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+          <span style={{ fontSize: "11px", opacity: 0.7, minWidth: "36px" }}>Cols</span>
+          <button
+            onClick={() => onSetGrid(currentRows, Math.max(1, currentCols - 1))}
+            style={{ width: 22, height: 22, padding: 0, fontSize: "14px", lineHeight: 1, background: "var(--elev)", border: "1px solid var(--line2)", borderRadius: "3px", cursor: "pointer", color: "var(--ink-dim)" }}
+          >−</button>
+          <span data-testid="layout-cols" style={{ fontFamily: "monospace", fontSize: "12px", minWidth: "20px", textAlign: "center" }}>{currentCols}</span>
+          <button
+            onClick={() => onSetGrid(currentRows, currentCols + 1)}
+            style={{ width: 22, height: 22, padding: 0, fontSize: "14px", lineHeight: 1, background: "var(--elev)", border: "1px solid var(--line2)", borderRadius: "3px", cursor: "pointer", color: "var(--ink-dim)" }}
+          >+</button>
+        </div>
+        {/* Presets */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+          {GRID_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              data-testid={`layout-preset-${p.rows}x${p.cols}`}
+              onClick={() => onSetGrid(p.rows, p.cols)}
+              style={{
+                padding: "3px 7px",
+                fontSize: "10px",
+                fontFamily: "monospace",
+                background: (currentRows === p.rows && currentCols === p.cols) ? "rgba(87,199,216,0.15)" : "var(--elev)",
+                border: "1px solid",
+                borderColor: (currentRows === p.rows && currentCols === p.cols) ? "var(--accent)" : "var(--line2)",
+                borderRadius: "4px",
+                cursor: "pointer",
+                color: (currentRows === p.rows && currentCols === p.cols) ? "var(--accent)" : "var(--ink-dim)",
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Elements list */}
+      <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+        <ElementsList
+          model={model}
+          onSelectCell={onSelectCell}
+          onRemoveElement={onRemoveElement}
+        />
+      </div>
+
+      {/* Clear widgets */}
+      <div style={{ padding: "8px 10px", borderTop: "1px solid var(--line, #1d2b3a)", flexShrink: 0 }}>
+        <button
+          data-testid="clear-widgets"
+          onClick={onClearWidgets}
+          style={{
+            width: "100%",
+            padding: "6px",
+            fontSize: "11px",
+            background: "transparent",
+            border: "1px solid var(--danger, oklch(0.64 0.19 25))",
+            borderRadius: "4px",
+            cursor: "pointer",
+            color: "var(--danger, oklch(0.64 0.19 25))",
+          }}
+        >
+          Clear widgets
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── MidlEditor component ───────────────────────────────────────────────────────
 
 export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
@@ -113,6 +231,9 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
 
   const [mobileSheet, setMobileSheet] = useState<MobileSheet>(null);
   const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
+
+  // ── Data flyout state (right-side inspector adjacent flyout) ─────────────────
+  const [dataFlyoutOpen, setDataFlyoutOpen] = useState(false);
 
   // ── Init on mount ─────────────────────────────────────────────────────────────
 
@@ -365,9 +486,30 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
   );
 
   // ── Visual mode: browse data button (PathPicker) ───────────────────────────
+  // Opens the right-side data flyout so the user can pick a path next to the inspector.
 
   const handleBrowseData = useCallback(() => {
-    setLeftTab("data");
+    setDataFlyoutOpen(true);
+  }, []);
+
+  const handleFlyoutBindPath = useCallback(
+    (path: string) => {
+      handleBindPath(path);
+      setDataFlyoutOpen(false);
+    },
+    [handleBindPath],
+  );
+
+  // ── Layout tab: setGrid handler ───────────────────────────────────────────────
+  const handleSetGrid = useCallback(
+    (rows: number, cols: number) => {
+      try { setModel((m) => setGrid(m, rows, cols)); } catch { /* ignore */ }
+    },
+    [],
+  );
+
+  const handleClearWidgets = useCallback(() => {
+    try { setModel((m) => clearWidgets(m)); } catch { /* ignore */ }
   }, []);
 
   // ── Visual mode: remove element from elements-list ─────────────────────────
@@ -546,13 +688,15 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
                   selectedElementId={selectedElementId}
                   onBindPath={handleBindPath}
                 />
-              ) : (
-                <ElementsList
+              ) : leftTab === "layout" ? (
+                <LayoutControls
                   model={model}
                   onSelectCell={setSelectedCell}
                   onRemoveElement={handleRemoveFromList}
+                  onSetGrid={handleSetGrid}
+                  onClearWidgets={handleClearWidgets}
                 />
-              )}
+              ) : null}
             </div>
 
             {/* Center canvas */}
@@ -591,15 +735,35 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
               </div>
             </div>
 
-            {/* Right inspector */}
-            <Inspector
-              model={model}
-              selectedCell={selectedCell}
-              manifest={manifest}
-              provider={provider}
-              onChange={setModel}
-              onBrowseData={handleBrowseData}
-            />
+            {/* Right inspector + data flyout wrapper */}
+            <div className="right-rail-wrap">
+              {/* Data flyout — right-anchored, slides in over the inspector */}
+              {dataFlyoutOpen && (
+                <div data-testid="data-flyout" className="data-flyout">
+                  <div className="data-flyout-header">
+                    <span className="data-flyout-title">Bind Path</span>
+                    <button
+                      data-testid="data-flyout-close"
+                      className="data-flyout-close"
+                      onClick={() => setDataFlyoutOpen(false)}
+                    >×</button>
+                  </div>
+                  <DataTree
+                    provider={provider as unknown as LivePathSource}
+                    selectedElementId={selectedElementId}
+                    onBindPath={handleFlyoutBindPath}
+                  />
+                </div>
+              )}
+              <Inspector
+                model={model}
+                selectedCell={selectedCell}
+                manifest={manifest}
+                provider={provider}
+                onChange={setModel}
+                onBrowseData={handleBrowseData}
+              />
+            </div>
           </div>
         ) : mode === "source" && manifest ? (
           <SourceEditor

@@ -199,6 +199,63 @@ export function removeElement(m: EditorModel, elementId: string): EditorModel {
   };
 }
 
+// ── setGrid ───────────────────────────────────────────────────────────────────
+
+/**
+ * Resize the grid to the requested rows×cols, re-flowing placed widgets in
+ * row-major order into the new grid.
+ *
+ * - Widgets that fit (their ordinal position ≤ newRows*newCols) are placed into
+ *   cells in the new grid in row-major order.
+ * - Widgets whose position exceeds the new grid size become "unplaced": they
+ *   remain in the elements map (no element is lost) but no cell references them.
+ * - The resulting cells array always has exactly newRows*newCols entries.
+ * - At least 1×1 is enforced.
+ */
+export function setGrid(m: EditorModel, rows: number, cols: number): EditorModel {
+  const g = assertGrid(m);
+  const newRows = Math.max(1, rows);
+  const newCols = Math.max(1, cols);
+  const totalNew = newRows * newCols;
+
+  // Collect placed element ids in current row-major order (skip empty/spanned-away slots).
+  const placedIds: string[] = [];
+  for (const cell of g.cells) {
+    if (cell.element) placedIds.push(cell.element);
+  }
+
+  // Build fresh cells — each with no span (1×1).
+  const newCells: GridCell[] = Array.from({ length: totalNew }, (_, i) => {
+    const elementId = placedIds[i];
+    if (elementId && elementId in m.elements) {
+      return { element: elementId };
+    }
+    return {};
+  });
+
+  return {
+    ...m,
+    elements: { ...m.elements },
+    layout: { rows: newRows, cols: newCols, cells: newCells },
+  };
+}
+
+// ── clearWidgets ──────────────────────────────────────────────────────────────
+
+/**
+ * Clear all cell→element assignments: every cell becomes an empty spacer.
+ * Elements remain in the elements map (they are not deleted).
+ */
+export function clearWidgets(m: EditorModel): EditorModel {
+  const g = assertGrid(m);
+  const newCells: GridCell[] = g.cells.map(() => ({}));
+  return {
+    ...m,
+    elements: { ...m.elements },
+    layout: { rows: g.rows, cols: g.cols, cells: newCells },
+  };
+}
+
 // ── setCellSpan ───────────────────────────────────────────────────────────────
 
 /**

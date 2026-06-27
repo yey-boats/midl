@@ -12,6 +12,8 @@ import {
   addElement,
   removeElement,
   setCellSpan,
+  setGrid,
+  clearWidgets,
 } from "./layout-ops";
 import type { EditorModel, EditorElement } from "./model";
 import { EditorError } from "./model";
@@ -821,5 +823,168 @@ describe("schema validity after remove ops (post-schema-fix invariants)", () => 
     m = assignElementToCell(m, freeCell, "new-el");
     expect(gridLayout(m).cells[0]).toEqual({ element: "new-el" });
     expect(() => serializeMidl(m, "yaml")).not.toThrow();
+  });
+});
+
+// ── setGrid ───────────────────────────────────────────────────────────────────
+
+describe("setGrid", () => {
+  /** A 2×2 model with all 4 cells placed */
+  function makeFull2x2(): EditorModel {
+    return {
+      midl: "1.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        a: { id: "a", type: "t" },
+        b: { id: "b", type: "t" },
+        c: { id: "c", type: "t" },
+        d: { id: "d", type: "t" },
+      },
+      layout: {
+        rows: 2,
+        cols: 2,
+        cells: [{ element: "a" }, { element: "b" }, { element: "c" }, { element: "d" }],
+      },
+      variants: [],
+    };
+  }
+
+  it("setGrid(2,2)->(1,3): re-flows widgets, no element lost, result valid", () => {
+    const m = makeFull2x2(); // 4 placed elements
+    const result = setGrid(m, 1, 3);
+    const l = gridLayout(result);
+    // 1×3 = 3 cells; a,b,c placed; d unplaced (but still in elements map)
+    expect(l.rows).toBe(1);
+    expect(l.cols).toBe(3);
+    expect(l.cells.length).toBe(3);
+    expect(l.cells[0].element).toBe("a");
+    expect(l.cells[1].element).toBe("b");
+    expect(l.cells[2].element).toBe("c");
+    // d survives in elements
+    expect(result.elements["d"]).toBeDefined();
+    // result serializes without error
+    expect(() => serializeMidl(result, "yaml")).not.toThrow();
+  });
+
+  it("setGrid grows grid: all placed elements fit", () => {
+    // 1×1 with element a → setGrid(2,3) — a placed in [0], rest empty
+    const m: EditorModel = {
+      midl: "1.0",
+      screenId: "test",
+      title: "Test",
+      elements: { a: { id: "a", type: "t" } },
+      layout: { rows: 1, cols: 1, cells: [{ element: "a" }] },
+      variants: [],
+    };
+    const result = setGrid(m, 2, 3);
+    const l = gridLayout(result);
+    expect(l.rows).toBe(2);
+    expect(l.cols).toBe(3);
+    expect(l.cells.length).toBe(6);
+    expect(l.cells[0].element).toBe("a");
+    for (let i = 1; i < 6; i++) expect(l.cells[i].element).toBeUndefined();
+  });
+
+  it("setGrid clamps to 1×1 minimum", () => {
+    const m = makeGridModel(2, 2);
+    const result = setGrid(m, 0, 0);
+    const l = gridLayout(result);
+    expect(l.rows).toBe(1);
+    expect(l.cols).toBe(1);
+    expect(l.cells.length).toBe(1);
+  });
+
+  it("setGrid does not mutate input", () => {
+    const m = frozen(makeFull2x2());
+    expect(() => setGrid(m, 1, 3)).not.toThrow();
+    expect(gridLayout(m).rows).toBe(2);
+  });
+
+  it("setGrid throws EditorError for non-grid layout", () => {
+    expect(() => setGrid(makeFlowModel(), 2, 2)).toThrow(EditorError);
+  });
+
+  it("setGrid(2,2)->(1,3) same-size round-trips through serializeMidl→parseMidl", () => {
+    const m = makeFull2x2();
+    const result = setGrid(m, 1, 3);
+    const yaml = serializeMidl(result, "yaml");
+    const reparsed = parseMidl(yaml);
+    const l = reparsed.layout as { rows: number; cols: number; cells: Array<{ element?: string }> };
+    expect(l.rows).toBe(1);
+    expect(l.cols).toBe(3);
+    expect(l.cells.length).toBe(3);
+  });
+
+  it("cells.length === rows*cols after setGrid", () => {
+    const m = makeFull2x2();
+    for (const [rows, cols] of [[1, 1], [1, 3], [2, 2], [3, 2], [2, 3]] as const) {
+      const result = setGrid(m, rows, cols);
+      const l = gridLayout(result);
+      expect(l.cells.length).toBe(l.rows * l.cols);
+    }
+  });
+});
+
+// ── clearWidgets ──────────────────────────────────────────────────────────────
+
+describe("clearWidgets", () => {
+  it("removes all element references from cells", () => {
+    const m: EditorModel = {
+      midl: "1.0",
+      screenId: "test",
+      title: "Test",
+      elements: { a: { id: "a", type: "t" }, b: { id: "b", type: "t" } },
+      layout: { rows: 1, cols: 2, cells: [{ element: "a" }, { element: "b" }] },
+      variants: [],
+    };
+    const result = clearWidgets(m);
+    const l = gridLayout(result);
+    expect(l.cells.length).toBe(2);
+    expect(l.cells[0].element).toBeUndefined();
+    expect(l.cells[1].element).toBeUndefined();
+    // Elements survive in the map
+    expect(result.elements["a"]).toBeDefined();
+    expect(result.elements["b"]).toBeDefined();
+  });
+
+  it("preserves grid dimensions", () => {
+    const m = makeGridModel(3, 2);
+    const result = clearWidgets(m);
+    const l = gridLayout(result);
+    expect(l.rows).toBe(3);
+    expect(l.cols).toBe(2);
+    expect(l.cells.length).toBe(6);
+  });
+
+  it("does not mutate input", () => {
+    const m: EditorModel = {
+      midl: "1.0",
+      screenId: "test",
+      title: "Test",
+      elements: { a: { id: "a", type: "t" } },
+      layout: { rows: 1, cols: 1, cells: [{ element: "a" }] },
+      variants: [],
+    };
+    const mf = frozen(m);
+    expect(() => clearWidgets(mf)).not.toThrow();
+    expect(gridLayout(mf).cells[0].element).toBe("a");
+  });
+
+  it("throws EditorError for non-grid layout", () => {
+    expect(() => clearWidgets(makeFlowModel())).toThrow(EditorError);
+  });
+
+  it("result serializes without error", () => {
+    const m: EditorModel = {
+      midl: "1.0",
+      screenId: "test",
+      title: "Test",
+      elements: { a: { id: "a", type: "t" } },
+      layout: { rows: 1, cols: 2, cells: [{ element: "a" }, {}] },
+      variants: [],
+    };
+    const result = clearWidgets(m);
+    expect(() => serializeMidl(result, "yaml")).not.toThrow();
   });
 });

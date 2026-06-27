@@ -179,7 +179,15 @@
 }
 
 /* ── Left rail ─────────────────────────────────────────────────────────────── */
+/* FIX 1: Pin the left rail to a fixed width so the center canvas does not
+   reflow when switching tabs (Elements/Data/Layout). The visual-mode-body
+   grid already sets 210px for the first column; adding an explicit width +
+   min/max-width on the rail element itself prevents flex/grid from stretching
+   it when a wider child (e.g. DataTree with long paths) is rendered. */
 [data-component="midl-editor"] [data-section="left-rail"] {
+  width: 210px;
+  min-width: 210px;
+  max-width: 210px;
   background: var(--surface);
   border-right: 1px solid var(--line);
   display: flex;
@@ -378,6 +386,61 @@
   background: rgba(255,255,255,0.05);
 }
 
+/* ── Right rail wrapper (inspector + data flyout) ────────────────────────────── */
+/* FIX 2: The right rail wrapper contains both the inspector and the data flyout.
+   It occupies the fixed 220px right column from the visual-mode-body grid.
+   The flyout overlays the inspector from the right. */
+[data-component="midl-editor"] .right-rail-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Data flyout — right-anchored, slides over the inspector ──────────────── */
+[data-component="midl-editor"] .data-flyout {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--surface);
+  border-left: 1px solid var(--line2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-component="midl-editor"] .data-flyout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--surface2);
+}
+
+[data-component="midl-editor"] .data-flyout-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-bright);
+}
+
+[data-component="midl-editor"] .data-flyout-close {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 50%;
+  color: var(--ink-faint);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
 /* ── Inspector ─────────────────────────────────────────────────────────────── */
 [data-component="inspector"] {
   background: var(--surface);
@@ -386,6 +449,7 @@
   flex-direction: column;
   overflow-y: auto;
   min-height: 0;
+  flex: 1;
 }
 [data-component="inspector"] input,
 [data-component="inspector"] select {

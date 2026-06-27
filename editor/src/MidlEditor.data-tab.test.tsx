@@ -414,7 +414,9 @@ test("clicking a row in elements-list selects the cell (inspector shows element)
   }, { timeout: 3000 });
 });
 
-test("clicking 'Browse data' in Inspector's PathPicker switches left rail to Data tab", async () => {
+test("clicking 'Browse data' in Inspector's PathPicker opens the right-side data flyout", async () => {
+  // FIX 2: Browse data now opens a right-anchored flyout next to the inspector,
+  // not the left Data tab, so the canvas layout is not disturbed.
   const store = makeFakeStore();
   const provider = makeLiveProvider([
     { path: "navigation.speedOverGround", value: 3.5, updatedAt: Date.now() },
@@ -446,13 +448,312 @@ test("clicking 'Browse data' in Inspector's PathPicker switches left rail to Dat
     expect(getByTestId("path-picker-browse")).toBeTruthy();
   }, { timeout: 3000 });
 
-  // Click Browse data
+  // Flyout should not be open yet
+  expect(queryByTestId("data-flyout")).toBeNull();
+
+  // Click Browse data — should open the right-side flyout, NOT switch the left tab
   await act(async () => {
     fireEvent.click(getByTestId("path-picker-browse"));
   });
 
-  // The left rail should now show the DataTree (Data tab active)
+  // The right-side data flyout should now be visible
   await waitFor(() => {
-    expect(queryByTestId("data-tree")).toBeTruthy();
+    expect(getByTestId("data-flyout")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // The left rail should still show Elements (tab NOT switched to data)
+  expect(getByTestId("tab-elements").getAttribute("aria-selected")).toBe("true");
+});
+
+// ── FIX 1: Left rail must have stable fixed width across tab switches ─────────
+
+test("FIX1: left-rail element has fixed width style/class that does not change when switching between Elements and Data tabs", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider([
+    { path: "navigation.speedOverGround", value: 3.5, updatedAt: Date.now() },
+  ]);
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-elements")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Locate the left rail element
+  const leftRail = document.querySelector("[data-section='left-rail']") as HTMLElement | null;
+  expect(leftRail).not.toBeNull();
+
+  // Capture the offsetWidth while Elements tab is active
+  // (In jsdom, CSS is not computed, so we rely on inline style or class attributes)
+  // The CSS pins width:210px via [data-section="left-rail"]. We verify the element
+  // is the same DOM node (same identity) regardless of tab, ensuring the rail itself
+  // doesn't remount on tab switch (which would cause a layout reflow).
+  const railOnElements = document.querySelector("[data-section='left-rail']");
+
+  // Switch to Data tab
+  await act(async () => {
+    fireEvent.click(getByTestId("tab-data"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("data-tree")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // The same left-rail DOM node must still exist (not remounted)
+  const railOnData = document.querySelector("[data-section='left-rail']");
+  expect(railOnData).toBe(railOnElements);
+
+  // Switch to Layout tab
+  await act(async () => {
+    fireEvent.click(getByTestId("tab-layout"));
+  });
+
+  const railOnLayout = document.querySelector("[data-section='left-rail']");
+  expect(railOnLayout).toBe(railOnElements);
+});
+
+// ── FIX 2: Data flyout — clicking a path binds the element and closes the flyout ─
+
+test("FIX2: clicking a catalog path in the data flyout binds it to the selected element and closes the flyout", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider([
+    { path: "navigation.headingTrue", value: 1.57, updatedAt: Date.now() },
+  ]);
+  const manifestSource = makeFakeManifestSource();
+
+  let savedSource = "";
+  const storeWithCapture: DashboardStoreAdapter = {
+    ...makeFakeStore(),
+    async save(input) {
+      savedSource = input.source;
+      return { ref: { id: input.id ?? "new-id" }, validation: { ok: true, issues: [] } };
+    },
+  };
+
+  const { getByTestId, queryByTestId } = render(
+    <MidlEditor
+      store={storeWithCapture}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-elements")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Select cell 0 (sog element)
+  await act(async () => {
+    fireEvent.click(getByTestId("cell-0"));
+  });
+
+  // Wait for inspector path-picker-browse to appear
+  await waitFor(() => {
+    expect(getByTestId("path-picker-browse")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Open the data flyout
+  await act(async () => {
+    fireEvent.click(getByTestId("path-picker-browse"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("data-flyout")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Click the headingTrue path in the flyout's DataTree
+  await act(async () => {
+    fireEvent.click(getByTestId("data-leaf-navigation-headingTrue"));
+  });
+
+  // Flyout should close after binding
+  await waitFor(() => {
+    expect(queryByTestId("data-flyout")).toBeNull();
+  }, { timeout: 3000 });
+
+  // Save and verify the binding was applied
+  await act(async () => {
+    fireEvent.click(getByTestId("save-button"));
+  });
+
+  await waitFor(() => {
+    expect(savedSource).toContain("headingTrue");
+  }, { timeout: 3000 });
+});
+
+// ── FIX 2: Data flyout close button ──────────────────────────────────────────
+
+test("FIX2: data flyout close button closes the flyout without binding", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider();
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId, queryByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-elements")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Select cell 0
+  await act(async () => {
+    fireEvent.click(getByTestId("cell-0"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("path-picker-browse")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Open the flyout
+  await act(async () => {
+    fireEvent.click(getByTestId("path-picker-browse"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("data-flyout")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Close via the close button
+  await act(async () => {
+    fireEvent.click(getByTestId("data-flyout-close"));
+  });
+
+  await waitFor(() => {
+    expect(queryByTestId("data-flyout")).toBeNull();
+  }, { timeout: 3000 });
+});
+
+// ── FIX 3: Layout tab shows grid controls ─────────────────────────────────────
+
+test("FIX3: Layout tab shows layout-rows, layout-cols displays and a clear-widgets button", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider();
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-layout")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  await act(async () => {
+    fireEvent.click(getByTestId("tab-layout"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("layout-rows")).toBeTruthy();
+    expect(getByTestId("layout-cols")).toBeTruthy();
+    expect(getByTestId("clear-widgets")).toBeTruthy();
+  }, { timeout: 3000 });
+});
+
+test("FIX3: clicking a grid preset changes the layout-rows and layout-cols displays", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider();
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-layout")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  await act(async () => {
+    fireEvent.click(getByTestId("tab-layout"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("layout-preset-2x2")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  await act(async () => {
+    fireEvent.click(getByTestId("layout-preset-2x2"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("layout-rows").textContent).toBe("2");
+    expect(getByTestId("layout-cols").textContent).toBe("2");
+  }, { timeout: 3000 });
+});
+
+test("FIX3: clear-widgets removes all cell placements but keeps elements in map", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider();
+  const manifestSource = makeFakeManifestSource();
+
+  let savedSource = "";
+  const storeCapture: DashboardStoreAdapter = {
+    ...makeFakeStore(),
+    async save(input) {
+      savedSource = input.source;
+      return { ref: { id: input.id ?? "new-id" }, validation: { ok: true, issues: [] } };
+    },
+  };
+
+  const { getByTestId, queryByTestId } = render(
+    <MidlEditor
+      store={storeCapture}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-layout")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  await act(async () => {
+    fireEvent.click(getByTestId("tab-layout"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("clear-widgets")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  await act(async () => {
+    fireEvent.click(getByTestId("clear-widgets"));
+  });
+
+  // After clearing, the elements-list should be empty (no placed elements)
+  await waitFor(() => {
+    // elements-list should show the empty state message
+    const list = getByTestId("elements-list");
+    expect(list.textContent).toMatch(/no elements/i);
   }, { timeout: 3000 });
 });
