@@ -188,13 +188,14 @@ function editorElementToElement(el: EditorElement): Element {
   const out: Element = { type: el.type };
   if (el.name !== undefined) out.name = el.name;
   if (el.bindings !== undefined) {
-    out.bindings = {};
+    const converted: Record<string, import("@yey-boats/midl").Source> = {};
     for (const [k, v] of Object.entries(el.bindings)) {
-      out.bindings[k] = bindingToSource(v);
+      converted[k] = bindingToSource(v);
     }
+    if (Object.keys(converted).length > 0) out.bindings = converted;
   }
-  if (el.format !== undefined) out.format = { ...el.format };
-  if (el.style !== undefined) out.style = { ...el.style };
+  if (el.format !== undefined && Object.keys(el.format).length > 0) out.format = { ...el.format };
+  if (el.style !== undefined && Object.keys(el.style).length > 0) out.style = { ...el.style };
   if (el.markers !== undefined) out.markers = el.markers as import("@yey-boats/midl").Marker[];
   if (el.action !== undefined) out.action = el.action as import("@yey-boats/midl").Action;
   if (el.zoom !== undefined) out.zoom = el.zoom;

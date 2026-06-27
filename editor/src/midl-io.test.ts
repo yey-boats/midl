@@ -389,3 +389,70 @@ screens:
     expect(layout.cells[0].rowSpan).toBe(2);
   });
 });
+
+describe("serialize hygiene — omit empty format/style/bindings", () => {
+  it("serializeMidl omits format when element.format is an empty object", () => {
+    const model: import("./model").EditorModel = {
+      midl: "1.0.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        el: {
+          id: "el",
+          type: "button",
+          format: {},
+          style: {},
+          bindings: {},
+        },
+      },
+      layout: { rows: 1, cols: 1, cells: [{ element: "el" }] },
+      variants: [],
+    };
+    const yaml = serializeMidl(model, "yaml");
+    expect(yaml).not.toContain("format:");
+    expect(yaml).not.toContain("style:");
+    expect(yaml).not.toContain("bindings:");
+  });
+
+  it("serializeMidl does NOT omit format when format has entries", () => {
+    const model: import("./model").EditorModel = {
+      midl: "1.0.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        el: {
+          id: "el",
+          type: "single-value",
+          format: { unit: "kn" },
+          bindings: { value: { kind: "signalk", path: "navigation.speedOverGround" } },
+        },
+      },
+      layout: { rows: 1, cols: 1, cells: [{ element: "el" }] },
+      variants: [],
+    };
+    const yaml = serializeMidl(model, "yaml");
+    expect(yaml).toContain("format:");
+    expect(yaml).toContain("unit: kn");
+  });
+
+  it("round-trip preserves empty format/style/bindings as undefined (not empty objects) after parse", () => {
+    // A model with empty format/style/bindings serializes to YAML without those keys,
+    // so parsing the YAML back should produce undefined (not {}) for those fields.
+    const model: import("./model").EditorModel = {
+      midl: "1.0.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        el: { id: "el", type: "button", format: {}, style: {}, bindings: {} },
+      },
+      layout: { rows: 1, cols: 1, cells: [{ element: "el" }] },
+      variants: [],
+    };
+    const reparsed = parseMidl(serializeMidl(model, "yaml"));
+    const el = reparsed.elements["el"];
+    // After omitting empty keys on serialize, parsing back gives undefined not {}
+    expect(el.format).toBeUndefined();
+    expect(el.style).toBeUndefined();
+    expect(el.bindings).toBeUndefined();
+  });
+});
