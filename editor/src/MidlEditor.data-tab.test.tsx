@@ -349,7 +349,7 @@ test("clicking Layout tab shows elements-list with placed elements", async () =>
   ]);
   const manifestSource = makeFakeManifestSource();
 
-  const { getByTestId, queryByTestId } = render(
+  const { getByTestId } = render(
     <MidlEditor
       store={store}
       provider={provider}
