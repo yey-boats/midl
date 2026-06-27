@@ -197,6 +197,38 @@ describe("element binding requirements (check #8)", () => {
   });
 });
 
+describe("spacer cell semantics", () => {
+  test("a spacer cell {} in a grid produces no semantic errors", () => {
+    const doc = {
+      midl: "1.0.0",
+      screens: [{
+        id: "s",
+        elements: {
+          a: { type: "single-value", bindings: { value: { kind: "signalk" as const, path: "navigation.speedOverGround" } } }
+        },
+        layout: { rows: 1, cols: 2, cells: [{ element: "a" }, {}] }
+      }]
+    };
+    const issues = validateSemantics(doc as import("../src/types").ConfigDoc);
+    const errors = issues.filter(i => i.severity !== "warning");
+    expect(errors).toHaveLength(0);
+  });
+
+  test("a screen with zero elements produces no semantic errors when layout has only spacer cells", () => {
+    const doc = {
+      midl: "1.0.0",
+      screens: [{
+        id: "s",
+        elements: {},
+        layout: { rows: 1, cols: 1, cells: [{}] }
+      }]
+    };
+    const issues = validateSemantics(doc as import("../src/types").ConfigDoc);
+    const errors = issues.filter(i => i.severity !== "warning");
+    expect(errors).toHaveLength(0);
+  });
+});
+
 describe("source sanity (check #9)", () => {
   test("signalk binding with an empty path errors", () => {
     const doc: ConfigDoc = {

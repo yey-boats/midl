@@ -70,7 +70,8 @@ export type Node =
   | { element: string; colSpan?: number; rowSpan?: number }
   | { flow: "row" | "col"; children: Node[]; weights?: number[] }
   | { rows: number; cols: number; cells: Node[] }
-  | { preset: string; slots?: string[] };
+  | { preset: string; slots?: string[] }
+  | { colSpan?: number; rowSpan?: number };   // spacer: no element/flow/rows/preset
 
 export interface Variant { class: string; layout: Node; }
 

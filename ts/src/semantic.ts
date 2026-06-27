@@ -149,6 +149,13 @@ function checkNode(
     return;
   }
 
+  // Spacer cell: an empty object (or one with only colSpan/rowSpan) is a valid
+  // unassigned grid slot. It carries no element reference, emits no issues.
+  const keys = Object.keys(n as object);
+  if (keys.every(k => k === "colSpan" || k === "rowSpan")) {
+    return; // valid spacer
+  }
+
   issues.push(err(path, "layout node is not a recognized kind (element, flow/children, rows/cols/cells, or preset)"));
 }
 
