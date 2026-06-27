@@ -269,33 +269,46 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
             />
           </div>
           {/* Live value readout */}
-          <div data-testid="live-value-readout" style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "2px" }}>
-            {livePresent ? (
-              <>
-                <span
-                  data-testid="live-dot"
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "var(--online, oklch(0.72 0.15 155))",
-                    display: "inline-block",
-                    flexShrink: 0,
-                  }}
-                />
-                <span data-testid="live-value-text" style={{ fontFamily: "monospace", fontSize: "0.85em" }}>
-                  {liveDisplay}
-                </span>
-              </>
-            ) : (
-              <>
-                <span
-                  data-testid="live-dot"
-                  style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--ink-faint, #5b7286)", display: "inline-block", flexShrink: 0, opacity: 0.5 }}
-                />
-                <span style={{ fontSize: "0.82em", opacity: 0.5 }}>no data</span>
-              </>
-            )}
+          <div
+            data-testid="live-readout"
+            style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "2px" }}
+          >
+            <div data-testid="live-value-readout" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              {livePresent ? (
+                <>
+                  <span
+                    data-testid="live-dot"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: "var(--online, oklch(0.72 0.15 155))",
+                      display: "inline-block",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span data-testid="live-value-text" style={{ fontFamily: "monospace", fontSize: "0.85em" }}>
+                    {liveDisplay}
+                  </span>
+                </>
+              ) : liveResult?.present === true && liveResult?.stale === true ? (
+                <>
+                  <span
+                    data-testid="live-dot"
+                    style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--drift, oklch(0.80 0.13 75))", display: "inline-block", flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: "0.82em", opacity: 0.7 }}>stale</span>
+                </>
+              ) : (
+                <>
+                  <span
+                    data-testid="live-dot"
+                    style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--ink-faint, #5b7286)", display: "inline-block", flexShrink: 0, opacity: 0.5 }}
+                  />
+                  <span style={{ fontSize: "0.82em", opacity: 0.5 }}>no data</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

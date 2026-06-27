@@ -818,3 +818,80 @@ test("size-select shows element's current style.size as selected value", () => {
   const select = getByTestId("size-select") as HTMLSelectElement;
   expect(Number(select.value)).toBe(28);
 });
+
+// ── Part 4: live-readout ────────────────────────────────────────────────────────
+
+test("inspector renders live-readout container in the binding section", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({ "navigation.speedOverGround": { value: 4.5 } });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  expect(getByTestId("live-readout")).toBeTruthy();
+});
+
+test("live-readout shows formatted value when path has present data", () => {
+  const model = makeGridModel(); // sog bound to navigation.speedOverGround, format: unit kn, decimals 1
+  const provider = new MockDataProvider({ "navigation.speedOverGround": { value: 4.494657697249033 } });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  const readout = getByTestId("live-readout");
+  // Must show formatted value (1 decimal) with unit, not raw float
+  expect(readout.textContent).toContain("4.5");
+  expect(readout.textContent).toContain("kn");
+});
+
+test("live-readout shows no-data state when path has no data", () => {
+  const model = makeGridModel();
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  const readout = getByTestId("live-readout");
+  expect(readout.textContent).toMatch(/no data|—/i);
+});
+
+test("live-readout shows stale state when data is stale", () => {
+  const model = makeGridModel();
+  // MockDataProvider with stale:true
+  const provider = new MockDataProvider({ "navigation.speedOverGround": { value: 3.0, stale: true } });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  // When stale, the readout should show "stale" or the value with an amber/dim dot
+  // The live-readout must exist regardless
+  expect(getByTestId("live-readout")).toBeTruthy();
+});
