@@ -201,3 +201,44 @@ describe("validateModel — Validation shape", () => {
     expect(errorIssues).toHaveLength(0);
   });
 });
+
+describe("validateModel — empty cells and empty elements (post-schema fix)", () => {
+  it("model with an empty grid cell {} returns ok:true (spacer is valid)", () => {
+    // Simulates the state after removeElement on a 1x2 grid with one element
+    const model: import("./model").EditorModel = {
+      midl: "1.0.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        a: {
+          id: "a",
+          type: "single-value",
+          bindings: { value: { kind: "signalk", path: "navigation.speedOverGround" } },
+        },
+      },
+      layout: { rows: 1, cols: 2, cells: [{ element: "a" }, {}] },
+      variants: [],
+    };
+    const result = validateModel(model, SQUARE_480_MANIFEST);
+    // Expect ok:true — the empty cell is now a valid spacer
+    expect(result.ok).toBe(true);
+    const errors = result.issues.filter(i => i.severity === "error" || i.severity === undefined);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("model with zero elements returns ok:true (draft dashboard is valid)", () => {
+    // Simulates the state after removing the last element
+    const model: import("./model").EditorModel = {
+      midl: "1.0.0",
+      screenId: "test",
+      title: "Test",
+      elements: {},
+      layout: { rows: 1, cols: 1, cells: [{}] },
+      variants: [],
+    };
+    const result = validateModel(model, SQUARE_480_MANIFEST);
+    expect(result.ok).toBe(true);
+    const errors = result.issues.filter(i => i.severity === "error" || i.severity === undefined);
+    expect(errors).toHaveLength(0);
+  });
+});

@@ -761,3 +761,65 @@ describe("add→remove→add sequence robustness", () => {
     expect(l.cells.length).toBe(l.rows * l.cols);
   });
 });
+
+describe("schema validity after remove ops (post-schema-fix invariants)", () => {
+  it("removeElement on last element → cells contain only spacers (no element property)", () => {
+    // A 1x1 grid with one element — after remove, cells: [{}]
+    let m = makeGridModel(1, 1);
+    m.elements = { el: { id: "el", type: "gauge" } };
+    (m.layout as { rows: number; cols: number; cells: { element?: string }[] }).cells[0] = { element: "el" };
+    m = removeElement(m, "el");
+    const l = gridLayout(m);
+    expect(Object.keys(m.elements)).toHaveLength(0);
+    expect(l.cells).toHaveLength(1);
+    expect(l.cells[0].element).toBeUndefined();
+    // Confirm serializes without throwing
+    expect(() => serializeMidl(m, "yaml")).not.toThrow();
+  });
+
+  it("addRow on a grid where a cell has an element assigned (assigned-grid) works", () => {
+    // Regression: "Add row not working when the view assigned"
+    let m = makeGridModel(1, 2);
+    m.elements = { el: { id: "el", type: "gauge" } };
+    (m.layout as { rows: number; cols: number; cells: { element?: string }[] }).cells[0] = { element: "el" };
+    // m now has an assigned element in cell 0 — addRow must still work
+    m = addRow(m);
+    const l = gridLayout(m);
+    expect(l.rows).toBe(2);
+    expect(l.cells.length).toBe(4); // 2 rows * 2 cols
+    expect(l.cells[0]).toEqual({ element: "el" }); // original cell preserved
+    expect(l.cells[2]).toEqual({}); // new empty cells
+    expect(l.cells[3]).toEqual({});
+  });
+
+  it("addCol on an assigned grid works", () => {
+    let m = makeGridModel(1, 1);
+    m.elements = { el: { id: "el", type: "gauge" } };
+    (m.layout as { rows: number; cols: number; cells: { element?: string }[] }).cells[0] = { element: "el" };
+    m = addCol(m);
+    const l = gridLayout(m);
+    expect(l.cols).toBe(2);
+    expect(l.cells.length).toBe(2);
+    expect(l.cells[0]).toEqual({ element: "el" });
+    expect(l.cells[1]).toEqual({});
+  });
+
+  it("addElement after removeElement places the new element in a free cell", () => {
+    // Simulates: user removes last element, then adds a new one via palette
+    let m = makeGridModel(2, 2);
+    m.elements = { el: { id: "el", type: "gauge" } };
+    (m.layout as { rows: number; cols: number; cells: { element?: string }[] }).cells[0] = { element: "el" };
+    m = removeElement(m, "el");
+
+    // All cells now empty — add new element
+    const newEl: EditorElement = { id: "new-el", type: "single-value" };
+    m = addElement(m, newEl);
+    // Assign to first free cell (cell 0)
+    const layout = m.layout as { rows: number; cols: number; cells: Array<{ element?: string }> };
+    const freeCell = layout.cells.findIndex(c => !c.element);
+    expect(freeCell).toBe(0); // first cell is free
+    m = assignElementToCell(m, freeCell, "new-el");
+    expect(gridLayout(m).cells[0]).toEqual({ element: "new-el" });
+    expect(() => serializeMidl(m, "yaml")).not.toThrow();
+  });
+});
