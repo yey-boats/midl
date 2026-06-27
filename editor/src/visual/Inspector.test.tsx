@@ -878,8 +878,12 @@ test("live-readout shows no-data state when path has no data", () => {
 
 test("live-readout shows stale state when data is stale", () => {
   const model = makeGridModel();
-  // MockDataProvider with stale:true
-  const provider = new MockDataProvider({ "navigation.speedOverGround": { value: 3.0, stale: true } });
+  // Custom provider that returns stale:true
+  const provider = {
+    getValue: () => ({ value: 3.0, stale: true, present: true, updatedAt: 0 }),
+    subscribe: () => () => {},
+    now: () => 0,
+  };
 
   const { getByTestId } = render(
     <Inspector
@@ -893,5 +897,7 @@ test("live-readout shows stale state when data is stale", () => {
 
   // When stale, the readout should show "stale" or the value with an amber/dim dot
   // The live-readout must exist regardless
-  expect(getByTestId("live-readout")).toBeTruthy();
+  const readout = getByTestId("live-readout");
+  expect(readout).toBeTruthy();
+  expect(readout.textContent).toMatch(/stale/i);
 });
