@@ -55,6 +55,7 @@ export function DataTree({ provider, selectedElementId, onBindPath }: DataTreePr
   const [injectPath, setInjectPath] = useState("");
   const [injectValue, setInjectValue] = useState("");
   const [injectUnit, setInjectUnit] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const unsub = provider.onChange(() => {
@@ -78,6 +79,14 @@ export function DataTree({ provider, selectedElementId, onBindPath }: DataTreePr
     setInjectUnit("");
     setInjectOpen(false);
   }, [provider, injectPath, injectValue, injectUnit]);
+
+  const toggleGroup = useCallback((group: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) { next.delete(group); } else { next.add(group); }
+      return next;
+    });
+  }, []);
 
   return (
     <div data-testid="data-tree" data-component="data-tree">
@@ -105,15 +114,20 @@ export function DataTree({ provider, selectedElementId, onBindPath }: DataTreePr
         {[...grouped.entries()].map(([group, groupEntries]) => (
           <div key={group} data-section="tree-group">
             <div
+              data-testid={`data-group-${group}`}
               data-section="group-header"
-              style={{ padding: "4px 8px", fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}
+              onClick={() => toggleGroup(group)}
+              style={{ padding: "4px 8px", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: "4px" }}
             >
+              <span style={{ fontSize: "9px", opacity: 0.55, fontWeight: 400 }}>
+                {collapsedGroups.has(group) ? "▶" : "▼"}
+              </span>
               {group}
               <span style={{ marginLeft: "6px", fontWeight: 400, opacity: 0.6 }}>
                 ({groupEntries.length})
               </span>
             </div>
-            {groupEntries.map((e) => (
+            {!collapsedGroups.has(group) && groupEntries.map((e) => (
               <div
                 key={e.path}
                 data-testid={leafTestId(e.path)}

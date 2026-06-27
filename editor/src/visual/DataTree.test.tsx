@@ -282,3 +282,69 @@ test("DataTree appends live-only path not in catalog after merging", async () =>
   // Must appear even though "custom.exotic.sensor" is not in SIGNALK_CATALOG
   expect(getByTestId("data-leaf-custom-exotic-sensor")).toBeTruthy();
 });
+
+// ── Part 2: Collapsible groups ────────────────────────────────────────────────
+
+test("group headers have data-group-<name> testid", () => {
+  const provider = makeProviderStub([]);
+  const { getByTestId } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+  // navigation group from catalog
+  expect(getByTestId("data-group-navigation")).toBeTruthy();
+});
+
+test("clicking a group header collapses the group (hides leaves)", () => {
+  const provider = makeProviderStub([]);
+  // navigation group has catalog entries including speedOverGround
+  const { getByTestId, queryByTestId } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+  // Leaf should be visible before collapse
+  expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeTruthy();
+
+  // Click the group header to collapse
+  fireEvent.click(getByTestId("data-group-navigation"));
+
+  // Leaf should now be hidden
+  expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeNull();
+});
+
+test("clicking a collapsed group header expands the group again", () => {
+  const provider = makeProviderStub([]);
+  const { getByTestId, queryByTestId } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+
+  // Collapse
+  fireEvent.click(getByTestId("data-group-navigation"));
+  expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeNull();
+
+  // Expand again
+  fireEvent.click(getByTestId("data-group-navigation"));
+  expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeTruthy();
+});
+
+test("groups start expanded by default", () => {
+  const provider = makeProviderStub([]);
+  const { queryByTestId } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+  // Both groups visible without any interaction
+  expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeTruthy();
+  expect(queryByTestId("data-leaf-environment-wind-speedApparent")).toBeTruthy();
+});
+
+test("collapsing one group does not collapse others", () => {
+  const provider = makeProviderStub([]);
+  const { getByTestId, queryByTestId } = render(
+    <DataTree provider={provider} selectedElementId={null} onBindPath={vi.fn()} />,
+  );
+
+  fireEvent.click(getByTestId("data-group-navigation"));
+
+  // navigation collapsed
+  expect(queryByTestId("data-leaf-navigation-speedOverGround")).toBeNull();
+  // environment still visible
+  expect(queryByTestId("data-leaf-environment-wind-speedApparent")).toBeTruthy();
+});
