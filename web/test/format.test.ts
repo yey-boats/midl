@@ -31,3 +31,24 @@ test("non-finite and non-numeric format to placeholder", () => {
   expect(formatValue("oops", { unit: "kn" }).text).toBe("--");
   expect(formatValue(null, undefined).text).toBe("--");
 });
+
+test("formatValue formats a position object {latitude, longitude} as a coordinate string", () => {
+  const result = formatValue({ latitude: 37.804, longitude: -122.271 }, undefined);
+  expect(result.text).toBe("37.804000, -122.271000");
+  expect(result.numeric).toBeUndefined();
+});
+
+test("formatValue formats a position object {lat, lng} as a coordinate string", () => {
+  const result = formatValue({ lat: 51.5, lng: -0.118 }, undefined);
+  expect(result.text).toBe("51.500000, -0.118000");
+});
+
+test("formatValue formats position with decimals format option applied to each coordinate", () => {
+  const result = formatValue({ latitude: 37.8041234, longitude: -122.2712345 }, { decimals: 4 });
+  expect(result.text).toBe("37.8041, -122.2712");
+});
+
+test("formatValue still returns -- for non-position objects", () => {
+  const result = formatValue({ foo: "bar" }, undefined);
+  expect(result.text).toBe("--");
+});

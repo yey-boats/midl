@@ -32,6 +32,19 @@ export function formatValue(
   format: Record<string, unknown> | undefined,
   sourceUnit?: string,
 ): { text: string; numeric?: number } {
+  // Position-like object: {latitude, longitude} or {lat, lng}
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const v = value as Record<string, unknown>;
+    const lat = typeof v["latitude"] === "number" ? v["latitude"] :
+                typeof v["lat"] === "number" ? v["lat"] : undefined;
+    const lng = typeof v["longitude"] === "number" ? v["longitude"] :
+                typeof v["lng"] === "number" ? v["lng"] : undefined;
+    if (lat !== undefined && lng !== undefined) {
+      const decimals = typeof format?.decimals === "number" ? (format.decimals as number) : 6;
+      return { text: `${lat.toFixed(decimals)}, ${lng.toFixed(decimals)}` };
+    }
+  }
+
   if (typeof value !== "number" || !Number.isFinite(value)) return { text: "--" };
   const toUnit = format?.unit as string | undefined;
   const decimals = typeof format?.decimals === "number" ? (format.decimals as number) : undefined;
