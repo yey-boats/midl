@@ -121,6 +121,11 @@ def _check_node(n: Any, path: str, refs: List[Dict[str, str]], issues: List[Issu
             _check_node(c, f"{path}/cells/{i}", refs, issues)
         return
 
+    # Spacer cell: an empty object (or one with only colSpan/rowSpan) is a valid
+    # unassigned grid slot. It carries no element reference, emits no issues.
+    if all(k in ("colSpan", "rowSpan") for k in n.keys()):
+        return  # valid spacer
+
     issues.append(
         _err(path, "layout node is not a recognized kind (element, flow/children, rows/cols/cells, or preset)")
     )
