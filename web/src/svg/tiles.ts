@@ -264,15 +264,22 @@ export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Them
   return `<g>${out.join("")}</g>`;
 }
 
-// Filled AP pill: AP_PILL_BG, 1px good/style.color border, label in good/style.color 20/700/UPPER.
+// Autopilot pill: engaged = filled green pill; standby/idle = hollow dim outline pill.
+// E2: the two states are visually distinct — standby must not look active.
 export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = {}): string {
   const { x, y, w, h } = rect;
   const cx = x + w / 2, cy = y + h / 2;
   const out: string[] = [];
-  const label = (m.text || "STBY").toUpperCase();
+  // E1: when no data (no-data state or bare "--" placeholder), treat as standby/idle.
+  const rawLabel = m.state === "no-data" || m.text === "--" ? "STBY" : m.text;
+  const label = (rawLabel || "STBY").toUpperCase();
   const engaged = /AUTO|TRACK|WIND|ROUTE|NAV|ON/.test(label);
   // style.color overrides the default engaged color (th.good) for both border and label.
   const engagedColor = resolveColor(opts.colorRole, th, th.good);
+  // E2: engaged → filled AP_PILL_BG + bright engagedColor border + bright label.
+  //     standby  → transparent fill (panel) + dim border + dim label text.
+  const pillFill = engaged ? AP_PILL_BG : "none";
+  const pillStroke = engaged ? engagedColor : th.dim;
   const labelColor = engaged ? engagedColor : th.dim;
   // For string size roles, derive font size from cell geometry; clamp to pill height.
   const ph = Math.max(28, h * 0.3);
@@ -284,7 +291,7 @@ export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileO
   // (Montserrat 700 uppercase + 0.04em letter-spacing ≈ 0.69em but 0.65 is safe).
   const textW = label.length * fs * 0.65 + fs * 0.5; // +½em padding per side
   const pw = Math.min(w - 24, Math.max(70, textW));
-  out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${AP_PILL_BG}" stroke="${engagedColor}" stroke-width="1"/>`);
+  out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${pillFill}" stroke="${pillStroke}" stroke-width="1"/>`);
   out.push(txt(cx, cy + fs * 0.34, fs, labelColor, label, 700, "middle", ` letter-spacing="0.04em"`));
   return `<g>${out.join("")}</g>`;
 }

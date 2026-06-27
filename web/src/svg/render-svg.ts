@@ -21,6 +21,9 @@ import {
 export { TrendBuffers } from "../paint";
 
 const ROUND_TYPES = new Set(["compass", "windrose"]);
+// Control elements that handle their own no-data state (they must never be
+// shortcut to the generic "--" placeholder because they carry idle/standby UI).
+const SELF_NO_DATA_TYPES = new Set(["autopilot"]);
 
 function str(v: unknown): string | undefined { return typeof v === "string" ? v : undefined; }
 function numv(v: unknown): number | undefined { return typeof v === "number" ? v : undefined; }
@@ -94,12 +97,22 @@ export function paintScreenSvg(
     // A button carries no value binding (it is an action), so its model is
     // always "no-data" — it must still render its label, never the em-dash.
     const isButton = el.type === "button";
+    // Control elements (autopilot) handle their own no-data/idle state internally,
+    // so they must never be shortcut to the generic "--" placeholder.
+    const isSelfNoData = SELF_NO_DATA_TYPES.has(el.type);
     // The frame draws the top-left caption for NON-round tiles; round dials own
     // their centre caption, so pass "" for them to avoid a double caption.
+    // E3: for round types in no-data, we still want to show the label — pass the
+    // title even for round tiles when the model is no-data, so frameSvg renders it.
     const style = el.style ?? {};
-    const frameTitle = round || isButton ? "" : (str(style.title) ?? el.name ?? "");
-    out.push(frameSvg(p.rect, frameTitle, th, { noData: m.state === "no-data" && !isButton, stale: m.state === "stale", round }));
-    if (m.state === "no-data" && !isButton) { out.push(noDataSvg(p.rect, th)); continue; }
+    const tileTitle = str(style.title) ?? el.name ?? "";
+    const isNoData = m.state === "no-data";
+    const frameTitle = (round && !isNoData) || isButton ? "" : tileTitle;
+    // E3: for round tiles in no-data, pass round:false so frameSvg renders the
+    // title caption (the dial itself won't render — the no-data branch fires next).
+    const frameRound = round && !isNoData;
+    out.push(frameSvg(p.rect, frameTitle, th, { noData: isNoData && !isButton && !isSelfNoData, stale: m.state === "stale", round: frameRound }));
+    if (isNoData && !isButton && !isSelfNoData) { out.push(noDataSvg(p.rect, th)); continue; }
     out.push(widgetSvg(el, p, m, th, trends));
   }
   return out.join("");

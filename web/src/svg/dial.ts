@@ -66,10 +66,13 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
   const D = Math.min(w, h);
   const R = D * 0.42;
   const out: string[] = [];
+  // E4: when stale, dim the dial geometry (ring, needle, arrow) to th.stale.
+  const stale = m.state === "stale";
+  const dialColor = stale ? th.stale : ringColor;
 
   // faint inner wash + solid 2px bezel ring
-  out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R - 2)}" fill="${ringColor}" fill-opacity="0.06"/>`);
-  out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R)}" fill="none" stroke="${ringColor}" stroke-width="2"/>`);
+  out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R - 2)}" fill="${dialColor}" fill-opacity="0.06"/>`);
+  out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R)}" fill="none" stroke="${dialColor}" stroke-width="2"/>`);
 
   // 4 static cardinals around the ring (N white, others dim)
   const fCard = Math.max(9, D * 0.07);
@@ -77,14 +80,15 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
   const cards: Array<[string, number]> = [["N", 0], ["E", 90], ["S", 180], ["W", 270]];
   for (const [lab, b] of cards) {
     const [tx, ty] = polar(cx, cy, b, rCard);
-    out.push(txt(tx, ty + fCard * 0.34, fCard, lab === "N" ? th.fg : th.dim, lab, 700));
+    // E4: unit/cardinal labels use stale color when stale
+    out.push(txt(tx, ty + fCard * 0.34, fCard, stale ? th.stale : (lab === "N" ? th.fg : th.dim), lab, 700));
   }
 
   // markers as glyphs on the rim
   for (const mk of m.markers ?? []) {
     if (mk.angleDeg == null) continue;
     const [mx, my] = polar(cx, cy, mk.angleDeg, R * 0.62);
-    out.push(glyphPath(mk.glyph, mx, my, D * 0.07, markerColor(mk.color, th)));
+    out.push(glyphPath(mk.glyph, mx, my, D * 0.07, stale ? th.stale : markerColor(mk.color, th)));
   }
 
   // heading needle: a line from the tail (20% back) to the tip (55% forward)
@@ -92,12 +96,15 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
   if (m.angleDeg != null) {
     const [nx, ny] = polar(cx, cy, m.angleDeg, R * 0.55);
     const [tx, ty] = polar(cx, cy, m.angleDeg + 180, R * 0.20);
-    out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${ringColor}" stroke-width="2" stroke-linecap="round"/>`);
+    // E4: needle dims when stale
+    out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${dialColor}" stroke-width="2" stroke-linecap="round"/>`);
   }
   // wind-direction pointer (dirDeg): dashed short line in warn colour
   if (m.dirDeg != null) {
     const [dx, dy] = polar(cx, cy, m.dirDeg, R * 0.45);
-    out.push(`<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${th.warn}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
+    // E4: direction arrow dims when stale
+    const arrowColor = stale ? th.stale : th.warn;
+    out.push(`<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${arrowColor}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
   }
 
   // small caption above + centre hero.
@@ -125,6 +132,9 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
   const rBand = R - R * 0.10;        // white band centre
   const rFace = R - R * 0.22;        // inner face
   const out: string[] = [];
+  // E4: when stale, dim the dial geometry (ring, needle, arrow) to th.stale.
+  const stale = m.state === "stale";
+  const dialColor = stale ? th.stale : ringColor;
 
   // full-circle face
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(rFace)}" fill="${th.panel}" stroke="${th.edge}"/>`);
@@ -178,20 +188,24 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
   for (const mk of m.markers ?? []) {
     if (mk.angleDeg == null) continue;
     const [mx, my] = polar(cx, cy, mk.angleDeg, rFace * 0.9);
-    out.push(glyphPath(mk.glyph, mx, my, D * 0.05, markerColor(mk.color, th)));
+    // E4: dim markers when stale
+    out.push(glyphPath(mk.glyph, mx, my, D * 0.05, stale ? th.stale : markerColor(mk.color, th)));
   }
 
   // heading needle pointing to angleDeg (compass heading / wind angle)
   if (m.angleDeg != null) {
     const [nx, ny] = polar(cx, cy, m.angleDeg, rFace * 0.70);
     const [tx, ty] = polar(cx, cy, m.angleDeg + 180, rFace * 0.25);
-    const base = ringColor === th.warn ? th.warn : th.accent;
-    out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${base}" stroke-width="3" stroke-linecap="round"/>`);
+    // E4: needle dims when stale; otherwise uses ringColor-derived base
+    const needleBase = stale ? th.stale : (ringColor === th.warn ? th.warn : th.accent);
+    out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${needleBase}" stroke-width="3" stroke-linecap="round"/>`);
   }
   // wind-direction pointer (dirDeg): dashed line in warn colour
   if (m.dirDeg != null) {
     const [dx, dy] = polar(cx, cy, m.dirDeg, rFace * 0.60);
-    out.push(`<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${th.warn}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
+    // E4: direction arrow dims when stale
+    const arrowColor = stale ? th.stale : th.warn;
+    out.push(`<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${arrowColor}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
   }
 
   // centre caption + hero (windrose: warn; compass: accent).
@@ -201,6 +215,7 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
   const hero = typeof opts.size === "string"
     ? heroFontSize({ w: innerFaceDim, h: innerFaceDim }, m.text + (m.side ?? ""), opts.size)
     : (opts.size ?? 38);
+  // E4: base color for the hero text follows heroColor (which maps stale→th.stale)
   const base = ringColor === th.warn ? th.warn : th.accent;
   if (opts.title) out.push(txt(cx, cy - hero * 0.5, 12, th.dim, opts.title.toUpperCase(), 500));
   out.push(txt(cx, cy + hero * 0.34, hero, heroColor(m, th, base), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
@@ -257,10 +272,10 @@ function bandSvg(rect: Rect, m: ElementModel, _ringColor: string, th: Theme, opt
     out.push(txt(tx, ty + fs * 0.34, fs, dd === 0 ? "#ff5252" : DIAL_INK, label, 700));
   }
 
-  // amber bug for a target / wind marker (first warn-coloured or any marker)
+  // E5: amber bug only when an active (warn-coloured) target marker has an angle.
+  // Do NOT fall back to any-marker-with-angle (avoids stray HDG bug in standby).
   const markers = m.markers ?? [];
-  const bug = markers.find((mk) => mk.angleDeg != null && (mk.color === "warn"))
-    ?? markers.find((mk) => mk.angleDeg != null);
+  const bug = markers.find((mk) => mk.angleDeg != null && mk.color === "warn");
   if (bug && bug.angleDeg != null) {
     const rel = ((bug.angleDeg - hdg + 540) % 360) - 180;
     if (rel >= -90 && rel <= 90) {

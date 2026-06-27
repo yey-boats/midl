@@ -674,3 +674,174 @@ describe("F: unit suffix right-edge stays within cell", () => {
     expect(fsSrc(svgNarrow)).toBeLessThanOrEqual(fsSrc(svgWide));
   });
 });
+
+// ── E1: autopilot no-data renders its own STBY pill, not the generic "--" ─────
+
+import { paintScreenSvg } from "../src/svg/render-svg";
+import type { Element, Placement } from "@yey-boats/midl";
+
+describe("E1: autopilot no-data renders STBY pill not generic --", () => {
+  const th = theme("night");
+  const apEl: Element = {
+    type: "autopilot",
+    name: "AP",
+    bindings: { value: { kind: "signalk", path: "steering.autopilot.state" } },
+  } as unknown as Element;
+  const placement: Placement = { elementId: "ap", rect: { x: 0, y: 0, w: 240, h: 120 } } as unknown as Placement;
+
+  test("autopilot with no data renders the STBY pill (not a bare -- placeholder)", () => {
+    // No data for steering.autopilot.state → no-data state
+    const provider = new MockDataProvider({});
+    const svg = paintScreenSvg([placement], { ap: apEl }, provider, th);
+    // Must contain STBY label in the pill
+    expect(svg).toContain(">STBY<");
+    // Must NOT contain the generic standalone "--" text node
+    const genericDash = (svg.match(/>--</g) ?? []).length;
+    expect(genericDash).toBe(0);
+  });
+});
+
+// ── E2: autopilot engaged vs standby are visually distinct ────────────────────
+
+describe("E2: autopilot engaged vs standby pill fill/stroke are different", () => {
+  const rect: import("@yey-boats/midl").Rect = { x: 0, y: 0, w: 240, h: 120 };
+  const th = theme("night");
+
+  function pillFillStroke(svg: string): { fill: string; stroke: string } {
+    // The pill <rect> has fill="..." stroke="..."
+    const m = /fill="([^"]+)" stroke="([^"]+)"/.exec(svg);
+    if (!m) throw new Error("No pill rect in: " + svg);
+    return { fill: m[1], stroke: m[2] };
+  }
+
+  test("engaged state uses filled AP_PILL_BG background", () => {
+    const engagedModel: ElementModel = { state: "ok", text: "AUTO" };
+    const svg = autopilotSvg(rect, engagedModel, th, {});
+    const { fill } = pillFillStroke(svg);
+    // Engaged → filled pill (AP_PILL_BG = #143b2a)
+    expect(fill).toBe("#143b2a");
+  });
+
+  test("standby state uses hollow/transparent fill", () => {
+    const stbyModel: ElementModel = { state: "ok", text: "STBY" };
+    const svg = autopilotSvg(rect, stbyModel, th, {});
+    const { fill } = pillFillStroke(svg);
+    // Standby → no fill (none)
+    expect(fill).toBe("none");
+  });
+
+  test("engaged and standby produce different pill fill", () => {
+    const engagedSvg = autopilotSvg(rect, { state: "ok", text: "AUTO" }, th, {});
+    const stbySvg = autopilotSvg(rect, { state: "ok", text: "STBY" }, th, {});
+    const { fill: engagedFill } = pillFillStroke(engagedSvg);
+    const { fill: stbyFill } = pillFillStroke(stbySvg);
+    expect(engagedFill).not.toBe(stbyFill);
+  });
+
+  test("engaged and standby produce different pill stroke", () => {
+    const engagedSvg = autopilotSvg(rect, { state: "ok", text: "AUTO" }, th, {});
+    const stbySvg = autopilotSvg(rect, { state: "ok", text: "STBY" }, th, {});
+    const { stroke: engagedStroke } = pillFillStroke(engagedSvg);
+    const { stroke: stbyStroke } = pillFillStroke(stbySvg);
+    expect(engagedStroke).not.toBe(stbyStroke);
+  });
+});
+
+// ── E3: windrose no-data shows tile label ─────────────────────────────────────
+
+describe("E3: windrose no-data renders the tile label", () => {
+  const th = theme("night");
+  const windroseEl: Element = {
+    type: "windrose",
+    name: "AWA",
+    style: { title: "AWA" },
+    bindings: { value: { kind: "signalk", path: "environment.wind.angleApparent" } },
+  } as unknown as Element;
+  const placement: Placement = { elementId: "awa", rect: { x: 0, y: 0, w: 240, h: 240 } } as unknown as Placement;
+
+  test("no-data windrose renders its label text (not anonymous)", () => {
+    const provider = new MockDataProvider({});
+    const svg = paintScreenSvg([placement], { awa: windroseEl }, provider, th);
+    // Should contain the tile label "AWA" in the frame caption
+    expect(svg.toUpperCase()).toContain("AWA");
+    // And the generic -- placeholder
+    expect(svg).toContain(">--<");
+  });
+});
+
+// ── E4: stale dial dims ring/needle/arrow, not just value text ────────────────
+
+describe("E4: stale dial dims ring, needle, and direction arrow", () => {
+  const tileRect = { x: 0, y: 0, w: 200, h: 200 };
+  const th = theme("night");
+
+  test("stale minimal dial uses stale color for the ring", () => {
+    const staleModel: ElementModel = { state: "stale", text: "090", angleDeg: 90, dirDeg: 45 };
+    const okModel: ElementModel = { state: "ok", text: "090", angleDeg: 90, dirDeg: 45 };
+    const staleSvg = dialSvg(tileRect, staleModel, th.warn, th, { size: 38 });
+    const okSvg = dialSvg(tileRect, okModel, th.warn, th, { size: 38 });
+    // Stale dial must contain the stale color (ring/needle/arrow)
+    expect(staleSvg).toContain(th.stale);
+    // OK dial must NOT use stale color for the ring (only for text would be wrong here)
+    // The warn ring color must be present in the OK dial
+    expect(okSvg).toContain(th.warn);
+  });
+
+  test("stale minimal dial: ring/needle use stale color instead of ringColor", () => {
+    const staleModel: ElementModel = { state: "stale", text: "090", angleDeg: 90 };
+    const staleSvg = dialSvg(tileRect, staleModel, th.accent, th, { size: 38 });
+    // The stale color must appear in strokes (ring, needle)
+    expect(staleSvg).toContain(`stroke="${th.stale}"`);
+    // The accent color must NOT be used for geometry (only th.stale replaces it)
+    // Note: th.accent may appear in the hero text via heroColor... but heroColor
+    // maps stale→th.stale, so th.accent should not appear at all.
+    expect(staleSvg).not.toContain(th.accent);
+  });
+
+  test("stale minimal dial: direction arrow uses stale color not warn", () => {
+    const staleModel: ElementModel = { state: "stale", text: "090", angleDeg: 90, dirDeg: 180 };
+    const staleSvg = dialSvg(tileRect, staleModel, th.accent, th, { size: 38 });
+    // warn (amber) must not appear as the dashed arrow color when stale
+    expect(staleSvg).not.toContain(`stroke="${th.warn}"`);
+    // stale color must be used instead
+    expect(staleSvg).toContain(th.stale);
+  });
+});
+
+// ── E5: band target bug not shown when no active target angle ─────────────────
+
+describe("E5: band dial target bug suppressed when no warn marker with angle", () => {
+  const bandRect = { x: 0, y: 0, w: 200, h: 200 };
+  const th = theme("night");
+
+  test("band with a non-warn marker (HDG/accent) does NOT draw the amber bug", () => {
+    // A marker with no color="warn" → should not produce the amber bug
+    const modelWithAccentMarker: ElementModel = {
+      state: "ok", text: "090", angleDeg: 90,
+      markers: [{ glyph: "triangle", color: "accent", angleDeg: 45, kind: "rim" }],
+    };
+    const svg = dialSvg(bandRect, modelWithAccentMarker, th.accent, th, { shape: "band" });
+    // amber bug color is #ffb84d — it must NOT appear since color != "warn"
+    expect(svg).not.toContain("#ffb84d");
+  });
+
+  test("band with a warn marker WITH an angle draws the amber bug", () => {
+    const modelWithWarnTarget: ElementModel = {
+      state: "ok", text: "090", angleDeg: 90,
+      markers: [{ glyph: "triangle", color: "warn", angleDeg: 60, kind: "rim" }],
+    };
+    const svg = dialSvg(bandRect, modelWithWarnTarget, th.accent, th, { shape: "band" });
+    // warn marker with angle → amber bug is rendered
+    expect(svg).toContain("#ffb84d");
+  });
+
+  test("band with a warn marker but NO angle does NOT draw the amber bug", () => {
+    const modelWithWarnNoAngle: ElementModel = {
+      state: "ok", text: "090", angleDeg: 90,
+      markers: [{ glyph: "triangle", color: "warn", angleDeg: undefined, kind: "rim" }],
+    };
+    const svg = dialSvg(bandRect, modelWithWarnNoAngle, th.accent, th, { shape: "band" });
+    // warn marker present but angleDeg=undefined (standby) → no bug
+    expect(svg).not.toContain("#ffb84d");
+  });
+});
