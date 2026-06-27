@@ -14,13 +14,13 @@ screens:
       dtw:
         type: single-value
         name: DTW
-        format: { unit: nm }
+        format: { unit: nm, decimals: 1 }
         bindings:
           value: { kind: signalk, path: navigation.courseGreatCircle.nextPoint.distance }
       btw:
         type: single-value
         name: BTW
-        format: { unit: deg }
+        format: { unit: deg, decimals: 0 }
         bindings:
           value: { kind: signalk, path: navigation.courseGreatCircle.nextPoint.bearingTrue }
       cog:
@@ -32,7 +32,10 @@ screens:
       xte:
         type: bar
         name: XTE
-        format: { unit: m }
+        format: { unit: nm, decimals: 2 }
+        style:
+          range: [-0.2, 0.2]
+          center: 0
         bindings:
           value: { kind: signalk, path: navigation.courseGreatCircle.crossTrackError }
     layout:

@@ -15,13 +15,14 @@ screens:
         type: windrose
         name: WIND
         meta: { description: Apparent wind angle and speed. }
+        format: { unit: kn, decimals: 1 }
         bindings:
           value: { kind: signalk, path: environment.wind.speedApparent }
           dir: { kind: signalk, path: environment.wind.angleApparent }
       sog:
         type: single-value
         name: SOG
-        format: { unit: kn }
+        format: { unit: kn, decimals: 1 }
         bindings:
           value: { kind: signalk, path: navigation.speedOverGround }
       hdg:

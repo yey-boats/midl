@@ -14,23 +14,43 @@ screens:
       rpm:
         type: gauge
         name: RPM
+        format: { unit: rpm, decimals: 0 }
+        style:
+          range: [0, 3600]
+          zones:
+            - { lt: 600, color: warn }
+            - { lt: 3000, color: good }
+            - { lt: 3601, color: bad }
         bindings:
           value: { kind: signalk, path: propulsion.main.revolutions }
       temp:
         type: gauge
         name: COOLANT
-        format: { unit: degC }
+        format: { unit: degC, decimals: 0 }
+        style:
+          range: [0, 130]
+          zones:
+            - { lt: 60, color: warn }
+            - { lt: 100, color: good }
+            - { lt: 130, color: bad }
         bindings:
           value: { kind: signalk, path: propulsion.main.temperature }
       fuel:
         type: bar
         name: FUEL
+        format: { unit: "%", decimals: 0 }
+        style:
+          range: [0, 100]
+          zones:
+            - { lt: 20, color: bad }
+            - { lt: 40, color: warn }
+            - { lt: 101, color: good }
         bindings:
           value: { kind: signalk, path: tanks.fuel.0.currentLevel }
       oil:
         type: single-value
         name: OIL
-        format: { unit: bar }
+        format: { unit: bar, decimals: 1 }
         bindings:
           value: { kind: signalk, path: propulsion.main.oilPressure }
     layout:
