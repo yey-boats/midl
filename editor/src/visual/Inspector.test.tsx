@@ -6,7 +6,7 @@ import { test, expect, vi, afterEach } from "vitest";
 import { render, cleanup, fireEvent, act } from "@testing-library/react";
 import React from "react";
 import type { Manifest } from "@yey-boats/midl";
-import { MockDataProvider } from "@yey-boats/midl-web";
+import { MockDataProvider, renderDashboardSvg } from "@yey-boats/midl-web";
 import type { EditorModel } from "../model";
 import { parseMidl, serializeMidl } from "../midl-io";
 import { Inspector } from "./Inspector";
@@ -700,34 +700,8 @@ test("Inspector renders a size-select in the APPEARANCE section", () => {
   expect(getByTestId("size-select")).toBeTruthy();
 });
 
-test("size-select options include manifest.fonts values when present", () => {
-  const manifestWithFonts: typeof MANIFEST = {
-    ...MANIFEST,
-    fonts: [14, 20, 28, 48],
-  };
+test("size-select options are the role tokens S / M / L / XL / Fill", () => {
   const model = makeGridModel();
-  const provider = new MockDataProvider({});
-
-  const { getByTestId } = render(
-    <Inspector
-      model={model}
-      selectedCell={0}
-      manifest={manifestWithFonts}
-      provider={provider}
-      onChange={vi.fn()}
-    />,
-  );
-
-  const select = getByTestId("size-select") as HTMLSelectElement;
-  const values = Array.from(select.options).map((o) => Number(o.value));
-  expect(values).toContain(14);
-  expect(values).toContain(20);
-  expect(values).toContain(28);
-  expect(values).toContain(48);
-});
-
-test("size-select defaults to fallback [14,20,28,48] when manifest has no fonts", () => {
-  const model = makeGridModel(); // MANIFEST has no fonts field
   const provider = new MockDataProvider({});
 
   const { getByTestId } = render(
@@ -741,11 +715,29 @@ test("size-select defaults to fallback [14,20,28,48] when manifest has no fonts"
   );
 
   const select = getByTestId("size-select") as HTMLSelectElement;
-  const values = Array.from(select.options).map((o) => Number(o.value));
-  expect(values).toEqual([14, 20, 28, 48]);
+  const values = Array.from(select.options).map((o) => o.value);
+  expect(values).toEqual(["S", "M", "L", "XL", "Fill"]);
 });
 
-test("changing size-select updates element.style.size with a number", () => {
+test("size-select defaults to 'L' when element has no explicit size", () => {
+  const model = makeGridModel(); // no style.size set
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  const select = getByTestId("size-select") as HTMLSelectElement;
+  expect(select.value).toBe("L");
+});
+
+test("changing size-select writes the role string to element.style.size", () => {
   const model = makeGridModel();
   const provider = new MockDataProvider({});
   let captured: EditorModel = model;
@@ -761,13 +753,13 @@ test("changing size-select updates element.style.size with a number", () => {
     />,
   );
 
-  fireEvent.change(getByTestId("size-select"), { target: { value: "28" } });
+  fireEvent.change(getByTestId("size-select"), { target: { value: "XL" } });
 
   expect(onChange).toHaveBeenCalledOnce();
-  expect(captured.elements["sog"]?.style?.size).toBe(28);
+  expect(captured.elements["sog"]?.style?.size).toBe("XL");
 });
 
-test("element.style.size round-trips through serializeMidl → parseMidl", () => {
+test("element.style.size role token round-trips through serializeMidl → parseMidl", () => {
   const model = makeGridModel();
   const provider = new MockDataProvider({});
   let captured: EditorModel = model;
@@ -783,14 +775,44 @@ test("element.style.size round-trips through serializeMidl → parseMidl", () =>
     />,
   );
 
-  fireEvent.change(getByTestId("size-select"), { target: { value: "48" } });
+  fireEvent.change(getByTestId("size-select"), { target: { value: "Fill" } });
 
   const yaml = serializeMidl(captured, "yaml");
   const reparsed = parseMidl(yaml);
-  expect(reparsed.elements["sog"]?.style?.size).toBe(48);
+  expect(reparsed.elements["sog"]?.style?.size).toBe("Fill");
 });
 
-test("size-select shows element's current style.size as selected value", () => {
+test("size-select shows element's current style.size role as selected value", () => {
+  const model = makeGridModel({
+    elements: {
+      sog: {
+        id: "sog",
+        type: "single-value",
+        name: "SOG",
+        bindings: { value: { kind: "signalk", path: "navigation.speedOverGround" } },
+        format: { unit: "kn", decimals: 1 },
+        style: { size: "XL" },
+      },
+    },
+  });
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  const select = getByTestId("size-select") as HTMLSelectElement;
+  expect(select.value).toBe("XL");
+});
+
+test("size-select shows 'L' (default) when element has a legacy numeric style.size", () => {
+  // Legacy numeric sizes fall back to 'L' in the role select.
   const model = makeGridModel({
     elements: {
       sog: {
@@ -816,7 +838,8 @@ test("size-select shows element's current style.size as selected value", () => {
   );
 
   const select = getByTestId("size-select") as HTMLSelectElement;
-  expect(Number(select.value)).toBe(28);
+  // Legacy number 28 has no matching role — Inspector shows 'L' as default.
+  expect(select.value).toBe("L");
 });
 
 // ── Part 4: live-readout ────────────────────────────────────────────────────────
@@ -900,4 +923,69 @@ test("live-readout shows stale state when data is stale", () => {
   const readout = getByTestId("live-readout");
   expect(readout).toBeTruthy();
   expect(readout.textContent).toMatch(/stale/i);
+});
+
+// ── Size role → SVG font-size integration ────────────────────────────────────
+
+const MANIFEST_FULL: Manifest = {
+  midl: "1.0.0",
+  board: "test",
+  classes: [{ id: "square-480", width: 480, height: 480, maxTiles: 4, maxDepth: 3 }],
+  elements: [{ type: "single-value", bindings: ["value"] }],
+  sources: ["signalk"],
+} as unknown as Manifest;
+
+function heroFontSizeFromSvg(svg: string): number {
+  // Extract the LARGEST font-size attribute from the SVG (the hero number, not the label).
+  const matches = [...svg.matchAll(/font-size="([\d.]+)"/g)].map((m) => parseFloat(m[1]));
+  if (matches.length === 0) throw new Error(`No font-size found in SVG: ${svg.slice(0, 300)}`);
+  return Math.max(...matches);
+}
+
+function buildDocWithSize(sizeRole: string): string {
+  return `
+midl: "1.0.0"
+screens:
+  - id: main
+    elements:
+      sog:
+        type: single-value
+        name: SOG
+        style:
+          size: ${sizeRole}
+        bindings: { value: { kind: signalk, path: navigation.speedOverGround } }
+    layout:
+      rows: 1
+      cols: 1
+      cells:
+        - { element: sog }
+`;
+}
+
+test("changing size role S→Fill produces a larger font-size in the rendered SVG preview", () => {
+  const provider = new MockDataProvider({ "navigation.speedOverGround": { value: 6 } });
+  const viewport = { x: 0, y: 0, w: 480, h: 480 };
+
+  const svgS = renderDashboardSvg(buildDocWithSize("S"), MANIFEST_FULL, "square-480", viewport, provider);
+  const svgFill = renderDashboardSvg(buildDocWithSize("Fill"), MANIFEST_FULL, "square-480", viewport, provider);
+
+  expect(svgS.ok).toBe(true);
+  expect(svgFill.ok).toBe(true);
+
+  const fsS = heroFontSizeFromSvg(svgS.svg);
+  const fsFill = heroFontSizeFromSvg(svgFill.svg);
+
+  expect(fsFill).toBeGreaterThan(fsS);
+});
+
+test("Fill size role in a 480x480 single-cell produces font-size >= 40% of cell height (192px)", () => {
+  const provider = new MockDataProvider({ "navigation.speedOverGround": { value: 6 } });
+  const viewport = { x: 0, y: 0, w: 480, h: 480 };
+
+  const result = renderDashboardSvg(buildDocWithSize("Fill"), MANIFEST_FULL, "square-480", viewport, provider);
+  expect(result.ok).toBe(true);
+
+  const fs = heroFontSizeFromSvg(result.svg);
+  // 40% of 480 = 192
+  expect(fs).toBeGreaterThanOrEqual(192);
 });

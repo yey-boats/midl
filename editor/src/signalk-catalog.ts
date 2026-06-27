@@ -131,6 +131,11 @@ export function applyCatalogDefaults(
     updated = { ...updated, format: newFormat };
   }
 
+  // style.size ← "L" (large, auto-fit) for single-value elements (only if not already set).
+  if (!updated.style?.size) {
+    updated = { ...updated, style: { ...updated.style, size: "L" } };
+  }
+
   return updated;
 }
 

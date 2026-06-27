@@ -27,23 +27,59 @@ function txt(x: number, y: number, s: number, fill: string, str: string, weight 
   return `<text x="${f(x)}" y="${f(y)}" font-family="${FN}" font-weight="${weight}" font-size="${f(s)}" fill="${fill}" text-anchor="${anchor}"${extra}>${esc(str)}</text>`;
 }
 
-export interface TileOpts { title?: string; size?: number; center?: number; unit?: string; }
+export interface TileOpts { title?: string; size?: number | string; center?: number; unit?: string; }
+
+// Size roles: fractions of auto-fit hero font size.
+export const SIZE_ROLES: Record<string, number> = {
+  S: 0.45,
+  M: 0.60,
+  L: 0.78,
+  XL: 0.92,
+  Fill: 1.0,
+};
+
+/**
+ * Compute the hero font size for a numeric value displayed in a cell.
+ *
+ * Auto-fit: the base font size is derived from the cell height (60%), then
+ * shrunk so the value string does not exceed the cell width (using an
+ * approximation of 0.6 * fontSize per character for the condensed bold font).
+ *
+ * The `size` option is applied as a role multiplier (S/M/L/XL/Fill) or, for
+ * legacy backward-compat, treated as an absolute px value when it is a number.
+ */
+export function heroFontSize(rect: { w: number; h: number }, value: string, size?: number | string): number {
+  // Legacy: if size is a number, return it as-is (absolute px, backward-compat).
+  if (typeof size === "number") return size;
+
+  // Auto-fit: start from 60% of cell height (the un-scaled Fill size).
+  const maxByHeight = rect.h * 0.60;
+  // Approximate max width: characters are ~0.55 * fontSize wide (bold condensed).
+  const charCount = Math.max(1, value.replace(/\s/g, "").length);
+  const maxByWidth = (rect.w * 0.88) / (charCount * 0.55);
+  const autoFit = Math.min(maxByHeight, maxByWidth);
+
+  // Apply role multiplier.
+  const role = typeof size === "string" ? size : "L";
+  const fraction = SIZE_ROLES[role] ?? SIZE_ROLES["L"]!;
+  return Math.max(12, autoFit * fraction);
+}
 
 // HERO numeric is ACCENT (per spec), unless a zone colour applies or state
 // overrides (stale/bad). The unit (if any) sits at 20/dim to the right.
 export function singleValueSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = {}): string {
   const { x, y, w, h } = rect;
   const cx = x + w / 2, cy = y + h / 2;
-  const hero = opts.size ?? 38;
-  const base = m.zoneColor ? resolveColor(m.zoneColor, th, th.accent) : th.accent;
-  const color = valColor(m, th, base);
-  const out: string[] = [];
   const unit = opts.unit;
   // formatValue already appends the unit to m.text (e.g. "6.0 kn"); strip it so
   // the dim unit drawn separately below isn't duplicated ("6.0 kn kn").
   let body = m.text;
   if (unit && body.endsWith(unit)) body = body.slice(0, -unit.length).trimEnd();
   const value = body + (m.side ?? "");
+  const hero = heroFontSize({ w, h }, value, opts.size);
+  const base = m.zoneColor ? resolveColor(m.zoneColor, th, th.accent) : th.accent;
+  const color = valColor(m, th, base);
+  const out: string[] = [];
   out.push(txt(cx, cy + hero * 0.34, hero, color, value, 700, "middle", ` letter-spacing="-0.02em"`));
   if (unit) {
     // place the unit just to the right of the centred value.
@@ -73,7 +109,7 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
   const by = y + h * 0.62;
 
   // hero percent above the track (accent)
-  const hero = opts.size ?? 38;
+  const hero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
   out.push(txt(cx, by - 14, hero, valColor(m, th, th.accent), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   // track
@@ -118,8 +154,9 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
     out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${GAUGE_TICK}" stroke-width="1"/>`);
   }
 
-  // centre percent (cyan)
-  out.push(txt(cx, cy + 28 * 0.34, opts.size ?? 28, m.state === "stale" ? th.stale : m.state === "bad" ? th.bad : GAUGE_CYAN, m.text + (m.side ?? ""), 700));
+  // centre percent (cyan) — gauge uses a fixed numeric size for the compact centre label
+  const gaugeFs = typeof opts.size === "number" ? opts.size : 28;
+  out.push(txt(cx, cy + 28 * 0.34, gaugeFs, m.state === "stale" ? th.stale : m.state === "bad" ? th.bad : GAUGE_CYAN, m.text + (m.side ?? ""), 700));
   return `<g>${out.join("")}</g>`;
 }
 
@@ -143,7 +180,8 @@ export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Them
     out.push(`<polyline points="${poly}" fill="none" stroke="${GAUGE_CYAN}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
   }
   // numeric hero overlaid (accent)
-  out.push(txt(cx, cy + 38 * 0.34, opts.size ?? 38, valColor(m, th, th.accent), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  const trendHero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
+  out.push(txt(cx, cy + trendHero * 0.34, trendHero, valColor(m, th, th.accent), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
   return `<g>${out.join("")}</g>`;
 }
 
@@ -155,7 +193,7 @@ export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileO
   const label = (m.text || "STBY").toUpperCase();
   const engaged = /AUTO|TRACK|WIND|ROUTE|NAV|ON/.test(label);
   const labelColor = engaged ? th.good : th.dim;
-  const fs = opts.size ?? 20;
+  const fs = typeof opts.size === "number" ? opts.size : 20;
   const pw = Math.min(w - 24, Math.max(70, label.length * fs * 0.8)), ph = Math.max(28, h * 0.3);
   out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${AP_PILL_BG}" stroke="${th.good}" stroke-width="1"/>`);
   out.push(txt(cx, cy + Math.min(fs, ph * 0.6) * 0.34, Math.min(fs, ph * 0.6), labelColor, label, 700, "middle", ` letter-spacing="0.04em"`));
@@ -167,7 +205,7 @@ export function buttonSvg(rect: Rect, label: string, th: Theme, opts: TileOpts =
   const { x, y, w, h } = rect;
   const cx = x + w / 2, cy = y + h / 2;
   const bw = w - 20, bh = h - 20;
-  const fs = opts.size ?? 16;
+  const fs = typeof opts.size === "number" ? opts.size : 16;
   const out: string[] = [];
   out.push(`<rect x="${f(x + 10)}" y="${f(y + 10)}" width="${f(bw)}" height="${f(bh)}" rx="20" fill="${th.accent}"/>`);
   out.push(txt(cx, cy + fs * 0.34, fs, BTN_INK, label.toUpperCase(), 700, "middle", ` letter-spacing="0.04em"`));

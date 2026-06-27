@@ -25,6 +25,12 @@ const ROUND_TYPES = new Set(["compass", "windrose"]);
 function str(v: unknown): string | undefined { return typeof v === "string" ? v : undefined; }
 function numv(v: unknown): number | undefined { return typeof v === "number" ? v : undefined; }
 function boolv(v: unknown): boolean { return v === true; }
+/** Extract a size token: string role or legacy number; undefined if absent. */
+function sizev(v: unknown): number | string | undefined {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return v;
+  return undefined;
+}
 
 function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends?: TrendBuffers): string {
   const rect = p.rect;
@@ -33,7 +39,7 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
   // caption. So we do NOT pass `title` into the tile builders. Dials are the
   // exception: they draw their own centre caption from the title.
   const opts = {
-    size: numv(style.size),
+    size: sizev(style.size),
     center: numv(style.center),
     unit: str(el.format?.unit),
   };

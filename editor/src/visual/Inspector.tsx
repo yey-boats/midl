@@ -23,6 +23,8 @@ export interface InspectorProps {
 const SPAN_OPTIONS = ["1x1", "1x2", "2x1", "2x2"] as const;
 const COLOR_ROLE_OPTIONS = ["default", "accent", "warn"] as const;
 const SCALE_OPTIONS = ["fixed", "metric"] as const;
+const SIZE_ROLE_OPTIONS = ["S", "M", "L", "XL", "Fill"] as const;
+type SizeRole = typeof SIZE_ROLE_OPTIONS[number];
 
 export function Inspector({ model, selectedCell, manifest, provider, onChange, onBrowseData }: InspectorProps): React.JSX.Element {
   // ── Grid-level controls ────────────────────────────────────────────────────
@@ -140,12 +142,9 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
     updateElement({ ...selectedElement, style: { ...selectedElement.style, scale } });
   }
 
-  const FONT_SIZE_FALLBACK = [14, 20, 28, 48];
-  const fontSizes: number[] = manifest.fonts && manifest.fonts.length > 0 ? manifest.fonts : FONT_SIZE_FALLBACK;
-
-  function handleSizeChange(size: number) {
+  function handleSizeChange(sizeRole: string) {
     if (!selectedElement) return;
-    updateElement({ ...selectedElement, style: { ...selectedElement.style, size } });
+    updateElement({ ...selectedElement, style: { ...selectedElement.style, size: sizeRole } });
   }
 
   function handleRemoveElement() {
@@ -221,9 +220,16 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
   const currentSided = Boolean(selectedElement.style?.sided);
   const currentColorRole = String(selectedElement.style?.colorRole ?? "default");
   const currentScale = String(selectedElement.style?.scale ?? "fixed");
-  const currentSize: number | "" = typeof selectedElement?.style?.size === "number"
-    ? selectedElement.style.size as number
-    : "";
+  // Derive current size role. String roles (S/M/L/XL/Fill) are used as-is.
+  // Legacy numeric sizes are mapped to the nearest role for display.
+  const rawSize = selectedElement?.style?.size;
+  let currentSizeRole: SizeRole;
+  if (typeof rawSize === "string" && (SIZE_ROLE_OPTIONS as readonly string[]).includes(rawSize)) {
+    currentSizeRole = rawSize as SizeRole;
+  } else {
+    // Default: show L (whether rawSize is a legacy number or undefined).
+    currentSizeRole = "L";
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -436,11 +442,11 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
             <span style={{ fontSize: "0.77em", opacity: 0.7, minWidth: "56px" }}>Size</span>
             <select
               data-testid="size-select"
-              value={String(currentSize)}
-              onChange={(e) => handleSizeChange(Number(e.target.value))}
+              value={currentSizeRole}
+              onChange={(e) => handleSizeChange(e.target.value)}
               style={{ flex: 1 }}
             >
-              {fontSizes.map((s) => (<option key={s} value={String(s)}>{s}px</option>))}
+              {SIZE_ROLE_OPTIONS.map((r) => (<option key={r} value={r}>{r}</option>))}
             </select>
           </div>
         </div>

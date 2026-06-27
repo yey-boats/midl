@@ -186,3 +186,91 @@ screens:
     expect(r.svg).toContain("</svg>");
   });
 });
+
+// ── heroFontSize / single-value auto-fit tests ────────────────────────────────
+
+import { singleValueSvg, heroFontSize } from "../src/svg/tiles";
+import type { Rect } from "@yey-boats/midl";
+
+const RECT_480: Rect = { x: 0, y: 0, w: 480, h: 480 };
+const TH2 = theme("night");
+
+function makeOkModel(text: string): ElementModel {
+  return { state: "ok", text };
+}
+
+/** Extract font-size from first <text> element in the SVG snippet. */
+function extractFontSize(svg: string): number {
+  const m = /font-size="([\d.]+)"/.exec(svg);
+  if (!m) throw new Error(`No font-size in: ${svg}`);
+  return parseFloat(m[1]);
+}
+
+describe("heroFontSize", () => {
+  test("Fill role yields font-size >= 40% of cell height (short value)", () => {
+    const fs = heroFontSize({ w: 480, h: 480 }, "6.0", "Fill");
+    expect(fs).toBeGreaterThan(0.4 * 480); // >= 40% of cell height
+    expect(fs).toBeLessThanOrEqual(0.65 * 480); // sane upper bound
+  });
+
+  test("Fill yields larger font-size than S in a 480x480 cell", () => {
+    const fillFs = heroFontSize({ w: 480, h: 480 }, "6.0", "Fill");
+    const sFs = heroFontSize({ w: 480, h: 480 }, "6.0", "S");
+    expect(fillFs).toBeGreaterThan(sFs);
+  });
+
+  test("S role font-size is roughly 45% of Fill", () => {
+    const fillFs = heroFontSize({ w: 480, h: 480 }, "6.0", "Fill");
+    const sFs = heroFontSize({ w: 480, h: 480 }, "6.0", "S");
+    expect(sFs / fillFs).toBeCloseTo(0.45, 1);
+  });
+
+  test("a long number shrinks to fit the cell width", () => {
+    const longVal = "12345.678";
+    const fs = heroFontSize({ w: 480, h: 480 }, longVal, "Fill");
+    const approxWidth = longVal.replace(/\s/g, "").length * 0.55 * fs;
+    expect(approxWidth).toBeLessThanOrEqual(480 * 0.88 + 1);
+  });
+
+  test("short value in Fill mode is height-limited, not width-limited", () => {
+    const fs = heroFontSize({ w: 480, h: 480 }, "0", "Fill");
+    // single char: maxByWidth >> maxByHeight, so autoFit = maxByHeight = 0.60*480 = 288
+    expect(fs).toBeCloseTo(0.60 * 480, 0);
+  });
+
+  test("legacy numeric size is returned as-is (backward-compat)", () => {
+    expect(heroFontSize({ w: 480, h: 480 }, "6.0", 38)).toBe(38);
+    expect(heroFontSize({ w: 200, h: 200 }, "6.0", 14)).toBe(14);
+  });
+
+  test("undefined size defaults to L role", () => {
+    const defaultFs = heroFontSize({ w: 480, h: 480 }, "6.0", undefined);
+    const lFs = heroFontSize({ w: 480, h: 480 }, "6.0", "L");
+    expect(defaultFs).toBeCloseTo(lFs, 5);
+  });
+});
+
+describe("singleValueSvg font-size", () => {
+  test("Fill role renders a font-size >= 40% of cell height in the SVG", () => {
+    const svg = singleValueSvg(RECT_480, makeOkModel("6.0"), TH2, { size: "Fill" });
+    const fs = extractFontSize(svg);
+    expect(fs).toBeGreaterThanOrEqual(0.40 * 480);
+  });
+
+  test("S role renders a smaller font-size than Fill", () => {
+    const svgFill = singleValueSvg(RECT_480, makeOkModel("6.0"), TH2, { size: "Fill" });
+    const svgS = singleValueSvg(RECT_480, makeOkModel("6.0"), TH2, { size: "S" });
+    expect(extractFontSize(svgFill)).toBeGreaterThan(extractFontSize(svgS));
+  });
+
+  test("legacy numeric style.size 38 renders as font-size 38", () => {
+    const svg = singleValueSvg(RECT_480, makeOkModel("6.0"), TH2, { size: 38 });
+    expect(extractFontSize(svg)).toBe(38);
+  });
+
+  test("long number shrinks to fit — width-constrained font is smaller than height-limited font", () => {
+    const svgShort = singleValueSvg(RECT_480, makeOkModel("0"), TH2, { size: "Fill" });
+    const svgLong = singleValueSvg(RECT_480, makeOkModel("123456.789"), TH2, { size: "Fill" });
+    expect(extractFontSize(svgShort)).toBeGreaterThan(extractFontSize(svgLong));
+  });
+});
