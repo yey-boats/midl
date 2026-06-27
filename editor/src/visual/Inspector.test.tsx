@@ -281,7 +281,9 @@ test("changing span updates element.style.span and round-trips through serialize
   expect(reparsed.elements["sog"]?.style?.span).toBe("1x2");
 });
 
-test("toggling sided updates element.style.sided and round-trips", () => {
+test("toggling sided writes format.side (not style.sided) so the renderer reads it", () => {
+  // The renderer checks el.format?.side (model.ts: sideEnabled(el.format?.side)).
+  // The old code incorrectly wrote style.sided; the toggle must write format.side.
   const model = makeGridModel();
   const provider = new MockDataProvider({});
   let captured: EditorModel = model;
@@ -300,13 +302,15 @@ test("toggling sided updates element.style.sided and round-trips", () => {
   fireEvent.click(getByTestId("sided-toggle"));
 
   expect(onChange).toHaveBeenCalledOnce();
-  // Default was undefined/false; after toggle it should be "P" (truthy)
-  expect(captured.elements["sog"]?.style?.sided).toBeTruthy();
+  // The renderer reads format.side; it should be set after toggle.
+  expect(captured.elements["sog"]?.format?.side).toBeTruthy();
+  // style.sided must NOT be set (old buggy location).
+  expect(captured.elements["sog"]?.style?.sided).toBeUndefined();
 
   // Round-trip
   const yaml = serializeMidl(captured, "yaml");
   const reparsed = parseMidl(yaml);
-  expect(reparsed.elements["sog"]?.style?.sided).toBeTruthy();
+  expect(reparsed.elements["sog"]?.format?.side).toBeTruthy();
 });
 
 test("changing colorRole updates element.style.colorRole and round-trips", () => {

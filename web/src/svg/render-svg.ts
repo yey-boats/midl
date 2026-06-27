@@ -42,12 +42,13 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
     size: sizev(style.size),
     center: numv(style.center),
     unit: str(el.format?.unit),
+    colorRole: str(style.colorRole),
   };
   switch (el.type) {
     case "compass":
-      return dialSvg(rect, m, th.accent, th, { title: str(style.title), size: numv(style.size), shape: style.shape === "band" ? "band" : "round", hull: boolv(style.hull) });
+      return dialSvg(rect, m, th.accent, th, { title: str(style.title), size: sizev(style.size), shape: style.shape === "band" ? "band" : "round", hull: boolv(style.hull) });
     case "windrose":
-      return dialSvg(rect, m, th.warn, th, { title: str(style.title), size: numv(style.size), shape: style.shape === "band" ? "band" : "round", hull: boolv(style.hull) });
+      return dialSvg(rect, m, th.warn, th, { title: str(style.title), size: sizev(style.size), shape: style.shape === "band" ? "band" : "round", hull: boolv(style.hull) });
     case "gauge":
       return gaugeSvg(rect, m, th, opts);
     case "bar":

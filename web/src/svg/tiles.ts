@@ -27,7 +27,18 @@ function txt(x: number, y: number, s: number, fill: string, str: string, weight 
   return `<text x="${f(x)}" y="${f(y)}" font-family="${FN}" font-weight="${weight}" font-size="${f(s)}" fill="${fill}" text-anchor="${anchor}"${extra}>${esc(str)}</text>`;
 }
 
-export interface TileOpts { title?: string; size?: number | string; center?: number; unit?: string; }
+export interface TileOpts { title?: string; size?: number | string; center?: number; unit?: string; colorRole?: string; }
+
+/**
+ * Resolve a style.colorRole token to a theme accent colour.
+ * "warn" → th.warn (amber), "good" → th.good (green), everything else (including
+ * "default"/"accent"/undefined) → th.accent (the standard numeric value colour).
+ */
+export function resolveColorRole(colorRole: string | undefined, th: Theme): string {
+  if (colorRole === "warn") return th.warn;
+  if (colorRole === "good") return th.good;
+  return th.accent; // "default", "accent", or undefined all map to the standard accent
+}
 
 // Size roles: fractions of auto-fit hero font size.
 export const SIZE_ROLES: Record<string, number> = {
@@ -77,7 +88,9 @@ export function singleValueSvg(rect: Rect, m: ElementModel, th: Theme, opts: Til
   if (unit && body.endsWith(unit)) body = body.slice(0, -unit.length).trimEnd();
   const value = body + (m.side ?? "");
   const hero = heroFontSize({ w, h }, value, opts.size);
-  const base = m.zoneColor ? resolveColor(m.zoneColor, th, th.accent) : th.accent;
+  // Zone colour takes highest precedence; then style.colorRole; then accent default.
+  const accentBase = resolveColorRole(opts.colorRole, th);
+  const base = m.zoneColor ? resolveColor(m.zoneColor, th, accentBase) : accentBase;
   const color = valColor(m, th, base);
   const out: string[] = [];
   out.push(txt(cx, cy + hero * 0.34, hero, color, value, 700, "middle", ` letter-spacing="-0.02em"`));
@@ -108,9 +121,9 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
   const bx = x + 16, bw = w - 32, bh = 22;
   const by = y + h * 0.62;
 
-  // hero percent above the track (accent)
+  // hero percent above the track (accent, optionally overridden by colorRole)
   const hero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
-  out.push(txt(cx, by - 14, hero, valColor(m, th, th.accent), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  out.push(txt(cx, by - 14, hero, valColor(m, th, resolveColorRole(opts.colorRole, th)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   // track
   out.push(`<rect x="${f(bx)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" rx="3" fill="${BAR_TRACK}" stroke="${th.edge}" stroke-width="1"/>`);
@@ -154,9 +167,13 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
     out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${GAUGE_TICK}" stroke-width="1"/>`);
   }
 
-  // centre percent (cyan) — gauge uses a fixed numeric size for the compact centre label
-  const gaugeFs = typeof opts.size === "number" ? opts.size : 28;
-  out.push(txt(cx, cy + 28 * 0.34, gaugeFs, m.state === "stale" ? th.stale : m.state === "bad" ? th.bad : GAUGE_CYAN, m.text + (m.side ?? ""), 700));
+  // centre percent (cyan) — honour string size roles (S/M/L/XL/Fill) like other
+  // tile types; fall back to heroFontSize which returns 28px for legacy numeric
+  // sizes and scales by role for string sizes.
+  const gaugeFs = typeof opts.size === "number"
+    ? opts.size
+    : heroFontSize({ w: r * 2, h: r * 2 }, m.text + (m.side ?? ""), opts.size);
+  out.push(txt(cx, cy + gaugeFs * 0.34, gaugeFs, m.state === "stale" ? th.stale : m.state === "bad" ? th.bad : GAUGE_CYAN, m.text + (m.side ?? ""), 700));
   return `<g>${out.join("")}</g>`;
 }
 
@@ -179,9 +196,9 @@ export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Them
     out.push(`<polygon points="${area}" fill="rgba(87,199,216,0.06)"/>`);
     out.push(`<polyline points="${poly}" fill="none" stroke="${GAUGE_CYAN}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
   }
-  // numeric hero overlaid (accent)
+  // numeric hero overlaid (accent, optionally overridden by colorRole)
   const trendHero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
-  out.push(txt(cx, cy + trendHero * 0.34, trendHero, valColor(m, th, th.accent), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  out.push(txt(cx, cy + trendHero * 0.34, trendHero, valColor(m, th, resolveColorRole(opts.colorRole, th)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
   return `<g>${out.join("")}</g>`;
 }
 

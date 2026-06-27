@@ -17,6 +17,7 @@ const FACTORS: Record<string, number> = {
   "Hz->rpm": 60,        // engine revolutions: rev/s -> rev/min
   "Pa->bar": 1e-5,      // pressure: pascals -> bar
   "Pa->kPa": 1e-3,
+  "Pa->hPa": 1e-2,      // pressure: pascals -> hectopascals (standard weather display)
 };
 
 export function convert(value: number, fromUnit: string | undefined, toUnit: string | undefined): number {

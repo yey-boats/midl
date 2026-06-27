@@ -121,15 +121,20 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
 
   function handleSidedToggle() {
     if (!selectedElement) return;
-    const current = selectedElement.style?.sided;
-    const next = current ? undefined : "P";
-    const newStyle = { ...selectedElement.style };
+    // The renderer reads `format.side` (model.ts: sideEnabled(el.format?.side)).
+    // Write there, not to style.sided, so the toggle is not a no-op.
+    const current = selectedElement.format?.side;
+    const next = current ? undefined : "port-stbd";
+    const newFormat = { ...selectedElement.format };
     if (next === undefined) {
-      delete newStyle["sided"];
+      delete newFormat["side"];
     } else {
-      newStyle["sided"] = next;
+      newFormat["side"] = next;
     }
-    updateElement({ ...selectedElement, style: newStyle });
+    // Also clean up any legacy style.sided written by old versions of the editor.
+    const newStyle = { ...selectedElement.style };
+    delete newStyle["sided"];
+    updateElement({ ...selectedElement, format: newFormat, style: newStyle });
   }
 
   function handleColorRoleChange(colorRole: string) {
@@ -217,7 +222,8 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
   } else {
     currentSpan = String(selectedElement.style?.span ?? "1x1");
   }
-  const currentSided = Boolean(selectedElement.style?.sided);
+  // currentSided reflects format.side (what the renderer reads), not style.sided.
+  const currentSided = Boolean(selectedElement.format?.side);
   const currentColorRole = String(selectedElement.style?.colorRole ?? "default");
   const currentScale = String(selectedElement.style?.scale ?? "fixed");
   // Derive current size role. String roles (S/M/L/XL/Fill) are used as-is.

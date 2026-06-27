@@ -19,10 +19,11 @@ import {
 import { polar, arc, esc, f } from "./geometry";
 import { glyphPath } from "./glyphs";
 import { resolveColor } from "./color";
+import { heroFontSize } from "./tiles";
 
 export interface DialOpts {
   title?: string;
-  size?: number;        // hero value font size
+  size?: number | string;  // hero value font size: numeric (px) or a SIZE_ROLES key (S/M/L/XL/Fill)
   shape?: "round" | "band";
   hull?: boolean;
 }
@@ -86,8 +87,13 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
     out.push(glyphPath(mk.glyph, mx, my, D * 0.07, markerColor(mk.color, th)));
   }
 
-  // small caption above + centre hero
-  const hero = opts.size ?? 38;
+  // small caption above + centre hero.
+  // Resolve string size roles (S/M/L/XL/Fill) via heroFontSize using the inner
+  // face as the available rect. Legacy numeric sizes are returned as-is.
+  const innerDim = R * 2 * 0.76; // approximate inner face diameter for sizing
+  const hero = typeof opts.size === "string"
+    ? heroFontSize({ w: innerDim, h: innerDim }, m.text + (m.side ?? ""), opts.size)
+    : (opts.size ?? 38);
   if (opts.title) out.push(txt(cx, cy - hero * 0.5, 12, th.dim, opts.title.toUpperCase(), 500));
   out.push(txt(cx, cy + hero * 0.34, hero, heroColor(m, th, ringColor), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
@@ -162,8 +168,13 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
     out.push(glyphPath(mk.glyph, mx, my, D * 0.05, markerColor(mk.color, th)));
   }
 
-  // centre caption + hero (windrose: warn; compass: accent)
-  const hero = opts.size ?? 38;
+  // centre caption + hero (windrose: warn; compass: accent).
+  // Resolve string size roles (S/M/L/XL/Fill) via heroFontSize using the inner
+  // face diameter. Legacy numeric sizes are returned as-is.
+  const innerFaceDim = rFace * 2;
+  const hero = typeof opts.size === "string"
+    ? heroFontSize({ w: innerFaceDim, h: innerFaceDim }, m.text + (m.side ?? ""), opts.size)
+    : (opts.size ?? 38);
   const base = ringColor === th.warn ? th.warn : th.accent;
   if (opts.title) out.push(txt(cx, cy - hero * 0.5, 12, th.dim, opts.title.toUpperCase(), 500));
   out.push(txt(cx, cy + hero * 0.34, hero, heroColor(m, th, base), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
@@ -236,8 +247,12 @@ function bandSvg(rect: Rect, m: ElementModel, _ringColor: string, th: Theme, opt
   const ly = cy - R - 2 * k;
   out.push(`<path d="M ${f(cx - 10 * k)},${f(ly)} L ${f(cx + 10 * k)},${f(ly)} L ${f(cx)},${f(ly + 16 * k)} Z" fill="#ff5252"/>`);
 
-  // HDG hero below band centre
-  const hero = opts.size ?? 64;
+  // HDG hero below band centre.
+  // Resolve string size roles (S/M/L/XL/Fill) via heroFontSize using the band
+  // rect width and lower-half height. Legacy numeric sizes are returned as-is.
+  const hero = typeof opts.size === "string"
+    ? heroFontSize({ w: rect.w, h: rect.h * 0.38 }, m.text + (m.side ?? ""), opts.size)
+    : (opts.size ?? 64);
   if (opts.title) out.push(txt(cx, cy - 6 * k, 12, th.dim, opts.title.toUpperCase(), 500));
   out.push(txt(cx, cy + hero * 0.7, hero, heroColor(m, th, th.fg), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
