@@ -15,8 +15,8 @@ describe("top-level structure tightening (schema req #2)", () => {
     expect(ok({ midl: "1.0.0", screens: [] })).toBe(false);
   });
 
-  test("a screen with empty elements is rejected", () => {
-    expect(ok({ midl: "1.0.0", screens: [{ id: "d", elements: {}, layout: { element: "x" } }] })).toBe(false);
+  test("a screen with empty elements is now valid (draft dashboard — minProperties relaxed to 0)", () => {
+    expect(ok({ midl: "1.0.0", screens: [{ id: "d", elements: {}, layout: { rows: 1, cols: 1, cells: [{}] } }] })).toBe(true);
   });
 
   test("a split with empty children is rejected", () => {
@@ -219,5 +219,54 @@ describe("alarm tightening (schema req #5)", () => {
   });
   test("a complete alarm passes", () => {
     expect(ok(wrap({ id: "a", source: { kind: "signalk", path: "x" }, level: "alarm", gt: 1, message: "Over limit" }))).toBe(true);
+  });
+});
+
+describe("spacer cell and empty-elements (schema)", () => {
+  test("a grid cell {} (spacer) is valid as a node", () => {
+    expect(ok({
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: { a: { type: "button" } },
+        layout: { rows: 1, cols: 2, cells: [{ element: "a" }, {}] }
+      }]
+    })).toBe(true);
+  });
+
+  test("a screen with zero elements (elements: {}) is valid", () => {
+    expect(ok({
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: {},
+        layout: { rows: 1, cols: 1, cells: [{}] }
+      }]
+    })).toBe(true);
+  });
+
+  test("a spacer cell with colSpan/rowSpan is valid", () => {
+    expect(ok({
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: { a: { type: "button" } },
+        layout: { rows: 2, cols: 2, cells: [
+          { element: "a" },
+          { colSpan: 1, rowSpan: 2 },
+        ]}
+      }]
+    })).toBe(true);
+  });
+
+  test("a spacer cell with an extra unknown property is INVALID (additionalProperties: false)", () => {
+    expect(ok({
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: { a: { type: "button" } },
+        layout: { rows: 1, cols: 2, cells: [{ element: "a" }, { bogus: true }] }
+      }]
+    })).toBe(false);
   });
 });
