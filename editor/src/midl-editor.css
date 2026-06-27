@@ -28,6 +28,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -41,6 +42,7 @@
   padding: 0 12px;
   gap: 8px;
   flex-shrink: 0;
+  position: relative;
 }
 
 [data-component="midl-editor"] .editor-logo-mark {
@@ -183,6 +185,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 [data-component="midl-editor"] [data-section="rail-tabs"] {
@@ -219,6 +222,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-height: 0;
 }
 [data-component="palette"] button {
   display: flex;
@@ -250,10 +254,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   position: relative;
-  overflow: hidden;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 [data-component="midl-editor"] .canvas-area::before {
   content: '';
@@ -262,9 +267,23 @@
   background-image: radial-gradient(circle, rgba(93,120,146,0.18) 1px, transparent 1px);
   background-size: 20px 20px;
   pointer-events: none;
+  z-index: 0;
 }
 
-/* ── Device frame (centered, fixed-aspect) ────────────────────────────────────── */
+/* ── Canvas scroll container (fills canvas-area above zoom strip) ─────────────── */
+[data-component="midl-editor"] .canvas-scroll {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  z-index: 1;
+}
+
+/* ── Device frame — sized at native resolution, scaled via transform ────────────── */
 [data-component="midl-editor"] .device-frame {
   background: var(--elev);
   border: 2px solid var(--line2);
@@ -275,8 +294,8 @@
   overflow: hidden;
   position: relative;
   z-index: 2;
-  width: min(440px, calc(100% - 32px));
-  aspect-ratio: 1 / 1;  /* default: square-480 */
+  flex-shrink: 0;
+  /* width/height set inline from React; no aspect-ratio or min() constraints */
 }
 [data-component="midl-editor"] .device-frame > [data-testid="preview-host"] {
   width: 100%;
@@ -298,6 +317,67 @@
   height: 100%;
 }
 
+/* ── Zoom strip ────────────────────────────────────────────────────────────── */
+[data-component="midl-editor"] .zoom-strip {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  padding: 3px 4px;
+  flex-shrink: 0;
+  margin: 6px 0 8px;
+}
+[data-component="midl-editor"] .zoom-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--ink-dim);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+[data-component="midl-editor"] .zoom-btn:hover {
+  color: var(--ink);
+  background: rgba(255,255,255,0.05);
+}
+[data-component="midl-editor"] .zoom-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  min-width: 36px;
+  text-align: center;
+}
+[data-component="midl-editor"] .zoom-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--line2);
+  margin: 0 2px;
+}
+[data-component="midl-editor"] .zoom-fit {
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+}
+[data-component="midl-editor"] .zoom-fit:hover {
+  color: var(--ink);
+  background: rgba(255,255,255,0.05);
+}
+
 /* ── Inspector ─────────────────────────────────────────────────────────────── */
 [data-component="inspector"] {
   background: var(--surface);
@@ -305,6 +385,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  min-height: 0;
 }
 [data-component="inspector"] input,
 [data-component="inspector"] select {
@@ -342,4 +423,196 @@
 [data-testid="status-bar"] .status-autosave {
   color: var(--ink-faint);
   font-size: 10.5px;
+}
+
+/* ── Mobile tabbar and sheet — hidden on desktop ──────────────────────────── */
+[data-component="midl-editor"] .mobile-tabbar {
+  display: none; /* shown only in media query */
+}
+[data-component="midl-editor"] .mobile-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 70%;
+  background: var(--surface);
+  border-top: 1.5px solid var(--line2);
+  border-radius: 16px 16px 0 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+[data-component="midl-editor"] .sheet-handle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0 6px;
+  flex-shrink: 0;
+}
+[data-component="midl-editor"] .sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--line2);
+  border-radius: 2px;
+}
+[data-component="midl-editor"] .sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+}
+[data-component="midl-editor"] .sheet-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-bright);
+}
+[data-component="midl-editor"] .sheet-close {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 50%;
+  color: var(--ink-faint);
+  font-size: 16px;
+  cursor: pointer;
+}
+[data-component="midl-editor"] .sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Topbar overflow menu — mobile only ───────────────────────────────────── */
+[data-component="midl-editor"] .topbar-overflow {
+  display: none; /* shown only in media query */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3.5px;
+  width: 32px;
+  height: 32px;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+[data-component="midl-editor"] .topbar-overflow span {
+  display: block;
+  width: 14px;
+  height: 1.5px;
+  background: var(--ink-dim);
+  border-radius: 1px;
+}
+[data-component="midl-editor"] .overflow-menu {
+  position: absolute;
+  top: 44px;
+  right: 12px;
+  width: 156px;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 50;
+  overflow: hidden;
+}
+[data-component="midl-editor"] .overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+[data-component="midl-editor"] .overflow-item:last-child { border-bottom: none; }
+[data-component="midl-editor"] .overflow-item.primary { color: var(--accent); font-weight: 600; }
+
+/* ── Mobile tab buttons ───────────────────────────────────────────────────── */
+[data-component="midl-editor"] .mobile-tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  position: relative;
+}
+[data-component="midl-editor"] .mobile-tab-btn.active {
+  color: var(--accent);
+}
+[data-component="midl-editor"] .mobile-tab-btn.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 0 0 2px 2px;
+}
+
+/* ── Tablet breakpoint: tighter rails ────────────────────────────────────── */
+@media (max-width: 1024px) and (min-width: 768px) {
+  [data-component="midl-editor"] [data-testid="visual-mode-body"] {
+    grid-template-columns: 176px 1fr 200px;
+  }
+  [data-component="midl-editor"] [data-testid="editor-header"] {
+    height: 38px;
+    padding: 0 10px;
+  }
+  [data-component="midl-editor"] .editor-logo-text {
+    font-size: 11px;
+  }
+  [data-component="midl-editor"] .topbar-select {
+    font-size: 10px;
+  }
+}
+
+/* ── Phone breakpoint: bottom-sheet layout ───────────────────────────────── */
+@media (max-width: 767px) {
+  [data-component="midl-editor"] [data-section="left-rail"] {
+    display: none;
+  }
+  [data-component="midl-editor"] [data-component="inspector"] {
+    display: none;
+  }
+  [data-component="midl-editor"] [data-testid="visual-mode-body"] {
+    grid-template-columns: 1fr;
+  }
+  [data-component="midl-editor"] .mobile-tabbar {
+    display: flex;
+    height: 58px;
+    background: var(--surface2);
+    border-top: 1px solid var(--line);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 20;
+  }
+  [data-component="midl-editor"] .topbar-overflow {
+    display: flex;
+  }
+  /* Hide desktop-only topbar items on mobile */
+  [data-component="midl-editor"] [data-testid="top-class-select"],
+  [data-component="midl-editor"] [data-testid="top-theme-select"],
+  [data-component="midl-editor"] [data-testid="name-input"],
+  [data-component="midl-editor"] [data-testid="save-button"],
+  [data-component="midl-editor"] [data-testid="top-push"] {
+    display: none;
+  }
 }

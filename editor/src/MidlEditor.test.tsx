@@ -387,3 +387,150 @@ test("top-push button triggers store.save", async () => {
     expect(store.savedCalls.length).toBeGreaterThan(prevCount);
   });
 });
+
+// ── Zoom controls ─────────────────────────────────────────────────────────────
+
+test("zoom-in increases scale beyond fit, zoom-fit resets to Fit", async () => {
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("zoom-level")).toBeTruthy();
+    expect(getByTestId("zoom-fit")).toBeTruthy();
+    expect(getByTestId("zoom-in")).toBeTruthy();
+    expect(getByTestId("zoom-out")).toBeTruthy();
+  });
+
+  // Initial state is "Fit"
+  expect(getByTestId("zoom-level").textContent).toBe("Fit");
+
+  // Click zoom-in → should show a percentage
+  await act(async () => {
+    fireEvent.click(getByTestId("zoom-in"));
+  });
+
+  // After zoom-in, zoom-level should not say "Fit" anymore
+  const afterZoomIn = getByTestId("zoom-level").textContent;
+  expect(afterZoomIn).not.toBe("Fit");
+
+  // Click zoom-fit → should reset to "Fit"
+  await act(async () => {
+    fireEvent.click(getByTestId("zoom-fit"));
+  });
+
+  expect(getByTestId("zoom-level").textContent).toBe("Fit");
+});
+
+test("zoom-out clamps at minimum (10%)", async () => {
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("zoom-out")).toBeTruthy();
+  });
+
+  // Click zoom-out many times to hit the clamp
+  for (let i = 0; i < 30; i++) {
+    await act(async () => {
+      fireEvent.click(getByTestId("zoom-out"));
+    });
+  }
+
+  const levelText = getByTestId("zoom-level").textContent;
+  // Should show 10% (clamped)
+  expect(levelText).toBe("10%");
+});
+
+// ── Mobile sheet ──────────────────────────────────────────────────────────────
+
+test("mobile-tabbar renders and clicking a tab shows mobile-sheet", async () => {
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId, queryByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+    />,
+  );
+
+  await waitFor(() => {
+    // mobile-tabbar renders in DOM (hidden via CSS on desktop, but DOM-present)
+    expect(getByTestId("mobile-tabbar")).toBeTruthy();
+  });
+
+  // Initially no sheet open
+  expect(queryByTestId("mobile-sheet")).toBeNull();
+
+  // Click the Elements tab button (first button in the tabbar)
+  const tabBar = getByTestId("mobile-tabbar");
+  const firstTab = tabBar.querySelector("button");
+  expect(firstTab).toBeTruthy();
+
+  await act(async () => {
+    fireEvent.click(firstTab!);
+  });
+
+  // Sheet should appear
+  await waitFor(() => {
+    expect(getByTestId("mobile-sheet")).toBeTruthy();
+  });
+
+  // Close the sheet
+  const sheet = getByTestId("mobile-sheet");
+  const closeBtn = sheet.querySelector(".sheet-close");
+  expect(closeBtn).toBeTruthy();
+
+  await act(async () => {
+    fireEvent.click(closeBtn!);
+  });
+
+  // Sheet should be gone
+  await waitFor(() => {
+    expect(queryByTestId("mobile-sheet")).toBeNull();
+  });
+});
+
+test("topbar-overflow button renders in DOM", async () => {
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("topbar-overflow")).toBeTruthy();
+  });
+});

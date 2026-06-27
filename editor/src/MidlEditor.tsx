@@ -49,6 +49,7 @@ export interface MidlEditorProps {
 type Mode = "visual" | "source";
 type Theme = "night" | "day";
 type LeftTab = "elements" | "data" | "layout";
+type MobileSheet = "elements" | "data" | "layout" | "inspector" | null;
 
 // Supported class values for the class-switch dropdown
 const SUPPORTED_CLASSES = ["square-480", "landscape-800x480", "landscape-1024x600"];
@@ -64,6 +65,16 @@ function makeBlankModel(targetClass: string): EditorModel {
     layout: { rows: 1, cols: 1, cells: [{}] },
     variants: [],
   };
+}
+
+// ── Device dimension helper ───────────────────────────────────────────────────
+
+function getDeviceDimensions(cls: string): { w: number; h: number } {
+  const sq = /^square-(\d+)$/.exec(cls);
+  if (sq) { const n = parseInt(sq[1], 10); return { w: n, h: n }; }
+  const ls = /^landscape-(\d+)x(\d+)$/.exec(cls);
+  if (ls) return { w: parseInt(ls[1], 10), h: parseInt(ls[2], 10) };
+  return { w: 480, h: 480 };
 }
 
 // ── MidlEditor component ───────────────────────────────────────────────────────
@@ -91,6 +102,17 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
   const [saving, setSaving] = useState(false);
   const [conflictVisible, setConflictVisible] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // ── Zoom state ───────────────────────────────────────────────────────────────
+
+  const [zoom, setZoom] = useState<number | "fit">("fit");
+  const [computedScale, setComputedScale] = useState(1);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // ── Mobile state ─────────────────────────────────────────────────────────────
+
+  const [mobileSheet, setMobileSheet] = useState<MobileSheet>(null);
+  const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
 
   // ── Init on mount ─────────────────────────────────────────────────────────────
 
@@ -133,6 +155,57 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     }
     manifestSource.get(className).then(setManifest).catch(() => {});
   }, [className, manifestSource]);
+
+  // ── Zoom: sync computedScale when zoom is numeric ────────────────────────────
+
+  useEffect(() => {
+    if (zoom !== "fit") setComputedScale(zoom as number);
+  }, [zoom]);
+
+  // ── Zoom: ResizeObserver for fit mode ────────────────────────────────────────
+
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    function recompute() {
+      if (zoom !== "fit") return;
+      const { w: dw, h: dh } = getDeviceDimensions(className);
+      const cw = container!.clientWidth - 32;
+      const ch = container!.clientHeight - 80; // leave room for zoom strip
+      const scale = Math.min(cw / dw, ch / dh, 1);
+      setComputedScale(Math.max(0.1, isFinite(scale) ? scale : 1));
+    }
+
+    recompute();
+
+    // ResizeObserver may not be available in jsdom
+    if (typeof ResizeObserver === "undefined") return;
+
+    const obs = new ResizeObserver(recompute);
+    obs.observe(container);
+    return () => obs.disconnect();
+  }, [zoom, className]);
+
+  // ── Zoom handlers ─────────────────────────────────────────────────────────────
+
+  const handleZoomIn = useCallback(() => {
+    setZoom(prev => {
+      const current = prev === "fit" ? computedScale : prev;
+      return Math.min(4, current * 1.25);
+    });
+  }, [computedScale]);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom(prev => {
+      const current = prev === "fit" ? computedScale : prev;
+      return Math.max(0.1, current / 1.25);
+    });
+  }, [computedScale]);
+
+  const handleZoomFit = useCallback(() => {
+    setZoom("fit");
+  }, []);
 
   // ── Preview ──────────────────────────────────────────────────────────────────
 
@@ -305,12 +378,20 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     [],
   );
 
+  // ── Derived device dimensions ─────────────────────────────────────────────────
+
+  const deviceDims = getDeviceDimensions(className);
+
+  // ── Zoom level display ────────────────────────────────────────────────────────
+
+  const zoomLevelText = zoom === "fit" ? "Fit" : `${Math.round((zoom as number) * 100)}%`;
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div data-component="midl-editor">
+    <div data-component="midl-editor" style={{ position: "relative" }}>
       {/* Header bar */}
-      <div data-testid="editor-header" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+      <div data-testid="editor-header" style={{ display: "flex", gap: "8px", alignItems: "center", position: "relative" }}>
         {/* Logo */}
         <span className="editor-logo-mark">YEY</span>
         <span className="editor-logo-text">Instruments Manager</span>
@@ -389,6 +470,21 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
         >
           Push to device ▸
         </button>
+
+        {/* Topbar overflow menu — mobile only, hidden on desktop via CSS */}
+        <button
+          data-testid="topbar-overflow"
+          className="topbar-overflow"
+          onClick={() => setOverflowMenuOpen(v => !v)}
+        >
+          <span /><span /><span />
+        </button>
+        {overflowMenuOpen && (
+          <div className="overflow-menu">
+            <div className="overflow-item" onClick={() => { handleSave(); setOverflowMenuOpen(false); }}>Save</div>
+            <div className="overflow-item primary" onClick={() => { handleSave(); setOverflowMenuOpen(false); }}>Push to device</div>
+          </div>
+        )}
       </div>
 
       {/* Conflict banner */}
@@ -460,21 +556,38 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
             </div>
 
             {/* Center canvas */}
-            <div className="canvas-area">
-              <div className="device-frame">
+            <div className="canvas-area" ref={canvasContainerRef}>
+              <div className="canvas-scroll">
                 <div
-                  data-testid="preview-host"
-                  // eslint-disable-next-line react/no-danger
-                  dangerouslySetInnerHTML={{ __html: previewSvg }}
-                />
-                <div style={{ position: "absolute", inset: 0 }}>
-                  <GridCanvas
-                    model={model}
-                    viewport={{ w: 480, h: 480 }}
-                    selected={selectedCell}
-                    onSelect={setSelectedCell}
+                  className="device-frame"
+                  style={{
+                    width: `${deviceDims.w}px`,
+                    height: `${deviceDims.h}px`,
+                    transform: `scale(${computedScale})`,
+                    transformOrigin: "center center",
+                  }}
+                >
+                  <div
+                    data-testid="preview-host"
+                    // eslint-disable-next-line react/no-danger
+                    dangerouslySetInnerHTML={{ __html: previewSvg }}
                   />
+                  <div style={{ position: "absolute", inset: 0 }}>
+                    <GridCanvas
+                      model={model}
+                      viewport={{ w: deviceDims.w, h: deviceDims.h }}
+                      selected={selectedCell}
+                      onSelect={setSelectedCell}
+                    />
+                  </div>
                 </div>
+              </div>
+              <div className="zoom-strip">
+                <button data-testid="zoom-fit" className="zoom-fit" onClick={handleZoomFit}>Fit</button>
+                <div className="zoom-sep" />
+                <button data-testid="zoom-out" className="zoom-btn" onClick={handleZoomOut}>−</button>
+                <span data-testid="zoom-level" className="zoom-pct">{zoomLevelText}</span>
+                <button data-testid="zoom-in" className="zoom-btn" onClick={handleZoomIn}>+</button>
               </div>
             </div>
 
@@ -498,6 +611,36 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
           <>{mode}</>
         )}
       </div>
+
+      {/* Mobile bottom tab bar — only visible <768px via CSS */}
+      <div data-testid="mobile-tabbar" className="mobile-tabbar">
+        {(["elements", "data", "layout", "inspector"] as const).map(tab => (
+          <button
+            key={tab}
+            className={`mobile-tab-btn${mobileSheet === tab ? " active" : ""}`}
+            onClick={() => setMobileSheet(prev => prev === tab ? null : tab)}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Mobile bottom sheet */}
+      {mobileSheet && (
+        <div data-testid="mobile-sheet" data-mobile-sheet={mobileSheet} className="mobile-sheet">
+          <div className="sheet-handle-bar"><div className="sheet-handle" /></div>
+          <div className="sheet-header">
+            <span className="sheet-title">{mobileSheet.charAt(0).toUpperCase() + mobileSheet.slice(1)}</span>
+            <button className="sheet-close" onClick={() => setMobileSheet(null)}>×</button>
+          </div>
+          <div className="sheet-body">
+            {mobileSheet === "elements" && manifest ? <Palette manifest={manifest} onAdd={handleAddElement} /> : null}
+            {mobileSheet === "data" ? <DataTree provider={provider as unknown as LivePathSource} selectedElementId={selectedElementId} onBindPath={handleBindPath} /> : null}
+            {mobileSheet === "layout" && manifest ? <ElementsList model={model} onSelectCell={setSelectedCell} onRemoveElement={handleRemoveFromList} /> : null}
+            {mobileSheet === "inspector" && manifest ? <Inspector model={model} selectedCell={selectedCell} manifest={manifest} provider={provider} onChange={setModel} onBrowseData={handleBrowseData} /> : null}
+          </div>
+        </div>
+      )}
 
       {/* Preview error indicator */}
       {previewError && (
