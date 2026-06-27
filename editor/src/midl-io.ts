@@ -90,6 +90,17 @@ function nodeToLayoutNode(node: Node): LayoutNode {
   return n as unknown as LayoutNode;
 }
 
+// Known top-level screen keys defined by the ConfigDoc/Screen type.
+// Any key NOT in this set is treated as "extra" and preserved verbatim.
+const KNOWN_SCREEN_KEYS = new Set([
+  "id",
+  "title",
+  "meta",
+  "elements",
+  "layout",
+  "variants",
+]);
+
 function screenToEditorModel(doc: ConfigDoc, screen: Screen): EditorModel {
   const elements: Record<string, EditorElement> = {};
   for (const [id, el] of Object.entries(screen.elements)) {
@@ -103,10 +114,25 @@ function screenToEditorModel(doc: ConfigDoc, screen: Screen): EditorModel {
     layout: nodeToLayoutNode(v.layout),
   }));
 
+  // Determine where the title lives and what its value is.
+  let title: string;
+  let titleLoc: "screen" | "meta" | "id";
+  if (screen.title !== undefined) {
+    title = screen.title;
+    titleLoc = "screen";
+  } else if (screen.meta?.title !== undefined) {
+    title = screen.meta.title;
+    titleLoc = "meta";
+  } else {
+    title = screen.id;
+    titleLoc = "id";
+  }
+
   const model: EditorModel = {
     midl: doc.midl,
     screenId: screen.id,
-    title: screen.meta?.title ?? screen.id,
+    title,
+    titleLoc,
     elements,
     layout,
     variants,
@@ -120,6 +146,17 @@ function screenToEditorModel(doc: ConfigDoc, screen: Screen): EditorModel {
     if (Object.keys(rest).length > 0) {
       model.screenMeta = rest;
     }
+  }
+  // Preserve unknown top-level screen fields (e.g. _note) verbatim.
+  const screenRaw = screen as unknown as Record<string, unknown>;
+  const extra: Record<string, unknown> = {};
+  for (const key of Object.keys(screenRaw)) {
+    if (!KNOWN_SCREEN_KEYS.has(key)) {
+      extra[key] = screenRaw[key];
+    }
+  }
+  if (Object.keys(extra).length > 0) {
+    model.screenExtra = extra;
   }
   return model;
 }
@@ -209,20 +246,42 @@ function editorModelToConfigDoc(model: EditorModel): ConfigDoc {
     elements[id] = editorElementToElement(el);
   }
 
-  const screen: Screen = {
-    id: model.screenId,
-    // Merge screenMeta back, then override/set title from model.title to preserve field order.
-    meta: { ...(model.screenMeta ?? {}), title: model.title },
-    elements,
-    layout: layoutNodeToNode(model.layout),
-  };
+  // Build the base screen object.
+  const screenBase: Record<string, unknown> = { id: model.screenId };
+
+  // Write title back to the SAME location it was read from. Never relocate.
+  const titleLoc = model.titleLoc ?? "meta"; // default to meta for backwards compat
+  if (titleLoc === "screen") {
+    screenBase["title"] = model.title;
+  }
+
+  // Rebuild meta — only include if we have a meta-located title or extra meta fields.
+  if (titleLoc === "meta" || model.screenMeta !== undefined) {
+    const meta: Record<string, unknown> = { ...(model.screenMeta ?? {}) };
+    if (titleLoc === "meta") {
+      meta["title"] = model.title;
+    }
+    screenBase["meta"] = meta;
+  }
+
+  // Restore unknown top-level screen fields verbatim.
+  if (model.screenExtra !== undefined) {
+    for (const [k, v] of Object.entries(model.screenExtra)) {
+      screenBase[k] = v;
+    }
+  }
+
+  screenBase["elements"] = elements;
+  screenBase["layout"] = layoutNodeToNode(model.layout);
 
   if (model.variants.length > 0) {
-    screen.variants = model.variants.map((v) => ({
+    screenBase["variants"] = model.variants.map((v) => ({
       class: v.class,
       layout: layoutNodeToNode(v.layout),
     }));
   }
+
+  const screen = screenBase as unknown as Screen;
 
   const doc: ConfigDoc = {
     midl: model.midl,

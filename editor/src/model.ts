@@ -70,9 +70,18 @@ export interface EditorModel {
   };
   screenId: string;
   title: string;
+  // Where the title was found in the source document. Preserved so serialize writes it back
+  // to the same location and never relocates it:
+  //   'screen' → top-level screen.title (device-screen JSONs)
+  //   'meta'   → screen.meta.title (library YAMLs)
+  //   'id'     → no title field present; title was derived from screen.id
+  titleLoc: "screen" | "meta" | "id";
   // Screen-level meta fields beyond title (e.g. useCase, description, agentNotes).
   // Preserved verbatim for lossless round-trips. Absent when the screen has no extra meta.
   screenMeta?: Record<string, unknown>;
+  // Unknown top-level screen fields (e.g. _note) preserved verbatim for lossless round-trips.
+  // Absent when the source document has no unknown top-level screen keys.
+  screenExtra?: Record<string, unknown>;
   elements: Record<string, EditorElement>;
   // The screen's default layout node (grid or flow).
   layout: LayoutNode;

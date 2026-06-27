@@ -456,3 +456,126 @@ describe("serialize hygiene — omit empty format/style/bindings", () => {
     expect(el.bindings).toBeUndefined();
   });
 });
+
+describe("title location fidelity (fix D)", () => {
+  // Device-screen style: title at top-level screen.title (not in meta)
+  const deviceScreenJson = JSON.stringify({
+    midl: "1.0.0",
+    screens: [
+      {
+        id: "wind",
+        title: "Wind",
+        _note: "This is an important note about the wind screen.",
+        elements: {
+          aws: {
+            type: "single-value",
+            bindings: { value: { kind: "signalk", path: "environment.wind.speedApparent" } },
+          },
+        },
+        layout: { rows: 1, cols: 1, cells: [{ element: "aws" }] },
+      },
+    ],
+  });
+
+  it("parseMidl reads top-level screen.title correctly (not lost via meta fallback)", () => {
+    const model = parseMidl(deviceScreenJson);
+    expect(model.title).toBe("Wind");
+    expect(model.titleLoc).toBe("screen");
+  });
+
+  it("device-screen round-trip keeps title at top-level screen.title, not relocated to meta", () => {
+    const model1 = parseMidl(deviceScreenJson);
+    const serialized = serializeMidl(model1, "json");
+    const parsed = JSON.parse(serialized);
+    // Title must remain at screen.title
+    expect(parsed.screens[0].title).toBe("Wind");
+    // Title must NOT be duplicated or relocated into meta
+    expect(parsed.screens[0].meta?.title).toBeUndefined();
+  });
+
+  it("device-screen model round-trip is a deep-equal fixed point (title preserved)", () => {
+    assertRoundTrip(deviceScreenJson, "json");
+  });
+
+  it("device-screen _note is preserved through parseMidl→serializeMidl→parseMidl", () => {
+    const model1 = parseMidl(deviceScreenJson);
+    expect(model1.screenExtra).toBeDefined();
+    expect((model1.screenExtra as Record<string, unknown>)["_note"]).toBe(
+      "This is an important note about the wind screen."
+    );
+
+    const serialized = serializeMidl(model1, "json");
+    const parsed = JSON.parse(serialized);
+    // _note must be at the top level of the screen object
+    expect(parsed.screens[0]["_note"]).toBe(
+      "This is an important note about the wind screen."
+    );
+
+    // And the model round-trip must be stable
+    const model2 = parseMidl(serialized);
+    expect(model2.screenExtra).toEqual(model1.screenExtra);
+  });
+
+  it("library-style doc with screen.meta.title keeps title in meta on round-trip", () => {
+    const libSrc = `midl: 1.0.0
+screens:
+  - id: nav
+    meta:
+      title: Course
+      useCase: Watch progress toward the active waypoint.
+    elements:
+      dtw:
+        type: single-value
+        bindings:
+          value: { kind: signalk, path: navigation.courseGreatCircle.nextPoint.distance }
+    layout:
+      rows: 1
+      cols: 1
+      cells:
+        - element: dtw
+`;
+    const model1 = parseMidl(libSrc);
+    expect(model1.title).toBe("Course");
+    expect(model1.titleLoc).toBe("meta");
+
+    const serialized = serializeMidl(model1, "yaml");
+    // Title must remain in screen.meta.title
+    expect(serialized).toContain("title: Course");
+    // Parsed screen must NOT have a top-level title key
+    const model2 = parseMidl(serialized);
+    expect(model2.title).toBe("Course");
+    expect(model2.titleLoc).toBe("meta");
+
+    // Full model round-trip
+    assertRoundTrip(libSrc, "yaml");
+  });
+
+  it("doc with no title field at all derives title from id and round-trips cleanly", () => {
+    const noTitle = `midl: 1.0.0
+screens:
+  - id: myscreen
+    elements: {}
+    layout:
+      rows: 1
+      cols: 1
+      cells: []
+`;
+    const model = parseMidl(noTitle);
+    expect(model.title).toBe("myscreen");
+    expect(model.titleLoc).toBe("id");
+
+    // Round-trip should not inject a title or meta where there was none
+    const serialized = serializeMidl(model, "yaml");
+    const model2 = parseMidl(serialized);
+    expect(model2.title).toBe("myscreen");
+    expect(model2.titleLoc).toBe("id");
+    // No meta should appear
+    expect(model2.screenMeta).toBeUndefined();
+  });
+
+  it("screenExtra is undefined when no unknown top-level screen keys exist", () => {
+    const src = loadFixture("navigation.midl.yaml");
+    const model = parseMidl(src);
+    expect(model.screenExtra).toBeUndefined();
+  });
+});

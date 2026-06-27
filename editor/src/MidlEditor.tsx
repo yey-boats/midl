@@ -61,6 +61,7 @@ function makeBlankModel(targetClass: string): EditorModel {
     midl: "1.0.0",
     screenId: "screen",
     title: "New Dashboard",
+    titleLoc: "meta",
     elements: {},
     layout: { rows: 1, cols: 1, cells: [{}] },
     variants: [],
