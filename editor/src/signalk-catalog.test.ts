@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
 import { test, expect, describe } from "vitest";
-import { SIGNALK_CATALOG, mergeCatalogWithLive, defaultDecimalsForUnit, applyCatalogDefaults } from "./signalk-catalog";
+import { SIGNALK_CATALOG, mergeCatalogWithLive, defaultDecimalsForUnit, applyCatalogDefaults, RANGED_TYPES } from "./signalk-catalog";
 import type { CatalogEntry } from "./signalk-catalog";
 import type { EditorElement } from "./model";
 import type { PathInfo } from "./adapters";
@@ -248,5 +248,120 @@ describe("applyCatalogDefaults", () => {
     expect(result.format?.unit).toBeUndefined();
     // decimals still set to defaultDecimalsForUnit(undefined) = 1
     expect(result.format?.decimals).toBe(1);
+  });
+});
+
+// ── RANGED_TYPES ──────────────────────────────────────────────────────────────
+
+describe("RANGED_TYPES", () => {
+  test("gauge is a ranged type", () => {
+    expect(RANGED_TYPES.has("gauge")).toBe(true);
+  });
+
+  test("bar is a ranged type", () => {
+    expect(RANGED_TYPES.has("bar")).toBe(true);
+  });
+
+  test("single-value is NOT a ranged type", () => {
+    expect(RANGED_TYPES.has("single-value")).toBe(false);
+  });
+
+  test("text is NOT a ranged type", () => {
+    expect(RANGED_TYPES.has("text")).toBe(false);
+  });
+});
+
+// ── applyCatalogDefaults: range/zones for ranged types ────────────────────────
+
+describe("applyCatalogDefaults range/zones", () => {
+  const socEntry: CatalogEntry = {
+    path: "electrical.batteries.0.capacity.stateOfCharge",
+    label: "State of Charge",
+    group: "electrical",
+    unit: "%",
+  };
+
+  const fuelEntry: CatalogEntry = {
+    path: "tanks.fuel.0.currentLevel",
+    label: "Fuel Level",
+    group: "tanks",
+    unit: "%",
+  };
+
+  const rudderEntry: CatalogEntry = {
+    path: "steering.rudderAngle",
+    label: "Rudder Angle",
+    group: "steering",
+    unit: "deg",
+  };
+
+  const sogEntry: CatalogEntry = {
+    path: "navigation.speedOverGround",
+    label: "Speed Over Ground",
+    group: "navigation",
+    unit: "kn",
+  };
+
+  test("gauge + stateOfCharge gets style.range=[0,100]", () => {
+    const el: EditorElement = { id: "el1", type: "gauge" };
+    const result = applyCatalogDefaults(el, socEntry);
+    expect(result.style?.range).toEqual([0, 100]);
+  });
+
+  test("gauge + stateOfCharge gets style.zones with warn/good entries", () => {
+    const el: EditorElement = { id: "el1", type: "gauge" };
+    const result = applyCatalogDefaults(el, socEntry);
+    const zones = result.style?.zones as Array<{ lt: number; color: string }> | undefined;
+    expect(Array.isArray(zones)).toBe(true);
+    expect(zones!.length).toBeGreaterThan(0);
+    // First zone should be warn at lt:20
+    expect(zones![0]).toEqual({ lt: 20, color: "warn" });
+  });
+
+  test("bar + fuelLevel gets style.range=[0,100]", () => {
+    const el: EditorElement = { id: "el1", type: "bar" };
+    const result = applyCatalogDefaults(el, fuelEntry);
+    expect(result.style?.range).toEqual([0, 100]);
+  });
+
+  test("gauge + rudderAngle gets style.range=[-40,40]", () => {
+    const el: EditorElement = { id: "el1", type: "gauge" };
+    const result = applyCatalogDefaults(el, rudderEntry);
+    expect(result.style?.range).toEqual([-40, 40]);
+  });
+
+  test("single-value + stateOfCharge does NOT get style.range (not a ranged type)", () => {
+    const el: EditorElement = { id: "el1", type: "single-value" };
+    const result = applyCatalogDefaults(el, socEntry);
+    expect(result.style?.range).toBeUndefined();
+  });
+
+  test("gauge + speedOverGround (no natural range) does NOT get style.range", () => {
+    const el: EditorElement = { id: "el1", type: "gauge" };
+    const result = applyCatalogDefaults(el, sogEntry);
+    // no PATH_RANGE_DEFAULTS entry for speedOverGround → no range applied
+    expect(result.style?.range).toBeUndefined();
+  });
+
+  test("does NOT clobber existing user-set style.range", () => {
+    const el: EditorElement = {
+      id: "el1",
+      type: "gauge",
+      style: { range: [10, 90] },
+    };
+    const result = applyCatalogDefaults(el, socEntry);
+    expect(result.style?.range).toEqual([10, 90]);
+  });
+
+  test("does NOT clobber existing user-set style.zones", () => {
+    const existingZones = [{ lt: 50, color: "#ff0000" }];
+    const el: EditorElement = {
+      id: "el1",
+      type: "gauge",
+      style: { zones: existingZones },
+    };
+    const result = applyCatalogDefaults(el, socEntry);
+    const zones = result.style?.zones as Array<{ lt: number; color: string }> | undefined;
+    expect(zones).toEqual(existingZones);
   });
 });

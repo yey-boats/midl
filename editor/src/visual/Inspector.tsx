@@ -8,7 +8,7 @@ import type { DataProvider } from "@yey-boats/midl-web";
 import { formatValue } from "@yey-boats/midl-web";
 import type { EditorModel, EditorElement, BindingSource } from "../model";
 import { addRow, addCol, removeRow, removeCol, removeElement, setCellSpan } from "../layout-ops";
-import { SIGNALK_CATALOG, applyCatalogDefaults, defaultDecimalsForUnit } from "../signalk-catalog";
+import { SIGNALK_CATALOG, applyCatalogDefaults, defaultDecimalsForUnit, RANGED_TYPES } from "../signalk-catalog";
 import { PathPicker } from "./PathPicker";
 
 export interface InspectorProps {
@@ -25,6 +25,18 @@ const COLOR_ROLE_OPTIONS = ["default", "accent", "warn"] as const;
 const SCALE_OPTIONS = ["fixed", "metric"] as const;
 const SIZE_ROLE_OPTIONS = ["S", "M", "L", "XL", "Fill"] as const;
 type SizeRole = typeof SIZE_ROLE_OPTIONS[number];
+
+// Zone color palette: theme tokens + common hex colors
+const ZONE_COLOR_OPTIONS = [
+  { label: "warn (amber)", value: "warn" },
+  { label: "good (green)", value: "good" },
+  { label: "accent (cyan)", value: "accent" },
+  { label: "orange", value: "#e0a020" },
+  { label: "red", value: "#e05040" },
+  { label: "blue", value: "#4080e0" },
+] as const;
+
+interface ZoneEntry { lt: number; color: string; }
 
 export function Inspector({ model, selectedCell, manifest, provider, onChange, onBrowseData }: InspectorProps): React.JSX.Element {
   // ── Grid-level controls ────────────────────────────────────────────────────
@@ -157,6 +169,54 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
     onChange(removeElement(model, selectedElementId));
   }
 
+  // ── Limits (range + zones) handlers ───────────────────────────────────────
+
+  function handleRangeMinChange(val: number) {
+    if (!selectedElement) return;
+    const current = selectedElement.style?.range as [number, number] | undefined;
+    const hi = current?.[1] ?? 100;
+    updateElement({ ...selectedElement, style: { ...selectedElement.style, range: [val, hi] } });
+  }
+
+  function handleRangeMaxChange(val: number) {
+    if (!selectedElement) return;
+    const current = selectedElement.style?.range as [number, number] | undefined;
+    const lo = current?.[0] ?? 0;
+    updateElement({ ...selectedElement, style: { ...selectedElement.style, range: [lo, val] } });
+  }
+
+  function handleZoneAdd() {
+    if (!selectedElement) return;
+    const currentZones = (selectedElement.style?.zones as ZoneEntry[] | undefined) ?? [];
+    // Suggest a threshold just above the last one
+    const lastLt = currentZones.length > 0 ? (currentZones[currentZones.length - 1]?.lt ?? 0) : 0;
+    const newZone: ZoneEntry = { lt: lastLt + 10, color: "warn" };
+    const sorted = [...currentZones, newZone].slice().sort((a, b) => a.lt - b.lt);
+    updateElement({ ...selectedElement, style: { ...selectedElement.style, zones: sorted } });
+  }
+
+  function handleZoneLtChange(index: number, lt: number) {
+    if (!selectedElement) return;
+    const currentZones = (selectedElement.style?.zones as ZoneEntry[] | undefined) ?? [];
+    const updated = currentZones.map((z, i) => i === index ? { ...z, lt } : z);
+    const sorted = updated.slice().sort((a, b) => a.lt - b.lt);
+    updateElement({ ...selectedElement, style: { ...selectedElement.style, zones: sorted } });
+  }
+
+  function handleZoneColorChange(index: number, color: string) {
+    if (!selectedElement) return;
+    const currentZones = (selectedElement.style?.zones as ZoneEntry[] | undefined) ?? [];
+    const updated = currentZones.map((z, i) => i === index ? { ...z, color } : z);
+    updateElement({ ...selectedElement, style: { ...selectedElement.style, zones: updated } });
+  }
+
+  function handleZoneRemove(index: number) {
+    if (!selectedElement) return;
+    const currentZones = (selectedElement.style?.zones as ZoneEntry[] | undefined) ?? [];
+    const updated = currentZones.filter((_, i) => i !== index);
+    updateElement({ ...selectedElement, style: { ...selectedElement.style, zones: updated } });
+  }
+
   // ── Grid controls ──────────────────────────────────────────────────────────
   const gridControls = isGrid ? (
     <div data-section="grid-controls" style={{ display: "flex", gap: "4px", flexWrap: "wrap", padding: "8px 12px" }}>
@@ -236,6 +296,14 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
     // Default: show L (whether rawSize is a legacy number or undefined).
     currentSizeRole = "L";
   }
+
+  // ── LIMITS section values ─────────────────────────────────────────────────
+  const isRangedType = RANGED_TYPES.has(selectedElement.type);
+  const currentRange = selectedElement.style?.range as [number, number] | undefined;
+  const rangeMin = currentRange?.[0] ?? 0;
+  const rangeMax = currentRange?.[1] ?? 100;
+  const currentZones = (selectedElement.style?.zones as ZoneEntry[] | undefined) ?? [];
+  const currentUnit = selectedElement.format?.unit as string | undefined;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -457,6 +525,81 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
           </div>
         </div>
       </div>
+
+      {/* ── LIMITS section (gauge / bar only) ───────────────────────── */}
+      {isRangedType && (
+        <div data-section="insp-section-limits" style={{ borderBottom: "1px solid var(--line, #1d2b3a)" }}>
+          <div style={{ padding: "8px 12px 6px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "0.75em", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.09em", opacity: 0.6 }}>
+              Limits
+            </span>
+            {currentUnit && (
+              <span style={{ fontSize: "0.75em", opacity: 0.45 }}>{currentUnit}</span>
+            )}
+          </div>
+          <div style={{ padding: "4px 12px 10px", display: "flex", flexDirection: "column", gap: "7px" }}>
+            {/* Range row */}
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "0.77em", opacity: 0.7, minWidth: "56px" }}>Range</span>
+              <input
+                data-testid="range-min"
+                type="number"
+                value={rangeMin}
+                onChange={(e) => handleRangeMinChange(Number(e.target.value))}
+                style={{ width: "60px" }}
+              />
+              <span style={{ fontSize: "0.77em", opacity: 0.5 }}>–</span>
+              <input
+                data-testid="range-max"
+                type="number"
+                value={rangeMax}
+                onChange={(e) => handleRangeMaxChange(Number(e.target.value))}
+                style={{ width: "60px" }}
+              />
+            </div>
+            {/* Zone rows */}
+            {currentZones.map((zone, i) => (
+              <div key={i} data-testid={`zone-row-${i}`} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ fontSize: "0.77em", opacity: 0.5, minWidth: "20px" }}>lt</span>
+                <input
+                  data-testid={`zone-lt-${i}`}
+                  type="number"
+                  value={zone.lt}
+                  onChange={(e) => handleZoneLtChange(i, Number(e.target.value))}
+                  style={{ width: "60px" }}
+                />
+                <select
+                  data-testid={`zone-color-${i}`}
+                  value={zone.color}
+                  onChange={(e) => handleZoneColorChange(i, e.target.value)}
+                  style={{ flex: 1, fontSize: "0.77em" }}
+                >
+                  {ZONE_COLOR_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                  {/* If current value not in palette, show it verbatim */}
+                  {!ZONE_COLOR_OPTIONS.some((opt) => opt.value === zone.color) && (
+                    <option value={zone.color}>{zone.color}</option>
+                  )}
+                </select>
+                <button
+                  data-testid={`zone-remove-${i}`}
+                  onClick={() => handleZoneRemove(i)}
+                  style={{ fontSize: "0.77em", padding: "2px 5px" }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {/* Add zone button */}
+            <div>
+              <button data-testid="zone-add" onClick={handleZoneAdd} style={{ fontSize: "0.8em" }}>
+                + Add zone
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Remove element */}
       <div style={{ padding: "10px 12px" }}>

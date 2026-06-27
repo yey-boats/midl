@@ -993,3 +993,222 @@ test("Fill size role in a 480x480 single-cell produces font-size >= 40% of cell 
   // 40% of 480 = 192
   expect(fs).toBeGreaterThanOrEqual(192);
 });
+
+// ── RC4: LIMITS section (range + zones) ──────────────────────────────────────
+
+function makeGaugeModel(overrides: Partial<EditorModel> = {}): EditorModel {
+  return {
+    midl: "1.0.0",
+    screenId: "screen",
+    title: "Test",
+    elements: {
+      soc: {
+        id: "soc",
+        type: "gauge",
+        name: "State of Charge",
+        bindings: { value: { kind: "signalk", path: "electrical.batteries.0.capacity.stateOfCharge" } },
+        format: { unit: "%", decimals: 0 },
+      },
+    },
+    layout: {
+      rows: 2,
+      cols: 2,
+      cells: [{ element: "soc" }, {}, {}, {}],
+    },
+    variants: [],
+    ...overrides,
+  };
+}
+
+test("LIMITS section is shown for gauge element type", () => {
+  const model = makeGaugeModel();
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  // range inputs must exist
+  expect(getByTestId("range-min")).toBeTruthy();
+  expect(getByTestId("range-max")).toBeTruthy();
+  // zone-add button must exist
+  expect(getByTestId("zone-add")).toBeTruthy();
+});
+
+test("LIMITS section is shown for bar element type", () => {
+  const model = makeGaugeModel({
+    elements: {
+      soc: {
+        id: "soc",
+        type: "bar",
+        name: "Fuel Level",
+        bindings: { value: { kind: "signalk", path: "tanks.fuel.0.currentLevel" } },
+        format: { unit: "%", decimals: 0 },
+      },
+    },
+  });
+  const provider = new MockDataProvider({});
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  expect(getByTestId("range-min")).toBeTruthy();
+  expect(getByTestId("range-max")).toBeTruthy();
+});
+
+test("LIMITS section is NOT shown for single-value element type", () => {
+  const model = makeGridModel(); // single-value
+  const provider = new MockDataProvider({});
+
+  const { queryByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={vi.fn()}
+    />,
+  );
+
+  expect(queryByTestId("range-min")).toBeNull();
+  expect(queryByTestId("range-max")).toBeNull();
+  expect(queryByTestId("zone-add")).toBeNull();
+});
+
+test("changing range-min writes style.range=[min, current-max]", () => {
+  const model = makeGaugeModel({
+    elements: {
+      soc: {
+        id: "soc",
+        type: "gauge",
+        name: "SOC",
+        bindings: { value: { kind: "signalk", path: "electrical.batteries.0.capacity.stateOfCharge" } },
+        format: { unit: "%", decimals: 0 },
+        style: { range: [0, 100] },
+      },
+    },
+  });
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("range-min"), { target: { value: "-10" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  const range = captured.elements["soc"]?.style?.range as [number, number] | undefined;
+  expect(range).toEqual([-10, 100]);
+});
+
+test("changing range-max writes style.range=[current-min, max]", () => {
+  const model = makeGaugeModel({
+    elements: {
+      soc: {
+        id: "soc",
+        type: "gauge",
+        name: "SOC",
+        bindings: { value: { kind: "signalk", path: "electrical.batteries.0.capacity.stateOfCharge" } },
+        format: { unit: "%", decimals: 0 },
+        style: { range: [0, 100] },
+      },
+    },
+  });
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(getByTestId("range-max"), { target: { value: "120" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  const range = captured.elements["soc"]?.style?.range as [number, number] | undefined;
+  expect(range).toEqual([0, 120]);
+});
+
+test("zone-add button adds a zone entry to style.zones", () => {
+  const model = makeGaugeModel();
+  const provider = new MockDataProvider({});
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+
+  const { getByTestId } = render(
+    <Inspector
+      model={model}
+      selectedCell={0}
+      manifest={MANIFEST}
+      provider={provider}
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.click(getByTestId("zone-add"));
+
+  expect(onChange).toHaveBeenCalledOnce();
+  const zones = captured.elements["soc"]?.style?.zones as Array<{ lt: number; color: string }> | undefined;
+  expect(Array.isArray(zones)).toBe(true);
+  expect(zones!.length).toBe(1);
+  expect(typeof zones![0]!.lt).toBe("number");
+  expect(typeof zones![0]!.color).toBe("string");
+});
+
+test("range and zones round-trip through serializeMidl → parseMidl", () => {
+  const model = makeGaugeModel({
+    elements: {
+      soc: {
+        id: "soc",
+        type: "gauge",
+        name: "SOC",
+        bindings: { value: { kind: "signalk", path: "electrical.batteries.0.capacity.stateOfCharge" } },
+        format: { unit: "%", decimals: 0 },
+        style: {
+          range: [0, 100],
+          zones: [{ lt: 20, color: "warn" }, { lt: 50, color: "#e0a020" }, { lt: 101, color: "good" }],
+        },
+      },
+    },
+  });
+
+  const yaml = serializeMidl(model, "yaml");
+  const reparsed = parseMidl(yaml);
+
+  const range = reparsed.elements["soc"]?.style?.range as [number, number] | undefined;
+  expect(range).toEqual([0, 100]);
+
+  const zones = reparsed.elements["soc"]?.style?.zones as Array<{ lt: number; color: string }> | undefined;
+  expect(Array.isArray(zones)).toBe(true);
+  expect(zones!.length).toBe(3);
+  expect(zones![0]).toEqual({ lt: 20, color: "warn" });
+  expect(zones![1]).toEqual({ lt: 50, color: "#e0a020" });
+  expect(zones![2]).toEqual({ lt: 101, color: "good" });
+});

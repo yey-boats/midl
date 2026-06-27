@@ -99,6 +99,62 @@ export function defaultDecimalsForUnit(unit: string | undefined): number {
   return UNIT_DECIMALS[unit] ?? 1;
 }
 
+// ── Ranged element types ───────────────────────────────────────────────────────
+
+/** Element types that use style.range + style.zones (gauge / bar). */
+export const RANGED_TYPES = new Set(["gauge", "bar"]);
+
+// ── Path → natural range + zone defaults ──────────────────────────────────────
+
+interface RangeDefaults {
+  range: [number, number];
+  zones?: Array<{ lt: number; color: string }>;
+}
+
+/**
+ * Natural display-unit range defaults for well-known SignalK paths.
+ * Zones are in the same display unit as range.
+ * Colors use theme tokens (warn/good/#hex).
+ */
+const PATH_RANGE_DEFAULTS: Record<string, RangeDefaults> = {
+  // electrical
+  "electrical.batteries.0.capacity.stateOfCharge": {
+    range: [0, 100],
+    zones: [
+      { lt: 20, color: "warn" },
+      { lt: 50, color: "#e0a020" },
+      { lt: 101, color: "good" },
+    ],
+  },
+  // tanks
+  "tanks.fuel.0.currentLevel": {
+    range: [0, 100],
+    zones: [
+      { lt: 20, color: "warn" },
+      { lt: 101, color: "good" },
+    ],
+  },
+  "tanks.freshWater.0.currentLevel": {
+    range: [0, 100],
+    zones: [
+      { lt: 20, color: "warn" },
+      { lt: 101, color: "good" },
+    ],
+  },
+  "tanks.blackWater.0.currentLevel": {
+    range: [0, 100],
+    zones: [
+      { lt: 80, color: "good" },
+      { lt: 101, color: "warn" },
+    ],
+  },
+  // steering
+  "steering.rudderAngle": {
+    range: [-40, 40],
+    // no zones — centered deviation gauge
+  },
+};
+
 // ── Apply catalog defaults to a fresh element ─────────────────────────────────
 
 /**
@@ -134,6 +190,24 @@ export function applyCatalogDefaults(
   // style.size ← "L" (large, auto-fit) for single-value elements (only if not already set).
   if (!updated.style?.size) {
     updated = { ...updated, style: { ...updated.style, size: "L" } };
+  }
+
+  // style.range + style.zones ← path defaults for ranged element types (gauge/bar only).
+  // Only applies when the element type is ranged AND the user hasn't set a range yet.
+  if (RANGED_TYPES.has(updated.type)) {
+    const pathDefaults = PATH_RANGE_DEFAULTS[entry.path];
+    if (pathDefaults) {
+      const currentRange = updated.style?.range;
+      const currentZones = updated.style?.zones;
+      const needsRange = !Array.isArray(currentRange);
+      const needsZones = !Array.isArray(currentZones) && pathDefaults.zones !== undefined;
+      if (needsRange || needsZones) {
+        const newStyle: Record<string, unknown> = { ...updated.style };
+        if (needsRange) newStyle.range = pathDefaults.range;
+        if (needsZones) newStyle.zones = pathDefaults.zones;
+        updated = { ...updated, style: newStyle };
+      }
+    }
   }
 
   return updated;
