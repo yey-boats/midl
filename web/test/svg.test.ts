@@ -250,6 +250,193 @@ describe("heroFontSize", () => {
   });
 });
 
+// ── RC2: gauge zone colour follows zoneColor ──────────────────────────────────
+
+import { gaugeSvg, barSvg, textSvg, buttonSvg, autopilotSvg } from "../src/svg/tiles";
+
+describe("gaugeSvg zone colour", () => {
+  const gaugeRect: Rect = { x: 0, y: 0, w: 240, h: 240 };
+  const baseModel: ElementModel = { state: "ok", text: "20", numeric: 20, fraction: 0.2 };
+
+  test("arc and centre text use GAUGE_CYAN when no zoneColor", () => {
+    const svg = gaugeSvg(gaugeRect, baseModel, TH2, {});
+    expect(svg).toContain("#57c7d8"); // GAUGE_CYAN
+  });
+
+  test("arc uses zone bad colour when zoneColor is 'bad'", () => {
+    const m: ElementModel = { ...baseModel, zoneColor: "bad" };
+    const svg = gaugeSvg(gaugeRect, m, TH2, {});
+    expect(svg).toContain(TH2.bad); // zone colour applied to arc and text
+    expect(svg).not.toContain("#57c7d8"); // GAUGE_CYAN not used when zone applies
+  });
+
+  test("arc uses zone warn colour when zoneColor is 'warn'", () => {
+    const m: ElementModel = { ...baseModel, zoneColor: "warn" };
+    const svg = gaugeSvg(gaugeRect, m, TH2, {});
+    expect(svg).toContain(TH2.warn);
+  });
+
+  test("stale state overrides zone colour with stale colour", () => {
+    const m: ElementModel = { ...baseModel, state: "stale", zoneColor: "bad" };
+    const svg = gaugeSvg(gaugeRect, m, TH2, {});
+    expect(svg).toContain(TH2.stale);
+  });
+});
+
+// ── RC3: dial needle ──────────────────────────────────────────────────────────
+
+describe("dialSvg needle", () => {
+  const tileRect = { x: 0, y: 0, w: 200, h: 200 };
+  const hudRect = { x: 0, y: 0, w: 360, h: 360 };
+
+  test("minimal tile: heading 0° and 90° produce different needle SVG", () => {
+    const m0: ElementModel = { state: "ok", text: "0", angleDeg: 0 };
+    const m90: ElementModel = { state: "ok", text: "090", angleDeg: 90 };
+    const svg0 = dialSvg(tileRect, m0, TH.accent, TH, { size: 38 });
+    const svg90 = dialSvg(tileRect, m90, TH.accent, TH, { size: 38 });
+    // The needle line coordinates differ for different headings
+    expect(svg0).not.toBe(svg90);
+    // Both contain a needle <line>
+    expect(svg0).toContain("<line");
+    expect(svg90).toContain("<line");
+  });
+
+  test("minimal tile: no needle when angleDeg is absent", () => {
+    const m: ElementModel = { state: "ok", text: "---" };
+    const svg = dialSvg(tileRect, m, TH.accent, TH, { size: 38 });
+    // Without angleDeg, the only lines would be from tick marks (which minimal doesn't have)
+    // The minimal dial has no lines at all when no needle and no markers
+    const lineCount = (svg.match(/<line/g) ?? []).length;
+    expect(lineCount).toBe(0);
+  });
+
+  test("round HUD: heading needle present", () => {
+    const m: ElementModel = { state: "ok", text: "090", angleDeg: 90 };
+    const svg = dialSvg(hudRect, m, TH.accent, TH, { size: 38 });
+    // HUD tick lines + needle line: at least one stroke-linecap="round" line
+    expect(svg).toContain(`stroke-linecap="round"`);
+  });
+
+  test("wind-direction pointer (dirDeg) draws dashed line in warn colour", () => {
+    const m: ElementModel = { state: "ok", text: "090", angleDeg: 90, dirDeg: 45 };
+    const svg = dialSvg(tileRect, m, TH.accent, TH, { size: 38 });
+    expect(svg).toContain("stroke-dasharray");
+    expect(svg).toContain(TH.warn);
+  });
+});
+
+// ── RC5: textSvg uses heroFontSize ────────────────────────────────────────────
+
+describe("textSvg font-size", () => {
+  const smallRect: Rect = { x: 0, y: 0, w: 120, h: 60 };
+  const bigRect: Rect = { x: 0, y: 0, w: 480, h: 480 };
+
+  test("textSvg font-size scales with cell size (bigger cell → bigger font)", () => {
+    const mSmall = { state: "ok" as const, text: "Hello" };
+    const mBig = { state: "ok" as const, text: "Hello" };
+    const svgSmall = textSvg(smallRect, mSmall, TH2, {});
+    const svgBig = textSvg(bigRect, mBig, TH2, {});
+    const fsSmall = extractFontSize(svgSmall);
+    const fsBig = extractFontSize(svgBig);
+    expect(fsBig).toBeGreaterThan(fsSmall);
+  });
+
+  test("textSvg with M size role produces smaller font than Fill", () => {
+    const m = { state: "ok" as const, text: "Hello" };
+    const svgM = textSvg(bigRect, m, TH2, { size: "M" });
+    const svgFill = textSvg(bigRect, m, TH2, { size: "Fill" });
+    expect(extractFontSize(svgFill)).toBeGreaterThan(extractFontSize(svgM));
+  });
+});
+
+// ── RC6: heroFontSize height-bound in wide-short cells ────────────────────────
+
+describe("heroFontSize height-bound in wide-short cells (RC6)", () => {
+  test("wide-short cell (480×120): height limits font more than width", () => {
+    // maxByHeight = 120 * 0.6 = 72; maxByWidth for "6.0" (3 chars) = (480*0.88)/(3*0.55) ≈ 256
+    // So height wins: autoFit ≈ 72 (Fill role = 72)
+    const fs = heroFontSize({ w: 480, h: 120 }, "6.0", "Fill");
+    expect(fs).toBeLessThanOrEqual(0.6 * 120 + 1); // height-bounded
+  });
+
+  test("tall-narrow cell (120×480): width limits font more than height", () => {
+    // maxByHeight = 480 * 0.6 = 288; maxByWidth for "6.0" = (120*0.88)/(3*0.55) ≈ 64
+    // So width wins: autoFit ≈ 64
+    const fs = heroFontSize({ w: 120, h: 480 }, "6.0", "Fill");
+    expect(fs).toBeLessThanOrEqual(0.6 * 480); // not height-bounded
+    expect(fs).toBeLessThan(100); // width-bounded to a smaller value
+  });
+});
+
+// ── RC7: buttonSvg and autopilotSvg label sizing ─────────────────────────────
+
+describe("buttonSvg shrink-to-fit", () => {
+  const bRect: Rect = { x: 0, y: 0, w: 80, h: 40 };
+
+  test("short label in a wide button uses the default 16px font", () => {
+    const svg = buttonSvg(bRect, "OK", TH2, {});
+    const fs = extractFontSize(svg);
+    expect(fs).toBeLessThanOrEqual(16);
+  });
+
+  test("a very long label shrinks to fit the button width", () => {
+    const narrowRect: Rect = { x: 0, y: 0, w: 60, h: 40 };
+    const svgLong = buttonSvg(narrowRect, "LONG LABEL TEXT", TH2, {});
+    const svgShort = buttonSvg(narrowRect, "OK", TH2, {});
+    expect(extractFontSize(svgLong)).toBeLessThan(extractFontSize(svgShort));
+  });
+});
+
+describe("autopilotSvg pill sizing", () => {
+  // Use a tall cell so the font size scales up and the pill width difference is measurable.
+  const apRect: Rect = { x: 0, y: 0, w: 480, h: 200 };
+
+  function pillWidth(svg: string): number {
+    // The pill <rect> is the first rect in the autopilot SVG output.
+    const m = /width="([\d.]+)"/.exec(svg);
+    if (!m) throw new Error("No width attr in SVG rect: " + svg);
+    return parseFloat(m[1]);
+  }
+
+  test("STANDBY label produces a wider pill than OK label in a large cell", () => {
+    const svgStandby = autopilotSvg(apRect, { state: "ok", text: "STANDBY" }, TH2, {});
+    const svgOk = autopilotSvg(apRect, { state: "ok", text: "OK" }, TH2, {});
+    // The pill <rect> width should be larger for longer labels
+    expect(pillWidth(svgStandby)).toBeGreaterThan(pillWidth(svgOk));
+  });
+});
+
+// ── RC8: noDataSvg uses ASCII "--" ────────────────────────────────────────────
+
+describe("noDataSvg (via renderDashboardSvg)", () => {
+  const noDataDoc = `
+midl: "1.0.0"
+screens:
+  - id: main
+    elements:
+      missing:
+        type: single-value
+        name: Missing
+        bindings: { value: { kind: signalk, path: no.data.here } }
+    layout:
+      rows: 1
+      cols: 1
+      cells:
+        - { element: missing }
+`;
+
+  test("no-data placeholder uses ASCII -- not an em-dash entity", () => {
+    const r = renderDashboardSvg(noDataDoc, MANIFEST, "square-480", { x: 0, y: 0, w: 480, h: 480 },
+      new MockDataProvider({}), { theme: "night" });
+    expect(r.ok).toBe(true);
+    // ASCII "--" present in the SVG text content
+    expect(r.svg).toContain(">--<");
+    // em-dash HTML entity should NOT be present
+    expect(r.svg).not.toContain("&mdash;");
+    expect(r.svg).not.toContain("—");
+  });
+});
+
 describe("singleValueSvg font-size", () => {
   test("Fill role renders a font-size >= 40% of cell height in the SVG", () => {
     const svg = singleValueSvg(RECT_480, makeOkModel("6.0"), TH2, { size: "Fill" });

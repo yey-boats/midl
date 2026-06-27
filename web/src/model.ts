@@ -104,15 +104,15 @@ function resolveMarkers(el: Element, provider: DataProvider): ResolvedMarker[] |
 }
 
 // style.zones: ordered thresholds [{ lt, color }]. Pick the first whose `lt`
-// exceeds the current value (fraction when available, else the numeric value),
-// mirroring the device's "value below threshold -> this colour" semantics.
-function resolveZoneColor(el: Element, fraction: number | undefined, numeric: number | undefined): string | undefined {
+// exceeds the current display-unit numeric value, mirroring the device's
+// "value below threshold -> this colour" semantics. Zones are always authored
+// in display units so we probe with the display-unit numeric value directly.
+function resolveZoneColor(el: Element, _fraction: number | undefined, numeric: number | undefined): string | undefined {
   const zones = el.style?.zones as Array<{ lt?: unknown; color?: unknown }> | undefined;
   if (!Array.isArray(zones)) return undefined;
-  const probe = fraction != null ? fraction : numeric;
-  if (probe == null || !Number.isFinite(probe)) return undefined;
+  if (numeric == null || !Number.isFinite(numeric)) return undefined;
   for (const z of zones) {
-    if (typeof z.lt === "number" && probe < z.lt && typeof z.color === "string") return z.color;
+    if (typeof z.lt === "number" && numeric < z.lt && typeof z.color === "string") return z.color;
   }
   return undefined;
 }

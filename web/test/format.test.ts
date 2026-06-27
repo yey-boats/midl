@@ -52,3 +52,35 @@ test("formatValue still returns -- for non-position objects", () => {
   const result = formatValue({ foo: "bar" }, undefined);
   expect(result.text).toBe("--");
 });
+
+// RC1: Kelvin → °C and Kelvin → °F conversions
+test("converts K to C (K->C key)", () => {
+  expect(convert(273.15, "K", "C")).toBeCloseTo(0, 6);
+  expect(convert(293.15, "K", "C")).toBeCloseTo(20, 6);
+});
+
+test("converts K to degC (K->degC alias)", () => {
+  expect(convert(373.15, "K", "degC")).toBeCloseTo(100, 6);
+});
+
+test("converts K to F (K->F key)", () => {
+  // 273.15 K = 32°F, 293.15 K = 68°F
+  expect(convert(273.15, "K", "F")).toBeCloseTo(32, 4);
+  expect(convert(293.15, "K", "F")).toBeCloseTo(68, 4);
+});
+
+test("converts K to degF (K->degF alias)", () => {
+  expect(convert(373.15, "K", "degF")).toBeCloseTo(212, 4);
+});
+
+test("formatValue 293.15 K with unit C decimals 1 gives '20.0 C'", () => {
+  const r = formatValue(293.15, { unit: "C", decimals: 1 }, "K");
+  expect(r.text).toBe("20.0 C");
+  expect(r.numeric).toBeCloseTo(20, 4);
+});
+
+test("formatValue 293.15 K with unit F decimals 1 gives '68.0 F'", () => {
+  const r = formatValue(293.15, { unit: "F", decimals: 1 }, "K");
+  expect(r.text).toBe("68.0 F");
+  expect(r.numeric).toBeCloseTo(68, 4);
+});

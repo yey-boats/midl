@@ -87,6 +87,19 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
     out.push(glyphPath(mk.glyph, mx, my, D * 0.07, markerColor(mk.color, th)));
   }
 
+  // heading needle: a line from the tail (20% back) to the tip (55% forward)
+  // drawn at the current angleDeg. Visible only when a heading value is present.
+  if (m.angleDeg != null) {
+    const [nx, ny] = polar(cx, cy, m.angleDeg, R * 0.55);
+    const [tx, ty] = polar(cx, cy, m.angleDeg + 180, R * 0.20);
+    out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${ringColor}" stroke-width="2" stroke-linecap="round"/>`);
+  }
+  // wind-direction pointer (dirDeg): dashed short line in warn colour
+  if (m.dirDeg != null) {
+    const [dx, dy] = polar(cx, cy, m.dirDeg, R * 0.45);
+    out.push(`<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${th.warn}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
+  }
+
   // small caption above + centre hero.
   // Resolve string size roles (S/M/L/XL/Fill) via heroFontSize using the inner
   // face as the available rect. Legacy numeric sizes are returned as-is.
@@ -166,6 +179,19 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
     if (mk.angleDeg == null) continue;
     const [mx, my] = polar(cx, cy, mk.angleDeg, rFace * 0.9);
     out.push(glyphPath(mk.glyph, mx, my, D * 0.05, markerColor(mk.color, th)));
+  }
+
+  // heading needle pointing to angleDeg (compass heading / wind angle)
+  if (m.angleDeg != null) {
+    const [nx, ny] = polar(cx, cy, m.angleDeg, rFace * 0.70);
+    const [tx, ty] = polar(cx, cy, m.angleDeg + 180, rFace * 0.25);
+    const base = ringColor === th.warn ? th.warn : th.accent;
+    out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${base}" stroke-width="3" stroke-linecap="round"/>`);
+  }
+  // wind-direction pointer (dirDeg): dashed line in warn colour
+  if (m.dirDeg != null) {
+    const [dx, dy] = polar(cx, cy, m.dirDeg, rFace * 0.60);
+    out.push(`<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${th.warn}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
   }
 
   // centre caption + hero (windrose: warn; compass: accent).

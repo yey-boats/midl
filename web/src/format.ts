@@ -24,6 +24,7 @@ export function convert(value: number, fromUnit: string | undefined, toUnit: str
   if (!fromUnit || !toUnit || fromUnit === toUnit) return value;
   const key = `${fromUnit}->${toUnit}`;
   if (key === "K->C" || key === "K->degC") return value - 273.15;
+  if (key === "K->F" || key === "K->degF") return (value - 273.15) * 9 / 5 + 32;
   const f = FACTORS[key];
   return Number.isFinite(f) ? value * f : value;
 }

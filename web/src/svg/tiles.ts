@@ -101,11 +101,14 @@ export function singleValueSvg(rect: Rect, m: ElementModel, th: Theme, opts: Til
   return `<g>${out.join("")}</g>`;
 }
 
-export function textSvg(rect: Rect, m: ElementModel, th: Theme, _opts: TileOpts = {}): string {
+export function textSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = {}): string {
   const { x, y, w, h } = rect;
   const cx = x + w / 2;
   const lines = m.text.split("\n");
-  const size = 20;
+  const longestLine = lines.reduce((a, b) => a.length > b.length ? a : b, "");
+  // For multi-line text, divide available height equally across lines.
+  const lineH = h / Math.max(1, lines.length);
+  const size = heroFontSize({ w, h: lineH }, longestLine, opts.size ?? "M");
   const color = valColor(m, th, th.accent);
   const out: string[] = [];
   const top = y + h / 2 - ((lines.length - 1) * size * 0.7) / 2;
@@ -153,10 +156,11 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
   // track
   out.push(`<path d="${arc(cx, cy, -135, 135, r)}" fill="none" stroke="${GAUGE_TRACK}" stroke-width="${sw}" stroke-linecap="round"/>`);
 
-  // fill
+  // fill — use zone colour when available so the arc reflects threshold state
   const frac = Math.max(0, Math.min(1, m.fraction ?? 0));
+  const arcColor = m.zoneColor ? resolveColor(m.zoneColor, th, GAUGE_CYAN) : GAUGE_CYAN;
   if (frac > 0) {
-    out.push(`<path d="${arc(cx, cy, -135, -135 + frac * 270, r)}" fill="none" stroke="${GAUGE_CYAN}" stroke-width="${sw}" stroke-linecap="round"/>`);
+    out.push(`<path d="${arc(cx, cy, -135, -135 + frac * 270, r)}" fill="none" stroke="${arcColor}" stroke-width="${sw}" stroke-linecap="round"/>`);
   }
 
   // 5 tick marks at 0/25/50/75/100%
@@ -167,13 +171,13 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
     out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${GAUGE_TICK}" stroke-width="1"/>`);
   }
 
-  // centre percent (cyan) — honour string size roles (S/M/L/XL/Fill) like other
-  // tile types; fall back to heroFontSize which returns 28px for legacy numeric
-  // sizes and scales by role for string sizes.
+  // centre percent — colour follows zone (same as arc) so text and arc agree.
+  // Honour string size roles (S/M/L/XL/Fill) like other tile types.
   const gaugeFs = typeof opts.size === "number"
     ? opts.size
     : heroFontSize({ w: r * 2, h: r * 2 }, m.text + (m.side ?? ""), opts.size);
-  out.push(txt(cx, cy + gaugeFs * 0.34, gaugeFs, m.state === "stale" ? th.stale : m.state === "bad" ? th.bad : GAUGE_CYAN, m.text + (m.side ?? ""), 700));
+  const centreColor = m.state === "stale" ? th.stale : m.state === "bad" ? th.bad : arcColor;
+  out.push(txt(cx, cy + gaugeFs * 0.34, gaugeFs, centreColor, m.text + (m.side ?? ""), 700));
   return `<g>${out.join("")}</g>`;
 }
 
@@ -210,19 +214,30 @@ export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileO
   const label = (m.text || "STBY").toUpperCase();
   const engaged = /AUTO|TRACK|WIND|ROUTE|NAV|ON/.test(label);
   const labelColor = engaged ? th.good : th.dim;
-  const fs = typeof opts.size === "number" ? opts.size : 20;
-  const pw = Math.min(w - 24, Math.max(70, label.length * fs * 0.8)), ph = Math.max(28, h * 0.3);
+  // For string size roles, derive font size from cell geometry; clamp to pill height.
+  const ph = Math.max(28, h * 0.3);
+  const fsBase = typeof opts.size === "number"
+    ? opts.size
+    : heroFontSize({ w: w - 24, h: ph }, label, opts.size ?? "M");
+  const fs = Math.min(fsBase, ph * 0.6);
+  // Size the pill so the label fits: estimate character width at 0.65em each
+  // (Montserrat 700 uppercase + 0.04em letter-spacing ≈ 0.69em but 0.65 is safe).
+  const textW = label.length * fs * 0.65 + fs * 0.5; // +½em padding per side
+  const pw = Math.min(w - 24, Math.max(70, textW));
   out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${AP_PILL_BG}" stroke="${th.good}" stroke-width="1"/>`);
-  out.push(txt(cx, cy + Math.min(fs, ph * 0.6) * 0.34, Math.min(fs, ph * 0.6), labelColor, label, 700, "middle", ` letter-spacing="0.04em"`));
+  out.push(txt(cx, cy + fs * 0.34, fs, labelColor, label, 700, "middle", ` letter-spacing="0.04em"`));
   return `<g>${out.join("")}</g>`;
 }
 
-// Filled bubble button: accent fill, ink text, radius 20, 16/700/UPPER.
+// Filled bubble button: accent fill, ink text, radius 20. Label shrinks to fit.
 export function buttonSvg(rect: Rect, label: string, th: Theme, opts: TileOpts = {}): string {
   const { x, y, w, h } = rect;
   const cx = x + w / 2, cy = y + h / 2;
   const bw = w - 20, bh = h - 20;
-  const fs = typeof opts.size === "number" ? opts.size : 16;
+  // Shrink font to fit button width: chars are ~0.55em wide (bold condensed font).
+  const fsMax = typeof opts.size === "number" ? opts.size : 16;
+  const maxFsByWidth = label.length > 0 ? (bw * 0.88) / (label.length * 0.55) : fsMax;
+  const fs = Math.min(fsMax, maxFsByWidth, bh * 0.5);
   const out: string[] = [];
   out.push(`<rect x="${f(x + 10)}" y="${f(y + 10)}" width="${f(bw)}" height="${f(bh)}" rx="20" fill="${th.accent}"/>`);
   out.push(txt(cx, cy + fs * 0.34, fs, BTN_INK, label.toUpperCase(), 700, "middle", ` letter-spacing="0.04em"`));

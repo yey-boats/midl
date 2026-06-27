@@ -68,10 +68,11 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
   }
 }
 
-// no-data placeholder: an em-dash centred in the rect.
+// no-data placeholder: "--" centred in the rect, sized to the cell.
 function noDataSvg(rect: Rect, th: Theme): string {
   const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
-  return `<text x="${f(cx)}" y="${f(cy + 10)}" font-family="${FONT_FAMILY}" font-size="30" fill="${th.dim}" text-anchor="middle">—</text>`;
+  const noDataFs = Math.min(rect.w * 0.3, rect.h * 0.3, 30);
+  return `<text x="${f(cx)}" y="${f(cy + noDataFs * 0.34)}" font-family="${FONT_FAMILY}" font-size="${f(noDataFs)}" fill="${th.dim}" text-anchor="middle">--</text>`;
 }
 
 export function paintScreenSvg(
