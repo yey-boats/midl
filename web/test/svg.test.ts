@@ -7,6 +7,7 @@ import { dialSvg } from "../src/svg/dial";
 import { renderDashboardSvg } from "../src/svg/render-svg";
 import { MockDataProvider } from "../src/data";
 import { theme } from "../src/theme";
+import { convert, formatValue } from "../src/format";
 import type { ElementModel } from "../src/model";
 import type { Manifest } from "@yey-boats/midl";
 
@@ -207,10 +208,11 @@ function extractFontSize(svg: string): number {
 }
 
 describe("heroFontSize", () => {
-  test("Fill role yields font-size >= 40% of cell height (short value)", () => {
-    const fs = heroFontSize({ w: 480, h: 480 }, "6.0", "Fill");
-    expect(fs).toBeGreaterThan(0.4 * 480); // >= 40% of cell height
-    expect(fs).toBeLessThanOrEqual(0.65 * 480); // sane upper bound
+  test("Fill role yields font-size >= 70% of cell height (single-digit value)", () => {
+    // Use a single character so width-constraint doesn't limit the result
+    const fs = heroFontSize({ w: 480, h: 480 }, "6", "Fill");
+    expect(fs).toBeGreaterThan(0.7 * 480); // >= 70% of cell height
+    expect(fs).toBeLessThanOrEqual(0.92 * 480); // sane upper bound
   });
 
   test("Fill yields larger font-size than S in a 480x480 cell", () => {
@@ -234,8 +236,8 @@ describe("heroFontSize", () => {
 
   test("short value in Fill mode is height-limited, not width-limited", () => {
     const fs = heroFontSize({ w: 480, h: 480 }, "0", "Fill");
-    // single char: maxByWidth >> maxByHeight, so autoFit = maxByHeight = 0.60*480 = 288
-    expect(fs).toBeCloseTo(0.60 * 480, 0);
+    // single char: maxByWidth >> maxByHeight, so autoFit = maxByHeight = 0.90*480 = 432
+    expect(fs).toBeCloseTo(0.90 * 480, 0);
   });
 
   test("legacy numeric size is returned as-is (backward-compat)", () => {
@@ -353,18 +355,33 @@ describe("textSvg font-size", () => {
 
 describe("heroFontSize height-bound in wide-short cells (RC6)", () => {
   test("wide-short cell (480×120): height limits font more than width", () => {
-    // maxByHeight = 120 * 0.6 = 72; maxByWidth for "6.0" (3 chars) = (480*0.88)/(3*0.55) ≈ 256
-    // So height wins: autoFit ≈ 72 (Fill role = 72)
+    // maxByHeight = 120 * 0.9 = 108; maxByWidth for "6.0" (3 chars) = (480*0.88)/(3*0.55) ≈ 256
+    // So height wins: autoFit ≈ 108 (Fill role = 108)
     const fs = heroFontSize({ w: 480, h: 120 }, "6.0", "Fill");
-    expect(fs).toBeLessThanOrEqual(0.6 * 120 + 1); // height-bounded
+    expect(fs).toBeLessThanOrEqual(0.9 * 120 + 1); // height-bounded
   });
 
   test("tall-narrow cell (120×480): width limits font more than height", () => {
-    // maxByHeight = 480 * 0.6 = 288; maxByWidth for "6.0" = (120*0.88)/(3*0.55) ≈ 64
+    // maxByHeight = 480 * 0.9 = 432; maxByWidth for "6.0" = (120*0.88)/(3*0.55) ≈ 64
     // So width wins: autoFit ≈ 64
     const fs = heroFontSize({ w: 120, h: 480 }, "6.0", "Fill");
-    expect(fs).toBeLessThanOrEqual(0.6 * 480); // not height-bounded
+    expect(fs).toBeLessThanOrEqual(0.9 * 480); // not height-bounded
     expect(fs).toBeLessThan(100); // width-bounded to a smaller value
+  });
+
+  // RC6: Fill in a 240px cell yields substantially larger font than old 128px
+  // Use a single character so width-constraint is not the limiting factor.
+  test("Fill in a 240px cell yields font-size >= 150px (RC6 regression guard)", () => {
+    const fs = heroFontSize({ w: 240, h: 240 }, "6", "Fill");
+    expect(fs).toBeGreaterThanOrEqual(150); // clearly larger than the old ~128px
+    // Also check it doesn't blow past the height
+    expect(fs).toBeLessThanOrEqual(240);
+  });
+
+  // RC6: Fill in a 480px cell is not regressed
+  test("Fill in a 480px cell yields font-size >= 300px (RC6 480 non-regression)", () => {
+    const fs = heroFontSize({ w: 480, h: 480 }, "6", "Fill");
+    expect(fs).toBeGreaterThanOrEqual(300); // 0.90 * 480 * 1.0 = 432 for single char
   });
 });
 
@@ -438,10 +455,11 @@ screens:
 });
 
 describe("singleValueSvg font-size", () => {
-  test("Fill role renders a font-size >= 40% of cell height in the SVG", () => {
-    const svg = singleValueSvg(RECT_480, makeOkModel("6.0"), TH2, { size: "Fill" });
+  test("Fill role renders a font-size >= 70% of cell height in the SVG (single-digit value)", () => {
+    // Single character: width-constraint doesn't limit, height wins
+    const svg = singleValueSvg(RECT_480, makeOkModel("6"), TH2, { size: "Fill" });
     const fs = extractFontSize(svg);
-    expect(fs).toBeGreaterThanOrEqual(0.40 * 480);
+    expect(fs).toBeGreaterThanOrEqual(0.70 * 480);
   });
 
   test("S role renders a smaller font-size than Fill", () => {
@@ -459,5 +477,67 @@ describe("singleValueSvg font-size", () => {
     const svgShort = singleValueSvg(RECT_480, makeOkModel("0"), TH2, { size: "Fill" });
     const svgLong = singleValueSvg(RECT_480, makeOkModel("123456.789"), TH2, { size: "Fill" });
     expect(extractFontSize(svgShort)).toBeGreaterThan(extractFontSize(svgLong));
+  });
+});
+
+// ── RC8: no-data "--" is bounded to a small size in singleValueSvg/trendSvg ────
+
+import { trendSvg } from "../src/svg/tiles";
+
+describe("RC8: no-data -- placeholder bounded font-size", () => {
+  const RECT_240: Rect = { x: 0, y: 0, w: 240, h: 240 };
+
+  test("singleValueSvg with '--' renders at a small bounded font-size (<=40px), not hero size", () => {
+    const noDataModel: ElementModel = { state: "no-data", text: "--" };
+    const svg = singleValueSvg(RECT_240, noDataModel, TH2, { size: "Fill" });
+    const fs = extractFontSize(svg);
+    // Hero Fill in a 240-cell would be ~216px; placeholder must stay small
+    expect(fs).toBeLessThanOrEqual(40);
+  });
+
+  test("singleValueSvg '--' is much smaller than a real value in Fill role", () => {
+    const noDataModel: ElementModel = { state: "no-data", text: "--" };
+    const okModel: ElementModel = { state: "ok", text: "6.0" };
+    const svgNoData = singleValueSvg(RECT_240, noDataModel, TH2, { size: "Fill" });
+    const svgOk = singleValueSvg(RECT_240, okModel, TH2, { size: "Fill" });
+    expect(extractFontSize(svgOk)).toBeGreaterThan(extractFontSize(svgNoData) * 3);
+  });
+
+  test("trendSvg with '--' renders at a small bounded font-size (<=40px), not hero size", () => {
+    const noDataModel: ElementModel = { state: "no-data", text: "--" };
+    const svg = trendSvg(RECT_240, noDataModel, [], TH2, { size: "Fill" });
+    const fs = extractFontSize(svg);
+    expect(fs).toBeLessThanOrEqual(40);
+  });
+});
+
+// ── RC1: K→°C/°F degree-symbol key normalization ─────────────────────────────
+
+describe("RC1: K→°C/°F degree-symbol normalization", () => {
+  test("convert 293.15 K with unit '°C' gives 20.0°C", () => {
+    const n = convert(293.15, "K", "°C");
+    expect(n).toBeCloseTo(20, 4);
+  });
+
+  test("convert 293.15 K with unit '°F' gives 68.0°F", () => {
+    const n = convert(293.15, "K", "°F");
+    expect(n).toBeCloseTo(68, 4);
+  });
+
+  test("formatValue 293.15 K with unit '°C' decimals 1 gives '20.0 °C'", () => {
+    const r = formatValue(293.15, { unit: "°C", decimals: 1 }, "K");
+    expect(r.text).toBe("20.0 °C");
+    expect(r.numeric).toBeCloseTo(20, 4);
+  });
+
+  test("formatValue 293.15 K with unit '°F' decimals 1 gives '68.0 °F'", () => {
+    const r = formatValue(293.15, { unit: "°F", decimals: 1 }, "K");
+    expect(r.text).toBe("68.0 °F");
+    expect(r.numeric).toBeCloseTo(68, 4);
+  });
+
+  test("K passthrough unaffected (no degree unit)", () => {
+    const r = formatValue(293.15, { unit: "K", decimals: 2 }, "K");
+    expect(r.text).toBe("293.15 K");
   });
 });

@@ -20,11 +20,27 @@ const FACTORS: Record<string, number> = {
   "Pa->hPa": 1e-2,      // pressure: pascals -> hectopascals (standard weather display)
 };
 
+/**
+ * Normalize a temperature unit string so that "°C", "degC", "C" all map to
+ * the canonical "C", and "°F", "degF", "F" all map to "F".
+ * Other units are returned unchanged.
+ */
+function normTempUnit(u: string): string {
+  // Strip leading degree sign (° U+00B0 or ˚ U+02DA) then lower-case "deg" prefix.
+  const stripped = u.replace(/^[°˚]/, "").replace(/^deg/i, "");
+  if (stripped === "C" || stripped === "c") return "C";
+  if (stripped === "F" || stripped === "f") return "F";
+  return u; // not a temperature unit — leave as-is
+}
+
 export function convert(value: number, fromUnit: string | undefined, toUnit: string | undefined): number {
   if (!fromUnit || !toUnit || fromUnit === toUnit) return value;
-  const key = `${fromUnit}->${toUnit}`;
-  if (key === "K->C" || key === "K->degC") return value - 273.15;
-  if (key === "K->F" || key === "K->degF") return (value - 273.15) * 9 / 5 + 32;
+  // Normalize temperature units before building the lookup key so that
+  // "°C", "degC", "C" all resolve to the same conversion, and likewise "°F".
+  const normTo = normTempUnit(toUnit);
+  const key = `${fromUnit}->${normTo}`;
+  if (key === "K->C") return value - 273.15;
+  if (key === "K->F") return (value - 273.15) * 9 / 5 + 32;
   const f = FACTORS[key];
   return Number.isFinite(f) ? value * f : value;
 }

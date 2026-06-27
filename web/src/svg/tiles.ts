@@ -52,19 +52,24 @@ export const SIZE_ROLES: Record<string, number> = {
 /**
  * Compute the hero font size for a numeric value displayed in a cell.
  *
- * Auto-fit: the base font size is derived from the cell height (60%), then
- * shrunk so the value string does not exceed the cell width (using an
- * approximation of 0.6 * fontSize per character for the condensed bold font).
+ * Auto-fit: the base font size is derived from the cell height (Fill fraction),
+ * then shrunk so the value string does not exceed the cell width (using an
+ * approximation of 0.55 * fontSize per character for the condensed bold font).
  *
  * The `size` option is applied as a role multiplier (S/M/L/XL/Fill) or, for
  * legacy backward-compat, treated as an absolute px value when it is a number.
+ *
+ * Fill uses 0.90× of cell height so the number visually fills the cell.
+ * S/M/L/XL are fractional multiples of Fill (see SIZE_ROLES).
  */
 export function heroFontSize(rect: { w: number; h: number }, value: string, size?: number | string): number {
   // Legacy: if size is a number, return it as-is (absolute px, backward-compat).
   if (typeof size === "number") return size;
 
-  // Auto-fit: start from 60% of cell height (the un-scaled Fill size).
-  const maxByHeight = rect.h * 0.60;
+  // Auto-fit: start from 90% of cell height (the un-scaled Fill ceiling).
+  // A small label/unit reserve is baked into this fraction; designers can rely
+  // on values never touching the very top/bottom edges.
+  const maxByHeight = rect.h * 0.90;
   // Approximate max width: characters are ~0.55 * fontSize wide (bold condensed).
   const charCount = Math.max(1, value.replace(/\s/g, "").length);
   const maxByWidth = (rect.w * 0.88) / (charCount * 0.55);
@@ -75,6 +80,10 @@ export function heroFontSize(rect: { w: number; h: number }, value: string, size
   const fraction = SIZE_ROLES[role] ?? SIZE_ROLES["L"]!;
   return Math.max(12, autoFit * fraction);
 }
+
+/** Maximum font-size for the "--" no-data placeholder. Keeps it visually small
+ *  and bounded regardless of the element's size role. */
+const NO_DATA_MAX_FS = 40;
 
 // HERO numeric is ACCENT (per spec), unless a zone colour applies or state
 // overrides (stale/bad). The unit (if any) sits at 20/dim to the right.
@@ -87,14 +96,20 @@ export function singleValueSvg(rect: Rect, m: ElementModel, th: Theme, opts: Til
   let body = m.text;
   if (unit && body.endsWith(unit)) body = body.slice(0, -unit.length).trimEnd();
   const value = body + (m.side ?? "");
-  const hero = heroFontSize({ w, h }, value, opts.size);
+
+  // RC8: when the value is the no-data placeholder, cap its font-size to a small
+  // bounded size regardless of the element's size role (avoids ~224px "--").
+  const isNoData = value === "--";
+  const heroRaw = heroFontSize({ w, h }, value, opts.size);
+  const hero = isNoData ? Math.min(heroRaw, h * 0.3, NO_DATA_MAX_FS) : heroRaw;
+
   // Zone colour takes highest precedence; then style.colorRole; then accent default.
   const accentBase = resolveColorRole(opts.colorRole, th);
   const base = m.zoneColor ? resolveColor(m.zoneColor, th, accentBase) : accentBase;
   const color = valColor(m, th, base);
   const out: string[] = [];
   out.push(txt(cx, cy + hero * 0.34, hero, color, value, 700, "middle", ` letter-spacing="-0.02em"`));
-  if (unit) {
+  if (unit && !isNoData) {
     // place the unit just to the right of the centred value.
     out.push(txt(cx + w * 0.30, cy + hero * 0.34, 20, th.dim, unit, 400, "start"));
   }
@@ -201,8 +216,11 @@ export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Them
     out.push(`<polyline points="${poly}" fill="none" stroke="${GAUGE_CYAN}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
   }
   // numeric hero overlaid (accent, optionally overridden by colorRole)
-  const trendHero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
-  out.push(txt(cx, cy + trendHero * 0.34, trendHero, valColor(m, th, resolveColorRole(opts.colorRole, th)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  const trendValue = m.text + (m.side ?? "");
+  const isNoDataTrend = trendValue === "--";
+  const trendHeroRaw = heroFontSize({ w, h }, trendValue, opts.size);
+  const trendHero = isNoDataTrend ? Math.min(trendHeroRaw, h * 0.3, NO_DATA_MAX_FS) : trendHeroRaw;
+  out.push(txt(cx, cy + trendHero * 0.34, trendHero, valColor(m, th, resolveColorRole(opts.colorRole, th)), trendValue, 700, "middle", ` letter-spacing="-0.02em"`));
   return `<g>${out.join("")}</g>`;
 }
 
