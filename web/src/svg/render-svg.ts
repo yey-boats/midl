@@ -42,7 +42,8 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
     size: sizev(style.size),
     center: numv(style.center),
     unit: str(el.format?.unit),
-    colorRole: str(style.colorRole),
+    // style.color (token or #hex) takes precedence over legacy style.colorRole
+    colorRole: str((style as Record<string, unknown>).color as string | undefined) ?? str(style.colorRole),
   };
   switch (el.type) {
     case "compass":

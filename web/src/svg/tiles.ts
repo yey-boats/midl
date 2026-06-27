@@ -95,23 +95,63 @@ export function singleValueSvg(rect: Rect, m: ElementModel, th: Theme, opts: Til
   // the dim unit drawn separately below isn't duplicated ("6.0 kn kn").
   let body = m.text;
   if (unit && body.endsWith(unit)) body = body.slice(0, -unit.length).trimEnd();
-  const value = body + (m.side ?? "");
+  const valueFull = body + (m.side ?? "");
+
+  // C1: check if the text is multi-line (e.g. position lat/lon) or non-numeric
+  // (e.g. a string state). Non-numeric values get no unit suffix.
+  const isMultiLine = valueFull.includes("\n");
+  const isNonNumeric = m.numeric == null;
+  const suppressUnit = isNonNumeric || isMultiLine;
 
   // RC8: when the value is the no-data placeholder, cap its font-size to a small
   // bounded size regardless of the element's size role (avoids ~224px "--").
-  const isNoData = value === "--";
-  const heroRaw = heroFontSize({ w, h }, value, opts.size);
+  const isNoData = valueFull === "--";
+  // For multi-line, compute hero based on longest line
+  const longestLine = isMultiLine
+    ? valueFull.split("\n").reduce((a, b) => a.length > b.length ? a : b, "")
+    : valueFull;
+  const heroRaw = heroFontSize({ w, h: isMultiLine ? h / valueFull.split("\n").length : h }, longestLine, opts.size);
   const hero = isNoData ? Math.min(heroRaw, h * 0.3, NO_DATA_MAX_FS) : heroRaw;
 
-  // Zone colour takes highest precedence; then style.colorRole; then accent default.
-  const accentBase = resolveColorRole(opts.colorRole, th);
+  // Zone colour takes highest precedence; then style.color/colorRole; then accent default.
+  // resolveColor handles both #hex literals and token names (accent/warn/good/etc.)
+  const accentBase = resolveColor(opts.colorRole, th, th.accent);
   const base = m.zoneColor ? resolveColor(m.zoneColor, th, accentBase) : accentBase;
   const color = valColor(m, th, base);
   const out: string[] = [];
-  out.push(txt(cx, cy + hero * 0.34, hero, color, value, 700, "middle", ` letter-spacing="-0.02em"`));
-  if (unit && !isNoData) {
-    // place the unit just to the right of the centred value.
-    out.push(txt(cx + w * 0.30, cy + hero * 0.34, 20, th.dim, unit, 400, "start"));
+
+  if (isMultiLine) {
+    // C1: render each line as a stacked <tspan>; vertical spacing is ~1.2× hero.
+    const lines = valueFull.split("\n");
+    const lineSpacing = hero * 1.2;
+    const totalH = (lines.length - 1) * lineSpacing;
+    const startY = cy - totalH / 2;
+    const tspans = lines.map((ln, i) =>
+      `<tspan x="${f(cx)}" dy="${i === 0 ? f(startY - cy + hero * 0.34) : f(lineSpacing)}">${esc(ln)}</tspan>`,
+    ).join("");
+    out.push(`<text x="${f(cx)}" y="${f(cy)}" font-family="${FN}" font-weight="700" font-size="${f(hero)}" fill="${color}" text-anchor="middle" letter-spacing="-0.02em">${tspans}</text>`);
+  } else {
+    out.push(txt(cx, cy + hero * 0.34, hero, color, valueFull, 700, "middle", ` letter-spacing="-0.02em"`));
+    if (unit && !isNoData && !suppressUnit) {
+      // F: position unit relative to the value's right edge (approx 0.55em/char * hero).
+      // Clamp so unit right edge stays within cell (cell_right - pad).
+      const pad = 4;
+      const cellRight = x + w - pad;
+      // Estimated width of the value text at hero font size (bold condensed ≈ 0.55em/char)
+      const valueWidth = longestLine.replace(/\s/g, "").length * 0.55 * hero;
+      const valueRight = cx + valueWidth / 2;
+      // Unit font: default 20px; shrink if it would bleed past cellRight.
+      let unitFs = 20;
+      const gap = 4;
+      // If unit right edge (valueRight + gap + unitWidth) > cellRight, shrink unit font.
+      const unitWidth = unit.length * 0.6 * unitFs;
+      if (valueRight + gap + unitWidth > cellRight) {
+        const available = Math.max(8, cellRight - valueRight - gap);
+        unitFs = Math.max(8, Math.min(20, available / (unit.length * 0.6)));
+      }
+      const unitX = Math.min(valueRight + gap, cellRight - unit.length * 0.6 * unitFs);
+      out.push(txt(unitX, cy + hero * 0.34, unitFs, th.dim, unit, 400, "start"));
+    }
   }
   return `<g>${out.join("")}</g>`;
 }
@@ -139,9 +179,9 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
   const bx = x + 16, bw = w - 32, bh = 22;
   const by = y + h * 0.62;
 
-  // hero percent above the track (accent, optionally overridden by colorRole)
+  // hero percent above the track (accent, optionally overridden by style.color/colorRole)
   const hero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
-  out.push(txt(cx, by - 14, hero, valColor(m, th, resolveColorRole(opts.colorRole, th)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  out.push(txt(cx, by - 14, hero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   // track
   out.push(`<rect x="${f(bx)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" rx="3" fill="${BAR_TRACK}" stroke="${th.edge}" stroke-width="1"/>`);
@@ -220,18 +260,20 @@ export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Them
   const isNoDataTrend = trendValue === "--";
   const trendHeroRaw = heroFontSize({ w, h }, trendValue, opts.size);
   const trendHero = isNoDataTrend ? Math.min(trendHeroRaw, h * 0.3, NO_DATA_MAX_FS) : trendHeroRaw;
-  out.push(txt(cx, cy + trendHero * 0.34, trendHero, valColor(m, th, resolveColorRole(opts.colorRole, th)), trendValue, 700, "middle", ` letter-spacing="-0.02em"`));
+  out.push(txt(cx, cy + trendHero * 0.34, trendHero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), trendValue, 700, "middle", ` letter-spacing="-0.02em"`));
   return `<g>${out.join("")}</g>`;
 }
 
-// Filled AP pill: AP_PILL_BG, 1px good border, label in good 20/700/UPPER.
+// Filled AP pill: AP_PILL_BG, 1px good/style.color border, label in good/style.color 20/700/UPPER.
 export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = {}): string {
   const { x, y, w, h } = rect;
   const cx = x + w / 2, cy = y + h / 2;
   const out: string[] = [];
   const label = (m.text || "STBY").toUpperCase();
   const engaged = /AUTO|TRACK|WIND|ROUTE|NAV|ON/.test(label);
-  const labelColor = engaged ? th.good : th.dim;
+  // style.color overrides the default engaged color (th.good) for both border and label.
+  const engagedColor = resolveColor(opts.colorRole, th, th.good);
+  const labelColor = engaged ? engagedColor : th.dim;
   // For string size roles, derive font size from cell geometry; clamp to pill height.
   const ph = Math.max(28, h * 0.3);
   const fsBase = typeof opts.size === "number"
@@ -242,12 +284,12 @@ export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileO
   // (Montserrat 700 uppercase + 0.04em letter-spacing ≈ 0.69em but 0.65 is safe).
   const textW = label.length * fs * 0.65 + fs * 0.5; // +½em padding per side
   const pw = Math.min(w - 24, Math.max(70, textW));
-  out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${AP_PILL_BG}" stroke="${th.good}" stroke-width="1"/>`);
+  out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${AP_PILL_BG}" stroke="${engagedColor}" stroke-width="1"/>`);
   out.push(txt(cx, cy + fs * 0.34, fs, labelColor, label, 700, "middle", ` letter-spacing="0.04em"`));
   return `<g>${out.join("")}</g>`;
 }
 
-// Filled bubble button: accent fill, ink text, radius 20. Label shrinks to fit.
+// Filled bubble button: accent fill (or style.color override), ink text, radius 20. Label shrinks to fit.
 export function buttonSvg(rect: Rect, label: string, th: Theme, opts: TileOpts = {}): string {
   const { x, y, w, h } = rect;
   const cx = x + w / 2, cy = y + h / 2;
@@ -256,8 +298,10 @@ export function buttonSvg(rect: Rect, label: string, th: Theme, opts: TileOpts =
   const fsMax = typeof opts.size === "number" ? opts.size : 16;
   const maxFsByWidth = label.length > 0 ? (bw * 0.88) / (label.length * 0.55) : fsMax;
   const fs = Math.min(fsMax, maxFsByWidth, bh * 0.5);
+  // style.color (token or #hex) overrides the default accent fill.
+  const fillColor = resolveColor(opts.colorRole, th, th.accent);
   const out: string[] = [];
-  out.push(`<rect x="${f(x + 10)}" y="${f(y + 10)}" width="${f(bw)}" height="${f(bh)}" rx="20" fill="${th.accent}"/>`);
+  out.push(`<rect x="${f(x + 10)}" y="${f(y + 10)}" width="${f(bw)}" height="${f(bh)}" rx="20" fill="${fillColor}"/>`);
   out.push(txt(cx, cy + fs * 0.34, fs, BTN_INK, label.toUpperCase(), 700, "middle", ` letter-spacing="0.04em"`));
   return `<g>${out.join("")}</g>`;
 }

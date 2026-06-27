@@ -541,3 +541,136 @@ describe("RC1: K→°C/°F degree-symbol normalization", () => {
     expect(r.text).toBe("293.15 K");
   });
 });
+
+// ── B1: style.color token / #hex resolves correctly ──────────────────────────
+
+import { barSvg, trendSvg } from "../src/svg/tiles";
+
+describe("B1: style.color token and #hex color resolution", () => {
+  const rect: Rect = { x: 0, y: 0, w: 240, h: 240 };
+  const okModel: ElementModel = { state: "ok", text: "6.0", numeric: 6 };
+  const th = theme("night");
+
+  test("singleValueSvg: style.color 'warn' renders the theme warn color (not accent)", () => {
+    const svg = singleValueSvg(rect, okModel, th, { colorRole: "warn" });
+    expect(svg).toContain(th.warn);
+    expect(svg).not.toContain(th.accent);
+  });
+
+  test("singleValueSvg: style.color '#ff0000' renders red", () => {
+    const svg = singleValueSvg(rect, okModel, th, { colorRole: "#ff0000" });
+    expect(svg).toContain("#ff0000");
+  });
+
+  test("singleValueSvg: zone color still overrides style.color", () => {
+    const modelWithZone: ElementModel = { ...okModel, zoneColor: "bad" };
+    const svg = singleValueSvg(rect, modelWithZone, th, { colorRole: "warn" });
+    // zone color (bad) takes precedence over style.color (warn)
+    expect(svg).toContain(th.bad);
+  });
+
+  test("barSvg: style.color 'warn' renders the theme warn color for hero text", () => {
+    const barModel: ElementModel = { state: "ok", text: "60%", numeric: 60, fraction: 0.6 };
+    const svg = barSvg(rect, barModel, th, { colorRole: "warn" });
+    expect(svg).toContain(th.warn);
+  });
+
+  test("trendSvg: style.color 'good' renders the theme good color for hero text", () => {
+    const svg = trendSvg(rect, okModel, [1, 2, 3], th, { colorRole: "good" });
+    expect(svg).toContain(th.good);
+  });
+
+  test("buttonSvg: style.color 'good' renders green fill (not accent)", () => {
+    const svg = buttonSvg(rect, "GO", th, { colorRole: "good" });
+    expect(svg).toContain(th.good);
+    expect(svg).not.toContain(th.accent);
+  });
+
+  test("buttonSvg: style.color '#ff0000' renders red fill", () => {
+    const svg = buttonSvg(rect, "STOP", th, { colorRole: "#ff0000" });
+    expect(svg).toContain("#ff0000");
+  });
+
+  test("buttonSvg: no style.color defaults to accent fill", () => {
+    const svg = buttonSvg(rect, "OK", th, {});
+    expect(svg).toContain(th.accent);
+  });
+});
+
+// ── C1: position multi-line and non-numeric unit suppression ──────────────────
+
+describe("C1: position multi-line tspan rendering and unit suppression", () => {
+  const rect: Rect = { x: 0, y: 0, w: 240, h: 240 };
+  const th = theme("night");
+
+  test("singleValueSvg: hero text with \\n renders as <tspan> elements (not a flat text node)", () => {
+    const model: ElementModel = { state: "ok", text: "41°23.16'N\n2°10.43'E" };
+    const svg = singleValueSvg(rect, model, th, {});
+    // multi-line means <tspan> elements are present
+    expect(svg).toContain("<tspan");
+    // both lines appear (single-quote is XML-escaped to &#39; by esc())
+    expect(svg).toContain("41°23.16");
+    expect(svg).toContain("2°10.43");
+    // exactly two tspan elements
+    const tspanCount = (svg.match(/<tspan/g) ?? []).length;
+    expect(tspanCount).toBe(2);
+  });
+
+  test("singleValueSvg: position value has no unit suffix", () => {
+    const model: ElementModel = { state: "ok", text: "41°23.16'N\n2°10.43'E" };
+    const svg = singleValueSvg(rect, model, th, { unit: "deg" });
+    // unit should NOT be appended for multi-line (position) values
+    expect(svg).not.toContain(">deg<");
+  });
+
+  test("singleValueSvg: string state value (autopilot/text) has no unit suffix", () => {
+    // numeric is null → non-numeric state → suppress unit
+    const model: ElementModel = { state: "ok", text: "AUTO" };
+    const svg = singleValueSvg(rect, model, th, { unit: "kn" });
+    expect(svg).not.toContain(">kn<");
+    expect(svg).toContain(">AUTO<");
+  });
+
+  test("singleValueSvg: numeric value still shows unit suffix", () => {
+    const model: ElementModel = { state: "ok", text: "6.0", numeric: 6 };
+    const svg = singleValueSvg(rect, model, th, { unit: "kn" });
+    expect(svg).toContain(">kn<");
+  });
+});
+
+// ── F: unit suffix positioning and clamping ───────────────────────────────────
+
+describe("F: unit suffix right-edge stays within cell", () => {
+  const th = theme("night");
+
+  test("unit right edge within cell for a narrow cell with a long value", () => {
+    // Narrow cell where fixed offset would bleed
+    const narrowRect: Rect = { x: 0, y: 0, w: 80, h: 80 };
+    const model: ElementModel = { state: "ok", text: "999.9", numeric: 999.9 };
+    const svg = singleValueSvg(narrowRect, model, th, { unit: "kn" });
+    // unit must be present
+    expect(svg).toContain(">kn<");
+    // Extract x position of the unit text element (last <text> in the SVG)
+    const unitMatch = /font-size="[\d.]+" fill="[^"]+" text-anchor="start">[^<]+<\/text>/.exec(svg);
+    expect(unitMatch).not.toBeNull();
+    // The x coordinate of the unit text must be <= cell right edge (80 - 4 = 76)
+    const xMatch = /x="([\d.]+)"[^>]*text-anchor="start"/.exec(svg);
+    if (xMatch) {
+      expect(parseFloat(xMatch[1])).toBeLessThanOrEqual(80);
+    }
+  });
+
+  test("unit font shrinks in a narrow cell to prevent overflow", () => {
+    const narrowRect: Rect = { x: 0, y: 0, w: 60, h: 60 };
+    const wideRect: Rect = { x: 0, y: 0, w: 480, h: 480 };
+    const model: ElementModel = { state: "ok", text: "99.9", numeric: 99.9 };
+    const svgNarrow = singleValueSvg(narrowRect, model, th, { unit: "kn" });
+    const svgWide = singleValueSvg(wideRect, model, th, { unit: "kn" });
+    // Extract font-size from the unit text (the start-anchored text)
+    const fsSrc = (svg: string): number => {
+      const m = /font-size="([\d.]+)"[^>]*text-anchor="start"/.exec(svg);
+      return m ? parseFloat(m[1]) : 20;
+    };
+    expect(fsSrc(svgNarrow)).toBeLessThanOrEqual(fsSrc(svgWide));
+  });
+});
