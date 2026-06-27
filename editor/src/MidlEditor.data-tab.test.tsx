@@ -320,6 +320,100 @@ test("binding a path from DataTree while a cell with element is selected updates
   }, { timeout: 3000 });
 });
 
+// ── Part 1 integration: Layout tab in MidlEditor ──────────────────────────────
+
+test("visual mode body shows Layout tab button", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider();
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-layout")).toBeTruthy();
+  }, { timeout: 3000 });
+});
+
+test("clicking Layout tab shows elements-list with placed elements", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider([
+    { path: "navigation.speedOverGround", value: 3.5, updatedAt: Date.now() },
+  ]);
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId, queryByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-layout")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Click Layout tab
+  await act(async () => {
+    fireEvent.click(getByTestId("tab-layout"));
+  });
+
+  // elements-list should appear
+  await waitFor(() => {
+    expect(getByTestId("elements-list")).toBeTruthy();
+  }, { timeout: 3000 });
+});
+
+test("clicking a row in elements-list selects the cell (inspector shows element)", async () => {
+  const store = makeFakeStore();
+  const provider = makeLiveProvider();
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("tab-layout")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // Click Layout tab
+  await act(async () => {
+    fireEvent.click(getByTestId("tab-layout"));
+  });
+
+  await waitFor(() => {
+    expect(getByTestId("elements-list")).toBeTruthy();
+  }, { timeout: 3000 });
+
+  // The fixture doc has a 1x1 grid with sog in cell 0
+  // Click element-row-0
+  await act(async () => {
+    fireEvent.click(getByTestId("element-row-0"));
+  });
+
+  // Inspector should show the element (type-badge becomes visible)
+  await waitFor(() => {
+    expect(getByTestId("type-badge")).toBeTruthy();
+  }, { timeout: 3000 });
+});
+
 test("clicking 'Browse data' in Inspector's PathPicker switches left rail to Data tab", async () => {
   const store = makeFakeStore();
   const provider = makeLiveProvider([

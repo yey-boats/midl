@@ -11,11 +11,12 @@ import { parseMidl, serializeMidl } from "./midl-io";
 import { SIGNALK_CATALOG, applyCatalogDefaults } from "./signalk-catalog";
 import { usePreview } from "./usePreview";
 import { validateModel } from "./validate";
-import { addElement, assignElementToCell } from "./layout-ops";
+import { addElement, assignElementToCell, removeElement } from "./layout-ops";
 import { Palette } from "./visual/Palette";
 import { GridCanvas } from "./visual/GridCanvas";
 import { Inspector } from "./visual/Inspector";
 import { DataTree } from "./visual/DataTree";
+import { ElementsList } from "./visual/ElementsList";
 import { SourceEditor } from "./source/SourceEditor";
 import type { LivePathSource } from "./adapters";
 import midlEditorCss from "./midl-editor.css?inline";
@@ -47,7 +48,7 @@ export interface MidlEditorProps {
 
 type Mode = "visual" | "source";
 type Theme = "night" | "day";
-type LeftTab = "elements" | "data";
+type LeftTab = "elements" | "data" | "layout";
 
 // Supported class values for the class-switch dropdown
 const SUPPORTED_CLASSES = ["square-480", "landscape-800x480", "landscape-1024x600"];
@@ -296,6 +297,14 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     setLeftTab("data");
   }, []);
 
+  // ── Visual mode: remove element from elements-list ─────────────────────────
+  const handleRemoveFromList = useCallback(
+    (elementId: string) => {
+      try { setModel((m) => removeElement(m, elementId)); } catch { /* ignore */ }
+    },
+    [],
+  );
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -424,14 +433,28 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
                 >
                   Data
                 </button>
+                <button
+                  data-testid="tab-layout"
+                  aria-selected={leftTab === "layout"}
+                  onClick={() => setLeftTab("layout")}
+                  style={{ fontWeight: leftTab === "layout" ? 700 : 400 }}
+                >
+                  Layout
+                </button>
               </div>
               {leftTab === "elements" ? (
                 <Palette manifest={manifest} onAdd={handleAddElement} />
-              ) : (
+              ) : leftTab === "data" ? (
                 <DataTree
                   provider={provider as unknown as LivePathSource}
                   selectedElementId={selectedElementId}
                   onBindPath={handleBindPath}
+                />
+              ) : (
+                <ElementsList
+                  model={model}
+                  onSelectCell={setSelectedCell}
+                  onRemoveElement={handleRemoveFromList}
                 />
               )}
             </div>
