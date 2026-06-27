@@ -128,3 +128,33 @@ cases:
             a: { type: single-value }
             b: { type: gauge }
           layout: { flow: row, children: [ { element: a }, { element: b } ] }
+
+  - name: valid-spacer-cell
+    targetClass: square-480
+    note: a grid cell {} (spacer, no element assigned) is valid — required for draft dashboards
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout:
+            rows: 1
+            cols: 2
+            cells:
+              - element: a
+              - {}
+
+  - name: valid-empty-elements
+    targetClass: square-480
+    note: a screen with zero elements (draft dashboard) is valid — required for empty new dashboards
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements: {}
+          layout:
+            rows: 1
+            cols: 1
+            cells:
+              - {}
