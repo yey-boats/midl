@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
-import { test, expect } from "vitest";
-import { SIGNALK_CATALOG, mergeCatalogWithLive } from "./signalk-catalog";
+import { test, expect, describe } from "vitest";
+import { SIGNALK_CATALOG, mergeCatalogWithLive, defaultDecimalsForUnit, applyCatalogDefaults } from "./signalk-catalog";
+import type { CatalogEntry } from "./signalk-catalog";
+import type { EditorElement } from "./model";
 import type { PathInfo } from "./adapters";
 
 test("SIGNALK_CATALOG has at least 40 entries", () => {
@@ -92,4 +94,159 @@ test("mergeCatalogWithLive catalog entries without live data still appear", () =
   expect(paths.has("navigation.speedOverGround")).toBe(true);
   expect(paths.has("environment.wind.speedApparent")).toBe(true);
   expect(paths.has("electrical.batteries.0.voltage")).toBe(true);
+});
+
+// ── defaultDecimalsForUnit ────────────────────────────────────────────────────
+
+describe("defaultDecimalsForUnit", () => {
+  test("kn → 1", () => {
+    expect(defaultDecimalsForUnit("kn")).toBe(1);
+  });
+
+  test("deg → 0", () => {
+    expect(defaultDecimalsForUnit("deg")).toBe(0);
+  });
+
+  test("% → 0", () => {
+    expect(defaultDecimalsForUnit("%")).toBe(0);
+  });
+
+  test("nm → 2", () => {
+    expect(defaultDecimalsForUnit("nm")).toBe(2);
+  });
+
+  test("V → 1", () => {
+    expect(defaultDecimalsForUnit("V")).toBe(1);
+  });
+
+  test("A → 1", () => {
+    expect(defaultDecimalsForUnit("A")).toBe(1);
+  });
+
+  test("hPa → 0", () => {
+    expect(defaultDecimalsForUnit("hPa")).toBe(0);
+  });
+
+  test("Pa → 0", () => {
+    expect(defaultDecimalsForUnit("Pa")).toBe(0);
+  });
+
+  test("Hz → 0", () => {
+    expect(defaultDecimalsForUnit("Hz")).toBe(0);
+  });
+
+  test("ratio → 2", () => {
+    expect(defaultDecimalsForUnit("ratio")).toBe(2);
+  });
+
+  test("W → 1", () => {
+    expect(defaultDecimalsForUnit("W")).toBe(1);
+  });
+
+  test("ft → 0", () => {
+    expect(defaultDecimalsForUnit("ft")).toBe(0);
+  });
+
+  test("C → 1", () => {
+    expect(defaultDecimalsForUnit("C")).toBe(1);
+  });
+
+  test("°C → 1", () => {
+    expect(defaultDecimalsForUnit("°C")).toBe(1);
+  });
+
+  test("undefined → 1 (default)", () => {
+    expect(defaultDecimalsForUnit(undefined)).toBe(1);
+  });
+
+  test("unknown unit → 1 (default fallback)", () => {
+    expect(defaultDecimalsForUnit("furlongs")).toBe(1);
+  });
+});
+
+// ── applyCatalogDefaults ──────────────────────────────────────────────────────
+
+describe("applyCatalogDefaults", () => {
+  const sogEntry: CatalogEntry = {
+    path: "navigation.speedOverGround",
+    label: "Speed Over Ground",
+    group: "navigation",
+    unit: "kn",
+  };
+
+  const headingEntry: CatalogEntry = {
+    path: "navigation.headingTrue",
+    label: "Heading True",
+    group: "navigation",
+    unit: "deg",
+  };
+
+  const noUnitEntry: CatalogEntry = {
+    path: "navigation.state",
+    label: "Vessel State",
+    group: "navigation",
+    // no unit
+  };
+
+  test("fills name from entry.label when element.name is empty", () => {
+    const el: EditorElement = { id: "el1", type: "single-value" };
+    const result = applyCatalogDefaults(el, sogEntry);
+    expect(result.name).toBe("Speed Over Ground");
+  });
+
+  test("fills format.unit from entry.unit when not set", () => {
+    const el: EditorElement = { id: "el1", type: "single-value" };
+    const result = applyCatalogDefaults(el, sogEntry);
+    expect(result.format?.unit).toBe("kn");
+  });
+
+  test("fills format.decimals based on unit when not set", () => {
+    const el: EditorElement = { id: "el1", type: "single-value" };
+    const result = applyCatalogDefaults(el, sogEntry);
+    // kn → 1
+    expect(result.format?.decimals).toBe(1);
+  });
+
+  test("does NOT clobber existing name", () => {
+    const el: EditorElement = { id: "el1", type: "single-value", name: "My Speed" };
+    const result = applyCatalogDefaults(el, sogEntry);
+    expect(result.name).toBe("My Speed");
+  });
+
+  test("does NOT clobber existing format.unit", () => {
+    const el: EditorElement = { id: "el1", type: "single-value", format: { unit: "m/s" } };
+    const result = applyCatalogDefaults(el, sogEntry);
+    expect(result.format?.unit).toBe("m/s");
+  });
+
+  test("does NOT clobber existing format.decimals even when 0", () => {
+    const el: EditorElement = { id: "el1", type: "single-value", format: { decimals: 0 } };
+    const result = applyCatalogDefaults(el, sogEntry);
+    // 0 is a valid number — must not be replaced
+    expect(result.format?.decimals).toBe(0);
+  });
+
+  test("does not mutate the original element", () => {
+    const el: EditorElement = { id: "el1", type: "single-value" };
+    const elName = el.name;
+    applyCatalogDefaults(el, sogEntry);
+    expect(el.name).toBe(elName); // undefined, unchanged
+    expect(el.format).toBeUndefined();
+  });
+
+  test("defaults decimals to 0 for heading (deg unit)", () => {
+    const el: EditorElement = { id: "el1", type: "single-value" };
+    const result = applyCatalogDefaults(el, headingEntry);
+    expect(result.format?.decimals).toBe(0);
+    expect(result.format?.unit).toBe("deg");
+  });
+
+  test("when entry has no unit, still sets decimals to default (1)", () => {
+    const el: EditorElement = { id: "el1", type: "single-value" };
+    const result = applyCatalogDefaults(el, noUnitEntry);
+    // No unit to fill
+    expect(result.format?.unit).toBeUndefined();
+    // decimals still set to defaultDecimalsForUnit(undefined) = 1
+    expect(result.format?.decimals).toBe(1);
+  });
 });

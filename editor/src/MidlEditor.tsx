@@ -6,8 +6,9 @@ import type { Manifest } from "@yey-boats/midl";
 import type { DataProvider } from "@yey-boats/midl-web";
 import type { DashboardStoreAdapter, ManifestSource, DashboardRef } from "./adapters";
 import { RevisionConflict } from "./adapters";
-import type { EditorModel } from "./model";
+import type { EditorModel, EditorElement } from "./model";
 import { parseMidl, serializeMidl } from "./midl-io";
+import { SIGNALK_CATALOG, applyCatalogDefaults } from "./signalk-catalog";
 import { usePreview } from "./usePreview";
 import { validateModel } from "./validate";
 import { addElement, assignElementToCell } from "./layout-ops";
@@ -233,17 +234,22 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
       if (!selectedElementId) return;
       const element = model.elements[selectedElementId];
       if (!element) return;
+      const updatedWithBinding: EditorElement = {
+        ...element,
+        bindings: {
+          ...element.bindings,
+          value: { kind: "signalk" as const, path },
+        },
+      };
+      const catalogEntry = SIGNALK_CATALOG.find((e) => e.path === path);
+      const finalElement = catalogEntry
+        ? applyCatalogDefaults(updatedWithBinding, catalogEntry)
+        : updatedWithBinding;
       setModel({
         ...model,
         elements: {
           ...model.elements,
-          [selectedElementId]: {
-            ...element,
-            bindings: {
-              ...element.bindings,
-              value: { kind: "signalk" as const, path },
-            },
-          },
+          [selectedElementId]: finalElement,
         },
       });
     },
@@ -267,7 +273,9 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
         }
         const layout = withEl.layout as { rows: number; cols: number; cells: Array<{ element?: string }> };
         const targetCell =
-          selectedCell !== null && !layout.cells[selectedCell]?.element
+          selectedCell !== null &&
+          selectedCell < layout.cells.length &&
+          !layout.cells[selectedCell]?.element
             ? selectedCell
             : layout.cells.findIndex((c) => !c.element);
         const finalModel = targetCell >= 0

@@ -8,6 +8,7 @@ import type { DataProvider } from "@yey-boats/midl-web";
 import { formatValue } from "@yey-boats/midl-web";
 import type { EditorModel, EditorElement, BindingSource } from "../model";
 import { addRow, addCol, removeRow, removeCol, removeElement, setCellSpan } from "../layout-ops";
+import { SIGNALK_CATALOG, applyCatalogDefaults, defaultDecimalsForUnit } from "../signalk-catalog";
 import { PathPicker } from "./PathPicker";
 
 export interface InspectorProps {
@@ -64,7 +65,15 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
     // as that would let a non-signalk binding's `kind` field clobber the one
     // we are setting here, causing the path to be silently dropped later.
     const newBinding: BindingSource = { kind: "signalk", path };
-    updateElement({ ...selectedElement, bindings: { ...selectedElement.bindings, value: newBinding } });
+    const updatedWithBinding: EditorElement = {
+      ...selectedElement,
+      bindings: { ...selectedElement.bindings, value: newBinding },
+    };
+    const catalogEntry = SIGNALK_CATALOG.find((e) => e.path === path);
+    const finalElement = catalogEntry
+      ? applyCatalogDefaults(updatedWithBinding, catalogEntry)
+      : updatedWithBinding;
+    updateElement(finalElement);
   }
 
   function handleNameChange(name: string) {
@@ -184,12 +193,15 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
     : null;
 
   const livePresent = liveResult?.present === true && liveResult?.stale !== true;
+  const effectiveFormat: Record<string, unknown> = {
+    ...selectedElement.format,
+  };
+  if (typeof effectiveFormat.decimals !== "number") {
+    const unit = effectiveFormat.unit as string | undefined;
+    effectiveFormat.decimals = defaultDecimalsForUnit(unit);
+  }
   const liveDisplay = livePresent
-    ? formatValue(
-        liveResult!.value,
-        selectedElement.format as Record<string, unknown> | undefined,
-        liveResult!.sourceUnit,
-      ).text
+    ? formatValue(liveResult!.value, effectiveFormat, liveResult!.sourceUnit).text
     : "—";
 
   const elementTypes = manifest.elements.map((e) => e.type);

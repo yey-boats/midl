@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
 import type { PathInfo } from "./adapters";
+import type { EditorElement } from "./model";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,67 @@ export const SIGNALK_CATALOG: CatalogEntry[] = [
   { path: "performance.polarSpeed", label: "Polar Speed", group: "performance", unit: "kn" },
   { path: "performance.targetAngle", label: "Target Angle", group: "performance", unit: "deg" },
 ];
+
+// ── Unit → default decimals map ────────────────────────────────────────────────
+
+const UNIT_DECIMALS: Record<string, number> = {
+  "kn": 1,
+  "m/s": 1,
+  "deg": 0,
+  "%": 0,
+  "V": 1,
+  "A": 1,
+  "m": 1,
+  "ft": 0,
+  "nm": 2,
+  "C": 1,
+  "°C": 1,
+  "hPa": 0,
+  "Pa": 0,
+  "Hz": 0,
+  "ratio": 2,
+  "W": 1,
+};
+
+export function defaultDecimalsForUnit(unit: string | undefined): number {
+  if (!unit) return 1;
+  return UNIT_DECIMALS[unit] ?? 1;
+}
+
+// ── Apply catalog defaults to a fresh element ─────────────────────────────────
+
+/**
+ * Auto-populate element fields from a catalog entry.
+ * Only fills fields that are not already set (fresh / unset / empty).
+ * Does NOT clobber existing user-set values.
+ */
+export function applyCatalogDefaults(
+  element: EditorElement,
+  entry: CatalogEntry,
+): EditorElement {
+  let updated = { ...element };
+
+  // name ← catalog label (only if name is falsy/unset)
+  if (!updated.name) {
+    updated = { ...updated, name: entry.label };
+  }
+
+  // format.unit ← catalog unit (only if not already set)
+  const currentUnit = updated.format?.unit;
+  const currentDecimals = updated.format?.decimals;
+  const needsUnit = Boolean(entry.unit && !currentUnit);
+  const needsDecimals = typeof currentDecimals !== "number";
+
+  if (needsUnit || needsDecimals) {
+    const effectiveUnit = needsUnit ? entry.unit : (currentUnit as string | undefined);
+    const newFormat: Record<string, unknown> = { ...updated.format };
+    if (needsUnit) newFormat.unit = entry.unit;
+    if (needsDecimals) newFormat.decimals = defaultDecimalsForUnit(effectiveUnit);
+    updated = { ...updated, format: newFormat };
+  }
+
+  return updated;
+}
 
 // ── Merge helper ───────────────────────────────────────────────────────────────
 

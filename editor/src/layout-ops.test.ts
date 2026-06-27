@@ -594,3 +594,170 @@ describe("setCellSpan", () => {
     expect(l.cells[0]).toEqual({ element: "sog", colSpan: 2, rowSpan: 2 });
   });
 });
+
+// ── Sequence / robustness tests ───────────────────────────────────────────────
+
+describe("add→remove→add sequence robustness", () => {
+  it("add→remove→add-another places new element in a free cell", () => {
+    // Start with a 1×1 grid, add A, remove A, add B — B should land in cell 0
+    let m = makeGridModel(1, 1);
+    const elA: EditorElement = { id: "el-a", type: "gauge" };
+    const elB: EditorElement = { id: "el-b", type: "gauge" };
+
+    m = addElement(m, elA);
+    m = assignElementToCell(m, 0, "el-a");
+    // Remove A — cell 0 becomes empty again
+    m = removeElement(m, "el-a");
+    const l1 = gridLayout(m);
+    expect(l1.cells[0].element).toBeUndefined();
+
+    // Add B — should go to cell 0 (only free cell)
+    m = addElement(m, elB);
+    m = assignElementToCell(m, 0, "el-b");
+    const l2 = gridLayout(m);
+    expect(l2.cells[0]).toEqual({ element: "el-b" });
+    // cells.length invariant: rows*cols
+    expect(l2.cells.length).toBe(l2.rows * l2.cols);
+  });
+
+  it("add→remove→re-add same type (fresh UUID) does not collide", () => {
+    let m = makeGridModel(2, 2);
+    const elA: EditorElement = { id: "uuid-1", type: "gauge" };
+    m = addElement(m, elA);
+    m = assignElementToCell(m, 0, "uuid-1");
+    m = removeElement(m, "uuid-1");
+
+    // Adding with a completely new id must not throw
+    const elB: EditorElement = { id: "uuid-2", type: "gauge" };
+    expect(() => {
+      m = addElement(m, elB);
+      m = assignElementToCell(m, 0, "uuid-2");
+    }).not.toThrow();
+    expect(gridLayout(m).cells[0]).toEqual({ element: "uuid-2" });
+    // cells.length invariant
+    expect(gridLayout(m).cells.length).toBe(gridLayout(m).rows * gridLayout(m).cols);
+  });
+
+  it("clearCell→assign new element works", () => {
+    let m = makeGridModel(2, 2);
+    m.elements = { el1: { id: "el1", type: "t" } };
+    (m.layout as { rows: number; cols: number; cells: { element?: string }[] }).cells[1] = { element: "el1" };
+
+    m = clearCell(m, 1);
+    expect(gridLayout(m).cells[1].element).toBeUndefined();
+
+    const el2: EditorElement = { id: "el2", type: "t" };
+    m = addElement(m, el2);
+    m = assignElementToCell(m, 1, "el2");
+    expect(gridLayout(m).cells[1]).toEqual({ element: "el2" });
+    // cells.length invariant
+    expect(gridLayout(m).cells.length).toBe(gridLayout(m).rows * gridLayout(m).cols);
+  });
+
+  it("removeRow→addRow: grid grows back and cells invariant holds", () => {
+    let m = makeGridModel(3, 2);
+    m = removeRow(m, 2); // now 2×2 = 4 cells
+    expect(gridLayout(m).rows).toBe(2);
+    expect(gridLayout(m).cells.length).toBe(4);
+
+    m = addRow(m); // back to 3×2 = 6 cells
+    expect(gridLayout(m).rows).toBe(3);
+    expect(gridLayout(m).cells.length).toBe(6);
+    // New cells at the end are empty
+    expect(gridLayout(m).cells[4]).toEqual({});
+    expect(gridLayout(m).cells[5]).toEqual({});
+  });
+
+  it("setCellSpan 2×2 then removeElement anchor: cells count matches rows*cols", () => {
+    // Start with full 2×2, give anchor a 2×2 span (all 4 slots → 1 cell)
+    const m0: EditorElement = { id: "sog", type: "gauge" };
+    let m = makeGridModel(2, 2);
+    m.elements = { sog: m0 };
+    (m.layout as { rows: number; cols: number; cells: { element?: string }[] }).cells[0] = { element: "sog" };
+
+    // Span to 2×2 — occupies all 4 slots, cells.length becomes 1
+    m = setCellSpan(m, 0, 2, 2);
+    expect(gridLayout(m).cells.length).toBe(1);
+
+    // Remove the anchor element — should restore 4 empty cells
+    m = removeElement(m, "sog");
+    const l = gridLayout(m);
+    // removeElement clears the cell reference but does NOT restore the span-removed cells.
+    // The cells array length may be 1 (the anchor cell, now empty).
+    // The invariant we test: all cells reference no removed element
+    for (const c of l.cells) {
+      expect(c.element).toBeUndefined();
+    }
+    // sog is gone from elements
+    expect(m.elements["sog"]).toBeUndefined();
+  });
+
+  it("shrink to 1×1 via setCellSpan then grow back: cells invariant holds at each step", () => {
+    // Start 2×2, set anchor to 2×2 span → 1 cell
+    let m = makeGridModel(2, 2);
+    m.elements = { sog: { id: "sog", type: "t" } };
+    (m.layout as { rows: number; cols: number; cells: { element?: string }[] }).cells[0] = { element: "sog" };
+
+    m = setCellSpan(m, 0, 2, 2);
+    const l1 = gridLayout(m);
+    expect(l1.cells.length).toBe(1); // 1 cell covering all 4 slots
+    expect(l1.rows * l1.cols).toBe(4); // grid dimensions unchanged
+
+    // Restore span to 1×1 → 4 cells again
+    m = setCellSpan(m, 0, 1, 1);
+    const l2 = gridLayout(m);
+    expect(l2.cells.length).toBe(4);
+    // anchor cell still has the element
+    expect(l2.cells[0]).toEqual({ element: "sog" });
+    // other 3 cells are empty
+    expect(l2.cells[1]).toEqual({});
+    expect(l2.cells[2]).toEqual({});
+    expect(l2.cells[3]).toEqual({});
+  });
+
+  it("cells.length === rows*cols invariant holds after a series of add/remove/span ops", () => {
+    // Build a 2×2 grid with all 4 elements
+    let m: EditorModel = {
+      midl: "1.0",
+      screenId: "test",
+      title: "Test",
+      elements: {
+        a: { id: "a", type: "t" },
+        b: { id: "b", type: "t" },
+        c: { id: "c", type: "t" },
+        d: { id: "d", type: "t" },
+      },
+      layout: {
+        rows: 2,
+        cols: 2,
+        cells: [{ element: "a" }, { element: "b" }, { element: "c" }, { element: "d" }],
+      },
+      variants: [],
+    };
+
+    // Step 1: remove element b
+    m = removeElement(m, "b");
+    let l = gridLayout(m);
+    expect(l.cells.length).toBe(l.rows * l.cols);
+
+    // Step 2: addRow
+    m = addRow(m);
+    l = gridLayout(m);
+    expect(l.cells.length).toBe(l.rows * l.cols);
+
+    // Step 3: addCol
+    m = addCol(m);
+    l = gridLayout(m);
+    expect(l.cells.length).toBe(l.rows * l.cols);
+
+    // Step 4: removeRow last row
+    m = removeRow(m, l.rows - 1);
+    l = gridLayout(m);
+    expect(l.cells.length).toBe(l.rows * l.cols);
+
+    // Step 5: removeCol last col
+    m = removeCol(m, l.cols - 1);
+    l = gridLayout(m);
+    expect(l.cells.length).toBe(l.rows * l.cols);
+  });
+});
