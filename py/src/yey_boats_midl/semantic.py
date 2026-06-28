@@ -185,6 +185,49 @@ def _check_element(el_id: str, el: Any, path: str, issues: List[Issue]) -> None:
     for fieldname, src in bindings.items():
         _check_source(src, f"{path}/bindings/{fieldname}", issues)
 
+    _check_limits(el_id, el, path, issues)
+
+
+def _check_limits(el_id: str, el: Any, path: str, issues: List[Issue]) -> None:
+    """Validate style.range / style.zones arithmetic — mirrors ts/src/semantic.ts.
+
+    range must be [lo, hi] with hi > lo (a hard error). A zone threshold at or
+    below the range floor can never apply (an advisory warning); a threshold
+    at/above hi is the idiomatic top-bucket sentinel and is NOT flagged.
+    """
+    style = el.get("style") or {}
+    if not isinstance(style, dict):
+        return
+
+    rng = style.get("range")
+    lo = hi = None
+    if (
+        isinstance(rng, list)
+        and len(rng) == 2
+        and isinstance(rng[0], (int, float))
+        and isinstance(rng[1], (int, float))
+    ):
+        lo, hi = rng[0], rng[1]
+        if hi <= lo:
+            issues.append(
+                _err(
+                    f"{path}/style/range",
+                    f'element "{el_id}" range [{lo}, {hi}] is invalid: max must be greater than min',
+                )
+            )
+
+    zones = style.get("zones")
+    if isinstance(zones, list) and lo is not None and hi is not None and hi > lo:
+        for i, z in enumerate(zones):
+            lt = z.get("lt") if isinstance(z, dict) else None
+            if isinstance(lt, (int, float)) and lt <= lo:
+                issues.append(
+                    _warn(
+                        f"{path}/style/zones/{i}/lt",
+                        f'element "{el_id}" zone threshold {lt} is at or below the range floor {lo}; it will never apply',
+                    )
+                )
+
 
 def _check_layout(layout: Any, layout_path: str, screen: Dict[str, Any], issues: List[Issue]) -> None:
     refs: List[Dict[str, str]] = []

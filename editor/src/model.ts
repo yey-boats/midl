@@ -26,8 +26,9 @@ export interface EditorElement {
 
 // Cell in a grid layout — may be empty or reference an element by id.
 // colSpan/rowSpan extend the cell across multiple grid columns/rows (default 1).
-// NOTE: colSpan/rowSpan are editor-level metadata; the MIDL renderer/grammar
-// does not currently support span — full parity requires a grammar+renderer change.
+// These are first-class in the grammar (Node carries colSpan/rowSpan) and the
+// web renderer honours them in solveLayout; the device push pipeline (midlToV2)
+// flattens to single cells, so span is preview/web-only on the boat display.
 export interface GridCell {
   element?: string;
   colSpan?: number;

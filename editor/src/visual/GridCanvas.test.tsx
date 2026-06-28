@@ -122,15 +122,18 @@ test("cell with assigned element shows element id text", () => {
   expect(getByTestId("cell-1").textContent).toBe("");
 });
 
-test("flow layout model shows source-mode note and no cell-N elements", () => {
+test("flow layout model renders no editable cells and tags its layout kind", () => {
   const model = makeFlowModel();
   const onSelect = vi.fn();
 
-  const { getByText, queryByTestId } = render(
+  const { container, queryByTestId } = render(
     <GridCanvas model={model} viewport={VIEWPORT} selected={null} onSelect={onSelect} />,
   );
 
-  expect(getByText(/flow layout/i)).toBeTruthy();
+  // Non-grid layouts render no interactive cells (the canvas banner explains why);
+  // the kind is exposed for the host to drive its source-mode notice.
+  const canvas = container.querySelector("[data-component='grid-canvas']");
+  expect(canvas?.getAttribute("data-layout-kind")).toBe("flow");
   expect(queryByTestId("cell-0")).toBeNull();
 });
 

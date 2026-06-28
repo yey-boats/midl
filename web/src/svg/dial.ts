@@ -12,10 +12,7 @@
 import type { Rect } from "@yey-boats/midl";
 import type { Theme } from "../theme";
 import type { ElementModel } from "../model";
-import {
-  FONT_FAMILY, HUD_BAND, DIAL_TICK, DIAL_CARD_DIM, DIAL_INK,
-  WIND_APPARENT, WIND_TRUE,
-} from "../theme";
+import { FONT_FAMILY } from "../theme";
 import { polar, arc, esc, f } from "./geometry";
 import { glyphPath } from "./glyphs";
 import { resolveColor } from "./color";
@@ -38,8 +35,8 @@ function txt(x: number, y: number, s: number, fill: string, str: string, weight 
 // apparent/true wind markers match the spec (token 'warn' -> apparent orange,
 // token 'accent' -> true cyan). Any other token/literal passes through.
 function markerColor(token: string, th: Theme): string {
-  if (token === "warn") return WIND_APPARENT;
-  if (token === "accent") return WIND_TRUE;
+  if (token === "warn") return th.widgets.windApparent;
+  if (token === "accent") return th.widgets.windTrue;
   return resolveColor(token, th, th.accent);
 }
 
@@ -159,7 +156,7 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
   }
 
   // white band + green rail just outside
-  out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(rBand)}" fill="none" stroke="${HUD_BAND}" stroke-width="${f(R * 0.18)}"/>`);
+  out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(rBand)}" fill="none" stroke="${th.widgets.hudBand}" stroke-width="${f(R * 0.18)}"/>`);
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R)}" fill="none" stroke="${th.good}" stroke-width="${f(R * 0.04)}"/>`);
 
   // tick ring every 45deg
@@ -167,7 +164,7 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
   for (let d = 0; d < 360; d += 45) {
     const [x1, y1] = polar(cx, cy, d, rTick);
     const [x2, y2] = polar(cx, cy, d, rTick - R * 0.05);
-    out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${DIAL_TICK}" stroke-width="2"/>`);
+    out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${th.widgets.dialTick}" stroke-width="2"/>`);
   }
 
   // 8 cardinals: N red 20, other cardinals dark ink 20, inter-cardinals dim 14
@@ -179,7 +176,7 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
   for (const [lab, b] of cards) {
     const [tx, ty] = polar(cx, cy, b, rCard);
     const inter = b % 90 !== 0;
-    const fill = lab === "N" ? "#ff5252" : inter ? DIAL_CARD_DIM : DIAL_INK;
+    const fill = lab === "N" ? th.widgets.cardinalN : inter ? th.widgets.dialCardDim : th.widgets.dialInk;
     const fs = inter ? 14 : 20;
     out.push(txt(tx, ty + fs * 0.34, fs, fill, lab, 700));
   }
@@ -241,7 +238,7 @@ function bandSvg(rect: Rect, m: ElementModel, _ringColor: string, th: Theme, opt
 
   // green rail just outside + white band
   out.push(`<path d="${arc(cx, cy, -90, 90, R)}" fill="none" stroke="${th.good}" stroke-width="${f(10 * k)}"/>`);
-  out.push(`<path d="${arc(cx, cy, -90, 90, RB)}" fill="none" stroke="${HUD_BAND}" stroke-width="${f(44 * k)}"/>`);
+  out.push(`<path d="${arc(cx, cy, -90, 90, RB)}" fill="none" stroke="${th.widgets.hudBand}" stroke-width="${f(44 * k)}"/>`);
 
   // sectors on the band (no-go / layline), heading-relative
   for (const s of m.sectors ?? []) {
@@ -258,7 +255,7 @@ function bandSvg(rect: Rect, m: ElementModel, _ringColor: string, th: Theme, opt
     const major = abs % 30 === 0;
     const [x1, y1] = polar(cx, cy, rel, RB + 22 * k);
     const [x2, y2] = polar(cx, cy, rel, RB + 22 * k - (major ? 12 : 7) * k);
-    out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${DIAL_INK}" stroke-width="${major ? 3 : 2}"/>`);
+    out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${th.widgets.dialInk}" stroke-width="${major ? 3 : 2}"/>`);
   }
 
   // numerals along the band (cardinals red-N 20 / others ink 16)
@@ -269,24 +266,30 @@ function bandSvg(rect: Rect, m: ElementModel, _ringColor: string, th: Theme, opt
     const card = dd % 90 === 0;
     const label = dd === 0 ? "N" : dd === 90 ? "E" : dd === 180 ? "S" : dd === 270 ? "W" : String(dd);
     const fs = card ? 20 * k : 16 * k;
-    out.push(txt(tx, ty + fs * 0.34, fs, dd === 0 ? "#ff5252" : DIAL_INK, label, 700));
+    out.push(txt(tx, ty + fs * 0.34, fs, dd === 0 ? th.widgets.cardinalN : th.widgets.dialInk, label, 700));
   }
 
-  // E5: amber bug only when an active (warn-coloured) target marker has an angle.
-  // Do NOT fall back to any-marker-with-angle (avoids stray HDG bug in standby).
-  const markers = m.markers ?? [];
-  const bug = markers.find((mk) => mk.angleDeg != null && mk.color === "warn");
-  if (bug && bug.angleDeg != null) {
-    const rel = ((bug.angleDeg - hdg + 540) % 360) - 180;
-    if (rel >= -90 && rel <= 90) {
-      const [bx, by] = polar(cx, cy, rel, RB);
-      out.push(glyphPath("triangle", bx, by, 18 * k, "#ffb84d"));
+  // Markers on the band. The warn-coloured marker (e.g. the autopilot target)
+  // renders as the amber bug glyph; every other authored marker renders with its
+  // own glyph and colour so HDG/COG/CTS and custom markers are not dropped.
+  // (Previously only the warn marker was drawn and its glyph was hardcoded to a
+  // triangle — H19a/H19b.)
+  for (const mk of m.markers ?? []) {
+    if (mk.angleDeg == null) continue;
+    const rel = ((mk.angleDeg - hdg + 540) % 360) - 180;
+    if (rel < -90 || rel > 90) continue;
+    const [bx, by] = polar(cx, cy, rel, RB);
+    if (mk.color === "warn") {
+      // E5: the active target bug — amber filled triangle (theme warn hue).
+      out.push(glyphPath("triangle", bx, by, 18 * k, th.warn));
+    } else {
+      out.push(glyphPath(mk.glyph, bx, by, 15 * k, markerColor(mk.color, th)));
     }
   }
 
   // red lubber triangle at top centre
   const ly = cy - R - 2 * k;
-  out.push(`<path d="M ${f(cx - 10 * k)},${f(ly)} L ${f(cx + 10 * k)},${f(ly)} L ${f(cx)},${f(ly + 16 * k)} Z" fill="#ff5252"/>`);
+  out.push(`<path d="M ${f(cx - 10 * k)},${f(ly)} L ${f(cx + 10 * k)},${f(ly)} L ${f(cx)},${f(ly + 16 * k)} Z" fill="${th.widgets.cardinalN}"/>`);
 
   // HDG hero below band centre.
   // Resolve string size roles (S/M/L/XL/Fill) via heroFontSize using the band

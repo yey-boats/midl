@@ -14,12 +14,14 @@ export interface GridCanvasProps {
 export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: GridCanvasProps): React.JSX.Element {
   const layout = model.layout;
 
-  // Guard: only render grid overlay when layout is a grid
+  // Guard: only render the grid overlay when layout is a grid. Flow/preset
+  // layouts have no editable cells here — they are edited in Source mode. We
+  // render nothing interactive (the canvas banner explains why) rather than
+  // throwing, so the preview still shows underneath.
   if (!("rows" in layout) || !("cols" in layout) || !("cells" in layout)) {
+    const kind = "preset" in layout ? "preset" : "flow" in layout ? "flow" : "non-grid";
     return (
-      <div data-component="grid-canvas">
-        <p>Flow layout — edit in source mode</p>
-      </div>
+      <div data-component="grid-canvas" data-layout-kind={kind} />
     );
   }
 

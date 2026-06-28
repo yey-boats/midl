@@ -11,6 +11,7 @@ import { parseMidl, serializeMidl } from "./midl-io";
 import { SIGNALK_CATALOG, applyCatalogDefaults } from "./signalk-catalog";
 import { usePreview } from "./usePreview";
 import { validateModel } from "./validate";
+import { lintDeviceCapabilities } from "./device-lint";
 import { addElement, assignElementToCell, removeElement, setGrid, clearWidgets } from "./layout-ops";
 import { Palette } from "./visual/Palette";
 import { GridCanvas } from "./visual/GridCanvas";
@@ -222,6 +223,13 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
   const [conflictVisible, setConflictVisible] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Dirty tracking — the serialized source as of the last successful save/load.
+  // `dirty` is true when the current model differs, so the status bar can show an
+  // honest "Unsaved changes" state and a beforeunload guard can warn on navigation.
+  // (There is no real autosave; the previous static "autosaved" label was a lie.)
+  const savedSourceRef = useRef<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+
   // ── Zoom state ───────────────────────────────────────────────────────────────
 
   const [zoom, setZoom] = useState<number | "fit">("fit");
@@ -235,6 +243,9 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
 
   // ── Data flyout state (right-side inspector adjacent flyout) ─────────────────
   const [dataFlyoutOpen, setDataFlyoutOpen] = useState(false);
+
+  // ── Device-capability lint (expand/collapse) ─────────────────────────────────
+  const [deviceLintOpen, setDeviceLintOpen] = useState(false);
 
   // ── Init on mount ─────────────────────────────────────────────────────────────
 
@@ -257,6 +268,10 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
           setName(parsed.title);
           revisionRef.current = metadata.revision;
           idRef.current = initialId;
+          // Baseline for dirty tracking: serialize the parsed model so comparisons
+          // are apples-to-apples (the stored `doc` may differ only in formatting).
+          savedSourceRef.current = serializeMidl(parsed, "yaml") + " " + parsed.title;
+          setDirty(false);
         } catch {
           // If load fails, start from blank
         }
@@ -267,6 +282,31 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Dirty tracking: recompute when the model OR the dashboard name changes. The
+  // name is persisted separately (store.save's `name`), so a rename also counts
+  // as unsaved. A new (never-saved) blank dashboard baselines itself on mount.
+  useEffect(() => {
+    const cur = serializeMidl(model, "yaml") + " " + name;
+    if (savedSourceRef.current === null) {
+      savedSourceRef.current = cur; // establish baseline for the initial/blank model
+      setDirty(false);
+      return;
+    }
+    setDirty(cur !== savedSourceRef.current);
+  }, [model, name]);
+
+  // beforeunload guard: warn before navigating away with unsaved edits.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = ""; // required for the native confirmation prompt
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   // Re-fetch manifest when className changes (after initial mount)
   const isFirstMount = useRef(true);
@@ -376,6 +416,9 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
           // (better than undefined — at least the next save sends *something*).
         }
         setConflictVisible(false);
+        // Saved successfully — this serialized source + name is the clean baseline.
+        savedSourceRef.current = source + " " + name;
+        setDirty(false);
         onSaved?.(result.ref);
       } catch (err) {
         if (err instanceof RevisionConflict) {
@@ -392,8 +435,29 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
 
   const handleSave = useCallback(() => {
     setConflictVisible(false);
+    // C2: gate the push on validation. If the model has hard errors, warn and
+    // require confirmation before persisting invalid MIDL to the device. Warnings
+    // do not block. If no confirm dialog is available, proceed (don't hard-fail).
+    if (manifest) {
+      const v = validateModel(model, manifest);
+      const errorCount = v.ok ? 0 : v.issues.filter((i) => i.severity !== "warning").length;
+      if (errorCount > 0) {
+        const msg = `This dashboard has ${errorCount} validation error${errorCount !== 1 ? "s" : ""}:\n\n` +
+          v.issues.filter((i) => i.severity !== "warning").slice(0, 5).map((i) => `• ${i.message}`).join("\n") +
+          `\n\nPush to device anyway?`;
+        let proceed = true;
+        try {
+          if (typeof window !== "undefined" && typeof window.confirm === "function") {
+            proceed = window.confirm(msg);
+          }
+        } catch {
+          proceed = true; // confirm unavailable (headless) → don't block
+        }
+        if (!proceed) return;
+      }
+    }
     void doSave(false);
-  }, [doSave]);
+  }, [doSave, model, manifest]);
 
   const handleOverwrite = useCallback(() => {
     void doSave(true);
@@ -407,6 +471,8 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
       setModel(parsed);
       setName(parsed.title);
       revisionRef.current = metadata.revision;
+      savedSourceRef.current = serializeMidl(parsed, "yaml") + " " + parsed.title;
+      setDirty(false);
       setConflictVisible(false);
     } catch {
       // Ignore reload errors
@@ -702,6 +768,32 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
 
             {/* Center canvas */}
             <div className="canvas-area" ref={canvasContainerRef}>
+              {(() => {
+                // F1: the visual grid editor only edits grid layouts. A preset/flow
+                // base layout can be previewed but not edited here — say so plainly
+                // and offer Source mode, instead of letting grid ops silently no-op.
+                const baseIsGrid = "rows" in model.layout && "cols" in model.layout && "cells" in model.layout;
+                // F2: the class switcher changes the PREVIEW class only; visual edits
+                // always target the base layout. If this class has its own variant,
+                // warn that edits won't touch it (variants are edited in Source mode).
+                const classVariant = model.variants.find((v) => v.class === className);
+                if (baseIsGrid && !classVariant) return null;
+                const msg = !baseIsGrid
+                  ? "This screen uses a preset/flow layout. The visual grid editor can't edit it — open Source mode to change the layout."
+                  : `The "${className}" class has its own variant layout. Visual edits apply to the base layout only; edit this variant in Source mode.`;
+                return (
+                  <div data-testid="layout-notice" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 12px", background: "rgba(255,184,77,0.12)", borderBottom: "1px solid var(--line, #1d2b3a)", fontSize: "11px", color: "var(--warn, #ffb84d)" }}>
+                    <span style={{ flex: 1 }}>{msg}</span>
+                    <button
+                      data-testid="layout-notice-source"
+                      onClick={() => setMode("source")}
+                      style={{ fontSize: "11px", padding: "2px 8px", cursor: "pointer" }}
+                    >
+                      Open Source mode
+                    </button>
+                  </div>
+                );
+              })()}
               <div className="canvas-scroll">
                 <div
                   className="device-frame"
@@ -813,30 +905,62 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
       )}
 
       {/* Status bar — shown once manifest is available */}
-      {manifest && (
-        <div data-testid="status-bar">
-          {(() => {
-            const v = validateModel(model, manifest);
-            if (v.ok) {
-              return (
-                <>
-                  <span className="status-valid-indicator">✓ Valid for {className}</span>
-                  <span style={{ color: "var(--ink-faint, #5b7286)", fontSize: "10px" }}>· structural · semantic · capability</span>
-                  <span className="status-spacer" />
-                  <span className="status-autosave">autosaved</span>
-                </>
-              );
-            }
-            const errorCount = v.issues.filter((i) => i.severity !== "warning").length;
-            return (
-              <>
-                <span className="status-error-indicator">⚠ {errorCount} error{errorCount !== 1 ? "s" : ""}</span>
-                <span style={{ color: "var(--ink-faint, #5b7286)", fontSize: "10px" }}>{v.issues[0]?.message}</span>
-              </>
-            );
-          })()}
-        </div>
-      )}
+      {manifest && (() => {
+        const maxTiles = manifest.classes.find((c) => c.id === className)?.maxTiles ?? 4;
+        const lint = lintDeviceCapabilities(model, maxTiles, manifest);
+        return (
+          <>
+            <div data-testid="status-bar">
+              {(() => {
+                const v = validateModel(model, manifest);
+                if (v.ok) {
+                  return (
+                    <>
+                      <span className="status-valid-indicator">✓ Valid for {className}</span>
+                      <span style={{ color: "var(--ink-faint, #5b7286)", fontSize: "10px" }}>· structural · semantic · capability</span>
+                      <span className="status-spacer" />
+                      {lint.length > 0 && (
+                        <button
+                          data-testid="device-lint-toggle"
+                          onClick={() => setDeviceLintOpen((o) => !o)}
+                          title="Features that will not reach the device display"
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--warn, #ffb84d)", fontSize: "11px", padding: "0 6px" }}
+                        >
+                          ▲ {lint.length} won&apos;t reach device {deviceLintOpen ? "▾" : "▸"}
+                        </button>
+                      )}
+                      <span className="status-autosave" data-testid="save-state">
+                        {saving ? "saving…" : dirty ? "unsaved changes" : "saved"}
+                      </span>
+                    </>
+                  );
+                }
+                const errorCount = v.issues.filter((i) => i.severity !== "warning").length;
+                return (
+                  <>
+                    <span className="status-error-indicator">⚠ {errorCount} error{errorCount !== 1 ? "s" : ""}</span>
+                    <span style={{ color: "var(--ink-faint, #5b7286)", fontSize: "10px" }}>{v.issues[0]?.message}</span>
+                  </>
+                );
+              })()}
+            </div>
+            {deviceLintOpen && lint.length > 0 && (
+              <div data-testid="device-lint" style={{ padding: "6px 12px", borderTop: "1px solid var(--line, #1d2b3a)", fontSize: "11px", maxHeight: "160px", overflow: "auto" }}>
+                <div style={{ opacity: 0.6, marginBottom: "4px" }}>
+                  These authored features render in the preview but are dropped or degraded on the boat display:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: "16px" }}>
+                  {lint.map((iss, i) => (
+                    <li key={i} data-testid={`device-lint-item-${i}`} style={{ marginBottom: "2px", color: iss.kind === "drop" ? "var(--danger, #ff5252)" : "var(--warn, #ffb84d)" }}>
+                      {iss.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }

@@ -844,4 +844,31 @@ describe("E5: band dial target bug suppressed when no warn marker with angle", (
     // warn marker present but angleDeg=undefined (standby) → no bug
     expect(svg).not.toContain("#ffb84d");
   });
+
+  // H19a/H19b: non-warn band markers must render (not be dropped), honouring glyph.
+  test("band renders non-warn markers with their own glyph and colour", () => {
+    const model: ElementModel = {
+      state: "ok", text: "090", angleDeg: 90,
+      markers: [
+        { glyph: "diamond", color: "accent", angleDeg: 60, kind: "rim" }, // COG
+        { glyph: "circle", color: "good", angleDeg: 120, kind: "rim" },   // CTS
+      ],
+    };
+    const svg = dialSvg(bandRect, model, th.accent, th, { shape: "band" });
+    // accent marker → true-wind cyan; good marker → th.good. Both must appear.
+    expect(svg).toContain(th.widgets.windTrue);
+    expect(svg).toContain(th.good);
+    // glyph honoured: a circle glyph emits a <circle ...> (not a forced triangle)
+    expect(svg).toContain("<circle");
+  });
+
+  // H16: the heading band must use the theme's band colour, so it stays legible
+  // on the light day surface (the old hardcoded near-white was invisible there).
+  test("band uses per-theme hudBand colour (day = dark band, not near-white)", () => {
+    const model: ElementModel = { state: "ok", text: "090", angleDeg: 90 };
+    const dayTheme = theme("day");
+    const svg = dialSvg(bandRect, model, dayTheme.accent, dayTheme, { shape: "band" });
+    expect(svg).toContain(dayTheme.widgets.hudBand); // #1c2b3a
+    expect(svg).not.toContain("#f2f6fb");            // night near-white band
+  });
 });

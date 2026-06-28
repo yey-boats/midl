@@ -71,9 +71,36 @@
           "additionalProperties": { "$ref": "#/$defs/source" }
         },
         "style": {
-          "description": "Optional visual style overrides (color, size, …). Free-form; renderer-understood marine keys include `sectors` (bow-relative angular sectors), `hull` (boat-silhouette hint), `shape` (round|band dial), and `center` (center-zero reference for a bar). All optional and additive.",
+          "description": "Optional visual style overrides. Free-form and additive (unknown keys are admitted for forward-compat). The renderer-understood keys are: `range` and `zones` (gauge/bar limits in display units), `size` (font-size role), `color`/`colorRole` (accent override), `scale` (fixed|metric value scaling), `sectors` (bow-relative angular sectors), `hull` (boat-silhouette hint), `shape` (round|band dial) and `center` (center-zero reference for a bar). NOTE: not every key reaches every device — the device push pipeline (midlToV2 → firmware) currently carries only type/path/unit/title; the editor's device-capability lint flags the rest.",
           "type": "object",
           "properties": {
+            "range": {
+              "description": "Gauge/bar value limits [lo, hi] in DISPLAY units (post-format). The fill fraction is (value-lo)/(hi-lo). Semantic pass requires hi > lo.",
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "zones": {
+              "description": "Threshold colour bands for a gauge/bar/value. Each `{ lt, color }` means 'when the value is below `lt`, use `color`' (evaluated low→high). `lt` is in display units; `color` is a theme token or #rrggbb. A final band with `lt` at/above the range max is the idiomatic top-bucket sentinel.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["lt", "color"],
+                "properties": {
+                  "lt": { "description": "Upper bound (exclusive) of this colour band, in display units.", "type": "number" },
+                  "color": { "description": "Band colour (theme token or #rrggbb).", "type": "string" }
+                }
+              }
+            },
+            "size": {
+              "description": "Hero value font size: a role token (`S`, `M`, `L`, `XL`, `Fill`) which auto-fits, or a literal pixel number (legacy).",
+              "type": ["string", "number"]
+            },
+            "color": { "description": "Value/accent colour override: a theme token (`accent`, `warn`, `good`, `danger`, …) or a `#rrggbb` literal.", "type": "string" },
+            "colorRole": { "description": "Alias for `color` accepted by the renderer: a theme token mapped to the active palette.", "type": "string" },
+            "scale": { "description": "Value scaling mode: `fixed` (use the raw value) or `metric` (apply metric prefixing).", "type": "string", "enum": ["fixed", "metric"] },
+            "span": { "description": "Editor convenience for grid span as a `\"colsxrows\"` string (e.g. `\"2x1\"`); the authoritative span lives on the grid cell's colSpan/rowSpan.", "type": "string" },
             "sectors": {
               "description": "Optional bow-relative angular sectors drawn on a compass/windrose dial (e.g. close-hauled or no-go zones). Each `from`/`to` is in degrees and `color` is a theme token or #rrggbb.",
               "type": "array",
@@ -93,9 +120,12 @@
           }
         },
         "format": {
-          "description": "Optional value formatting (unit, precision, …). Free-form; the renderer-understood marine key `side` formats a signed angle as magnitude + side suffix (e.g. 42 -> \"42S\"). All optional and additive.",
+          "description": "Optional value formatting. Free-form and additive. Renderer-understood keys: `unit` (display unit the value is converted to and suffixed with), `decimals` (fixed decimal places; `precision` is accepted as an alias) and `side` (signed-angle port/starboard suffix). All optional.",
           "type": "object",
           "properties": {
+            "unit": { "description": "Display unit, e.g. `kn`, `m`, `°C`, `%`. The renderer converts the source value to this unit and appends it as a suffix.", "type": "string" },
+            "decimals": { "description": "Number of fixed decimal places to render.", "type": "integer", "minimum": 0 },
+            "precision": { "description": "Alias for `decimals` (fixed decimal places).", "type": "integer", "minimum": 0 },
             "side": { "description": "Format a signed angle with a port/starboard side indication. `true` appends a magnitude + P/S suffix (e.g. 42 -> \"42S\"); a string selects a side-rendering style (e.g. \"port-stbd\"). Optional and additive.", "type": ["boolean", "string"] }
           }
         },

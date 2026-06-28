@@ -219,6 +219,49 @@ function checkElement(id: string, el: Element, path: string, issues: Issue[]): v
 
   for (const [field, src] of Object.entries(bindings))
     checkSource(src, `${path}/bindings/${field}`, issues);
+
+  checkLimits(id, el, path, issues);
+}
+
+// Validate style.range / style.zones arithmetic. `style` is free-form, so these
+// only fire when the fields are present and well-shaped:
+//   - range must be [lo, hi] with hi > lo (an inverted/zero-width range produces
+//     a degenerate gauge/bar fill) — hard error.
+//   - each zone threshold (`lt`) should fall within the range — advisory warning
+//     (a zone outside the range is silently unreachable at runtime).
+function checkLimits(id: string, el: Element, path: string, issues: Issue[]): void {
+  const style = (el.style ?? {}) as Record<string, unknown>;
+  const range = style.range;
+  let lo: number | undefined;
+  let hi: number | undefined;
+  if (Array.isArray(range) && range.length === 2 && typeof range[0] === "number" && typeof range[1] === "number") {
+    lo = range[0];
+    hi = range[1];
+    if (hi <= lo) {
+      issues.push(
+        err(`${path}/style/range`, `element "${id}" range [${lo}, ${hi}] is invalid: max must be greater than min`),
+      );
+    }
+  }
+
+  const zones = style.zones;
+  if (Array.isArray(zones) && lo !== undefined && hi !== undefined && hi > lo) {
+    // Zones select the first band whose `lt` exceeds the value. A threshold at or
+    // below the range floor can never be selected (values start at `lo`), so it is
+    // dead. A threshold at/above `hi` is the idiomatic top-bucket sentinel (e.g.
+    // `lt: 101` for a 0..100 range) and is intentional — do not flag it.
+    zones.forEach((z, i) => {
+      const lt = (z as { lt?: unknown })?.lt;
+      if (typeof lt === "number" && lt <= lo!) {
+        issues.push(
+          warn(
+            `${path}/style/zones/${i}/lt`,
+            `element "${id}" zone threshold ${lt} is at or below the range floor ${lo}; it will never apply`,
+          ),
+        );
+      }
+    });
+  }
 }
 
 // Validate one screen's layout (or a class variant's layout): structural node

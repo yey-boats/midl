@@ -246,3 +246,42 @@ describe("source sanity (check #9)", () => {
     expect(semanticErrors(doc).some((i) => /source\.kind "computed" requires a non-empty expr/.test(i.message))).toBe(true);
   });
 });
+
+describe("limits arithmetic (range / zones, check D1)", () => {
+  function gaugeDoc(style: Record<string, unknown>): ConfigDoc {
+    return {
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: { g: { type: "gauge", style, bindings: { value: { kind: "signalk", path: "x" } } } },
+        layout: { element: "g" },
+      }],
+    };
+  }
+
+  test("inverted range [hi <= lo] is a hard error", () => {
+    const errs = semanticErrors(gaugeDoc({ range: [100, 0] }));
+    expect(errs.some((i) => /range \[100, 0\] is invalid/.test(i.message))).toBe(true);
+    expect(errs.some((i) => i.path === "/screens/0/elements/g/style/range")).toBe(true);
+  });
+
+  test("zero-width range [n, n] is a hard error", () => {
+    expect(semanticErrors(gaugeDoc({ range: [5, 5] })).length).toBeGreaterThan(0);
+  });
+
+  test("a valid range produces no error", () => {
+    expect(semanticErrors(gaugeDoc({ range: [0, 100] }))).toEqual([]);
+  });
+
+  test("a zone threshold at/below the range floor is an advisory warning, not an error", () => {
+    const doc = gaugeDoc({ range: [0, 100], zones: [{ lt: -5, color: "warn" }] });
+    const all = validateSemantics(doc);
+    expect(semanticErrors(doc)).toEqual([]);
+    expect(all.some((i) => i.severity === "warning" && /at or below the range floor 0/.test(i.message))).toBe(true);
+  });
+
+  test("the idiomatic top-bucket sentinel (lt above hi) produces no issue", () => {
+    // e.g. lt:101 for a 0..100 range = 'everything from the last band up to the top'.
+    expect(validateSemantics(gaugeDoc({ range: [0, 100], zones: [{ lt: 20, color: "bad" }, { lt: 50, color: "warn" }, { lt: 101, color: "good" }] }))).toEqual([]);
+  });
+});

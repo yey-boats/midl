@@ -1212,3 +1212,110 @@ test("range and zones round-trip through serializeMidl → parseMidl", () => {
   expect(zones![1]).toEqual({ lt: 50, color: "#e0a020" });
   expect(zones![2]).toEqual({ lt: 101, color: "good" });
 });
+
+// ── B1/B2/B3: action, secondary binding, dial marker authoring ────────────────
+
+const DIAL_MANIFEST: Manifest = {
+  midl: "1.0.0",
+  board: "test",
+  classes: [{ id: "square-480", maxTiles: 4, maxDepth: 3 }],
+  elements: [
+    { type: "windrose", bindings: ["value", "dir"], glyphs: ["triangle", "diamond"] },
+    { type: "button", bindings: ["value"] },
+  ],
+  sources: ["environment.wind.speedApparent", "environment.wind.angleApparent", "steering.autopilot.state"],
+};
+
+function makeButtonModel(): EditorModel {
+  return {
+    midl: "1.0.0", screenId: "screen", title: "T", titleLoc: "id",
+    elements: { eng: { id: "eng", type: "button", name: "AUTO" } },
+    layout: { rows: 1, cols: 1, cells: [{ element: "eng" }] },
+    variants: [],
+  };
+}
+
+function makeWindroseModel(): EditorModel {
+  return {
+    midl: "1.0.0", screenId: "screen", title: "T", titleLoc: "id",
+    elements: {
+      rose: {
+        id: "rose", type: "windrose", name: "WIND",
+        bindings: { value: { kind: "signalk", path: "environment.wind.speedApparent" } },
+      },
+    },
+    layout: { rows: 1, cols: 1, cells: [{ element: "rose" }] },
+    variants: [],
+  };
+}
+
+test("B1: adding an action then setting kind/target/value writes element.action", () => {
+  const model = makeButtonModel();
+  const provider = new MockDataProvider({});
+  const onChange = vi.fn();
+  const { getByTestId, rerender } = render(
+    <Inspector model={model} selectedCell={0} manifest={DIAL_MANIFEST} provider={provider} onChange={onChange} />,
+  );
+
+  fireEvent.click(getByTestId("action-add"));
+  let next: EditorModel = onChange.mock.calls.at(-1)![0];
+  expect((next.elements["eng"]!.action as { kind: string }).kind).toBe("put");
+
+  rerender(<Inspector model={next} selectedCell={0} manifest={DIAL_MANIFEST} provider={provider} onChange={onChange} />);
+  fireEvent.change(getByTestId("action-target"), { target: { value: "steering.autopilot.state" } });
+  next = onChange.mock.calls.at(-1)![0];
+  rerender(<Inspector model={next} selectedCell={0} manifest={DIAL_MANIFEST} provider={provider} onChange={onChange} />);
+  fireEvent.change(getByTestId("action-value"), { target: { value: "auto" } });
+  next = onChange.mock.calls.at(-1)![0];
+
+  const action = next.elements["eng"]!.action as { kind: string; target?: string; value?: unknown };
+  expect(action.target).toBe("steering.autopilot.state");
+  expect(action.value).toBe("auto");
+});
+
+test("B1: action round-trips through serialize→parse", () => {
+  const model = makeButtonModel();
+  model.elements["eng"]!.action = { kind: "put", target: "steering.autopilot.state", value: "auto" };
+  const reparsed = parseMidl(serializeMidl(model, "yaml"));
+  expect(reparsed.elements["eng"]!.action).toEqual({ kind: "put", target: "steering.autopilot.state", value: "auto" });
+});
+
+test("B2: dir binding picker is shown for windrose and writes bindings.dir", () => {
+  const model = makeWindroseModel();
+  const provider = new MockDataProvider({});
+  const onChange = vi.fn();
+  const { getByTestId } = render(
+    <Inspector model={model} selectedCell={0} manifest={DIAL_MANIFEST} provider={provider} onChange={onChange} />,
+  );
+
+  const dirSection = getByTestId("binding-dir");
+  expect(dirSection).toBeDefined();
+  const picker = dirSection.querySelector("[data-testid='path-picker']") as HTMLElement;
+  fireEvent.change(picker, { target: { value: "environment.wind.angleApparent" } });
+
+  const next: EditorModel = onChange.mock.calls.at(-1)![0];
+  const dir = next.elements["rose"]!.bindings?.["dir"];
+  expect((dir as { kind: string; path: string }).path).toBe("environment.wind.angleApparent");
+});
+
+test("B3: adding a marker and a sector writes markers[] and style.sectors[], and round-trips", () => {
+  const model = makeWindroseModel();
+  const provider = new MockDataProvider({});
+  const onChange = vi.fn();
+  const { getByTestId, rerender } = render(
+    <Inspector model={model} selectedCell={0} manifest={DIAL_MANIFEST} provider={provider} onChange={onChange} />,
+  );
+
+  fireEvent.click(getByTestId("marker-add"));
+  let next: EditorModel = onChange.mock.calls.at(-1)![0];
+  expect((next.elements["rose"]!.markers as unknown[]).length).toBe(1);
+
+  rerender(<Inspector model={next} selectedCell={0} manifest={DIAL_MANIFEST} provider={provider} onChange={onChange} />);
+  fireEvent.click(getByTestId("sector-add"));
+  next = onChange.mock.calls.at(-1)![0];
+  expect((next.elements["rose"]!.style?.sectors as unknown[]).length).toBe(1);
+
+  const reparsed = parseMidl(serializeMidl(next, "yaml"));
+  expect((reparsed.elements["rose"]!.markers as unknown[]).length).toBe(1);
+  expect((reparsed.elements["rose"]!.style?.sectors as unknown[]).length).toBe(1);
+});

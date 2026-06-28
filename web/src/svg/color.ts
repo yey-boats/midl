@@ -6,7 +6,13 @@
 // the theme; anything else falls back to the provided default.
 import type { Theme } from "../theme";
 
-const TOKENS: Array<keyof Theme> = [
+// Theme keys that map to a concrete colour string (excludes the `widgets`
+// sub-object, which is not itself a colour token).
+type ColorToken =
+  | "panel" | "panel2" | "edge" | "fg" | "dim" | "accent" | "accent2"
+  | "good" | "warn" | "bad" | "danger" | "port" | "starboard" | "tide" | "stale" | "bg";
+
+const TOKENS: ColorToken[] = [
   "panel", "panel2", "edge", "fg", "dim", "accent", "accent2",
   "good", "warn", "bad", "danger", "port", "starboard", "tide", "stale", "bg",
 ];
@@ -14,6 +20,6 @@ const TOKENS: Array<keyof Theme> = [
 export function resolveColor(token: string | undefined, th: Theme, fallback: string): string {
   if (!token) return fallback;
   if (token.startsWith("#")) return token;
-  if ((TOKENS as string[]).includes(token)) return th[token as keyof Theme];
+  if ((TOKENS as string[]).includes(token)) return th[token as ColorToken];
   return fallback;
 }

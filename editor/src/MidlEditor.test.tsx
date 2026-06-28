@@ -388,6 +388,77 @@ test("top-push button triggers store.save", async () => {
   });
 });
 
+test("save-state label shows 'saved' after load and 'unsaved changes' after an edit", async () => {
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+
+  // After loading a clean model, the label is "saved" (no fake "autosaved").
+  await waitFor(() => {
+    expect(getByTestId("save-state").textContent).toMatch(/saved/i);
+    expect(getByTestId("save-state").textContent).not.toMatch(/autosaved/i);
+  }, { timeout: 3000 });
+
+  // Edit the name → model changes → dirty → "unsaved changes".
+  await act(async () => {
+    fireEvent.change(getByTestId("name-input"), { target: { value: "Renamed SOG" } });
+  });
+  await waitFor(() => {
+    expect(getByTestId("save-state").textContent).toMatch(/unsaved/i);
+  });
+
+  // Push → save → baseline reset → back to "saved".
+  await act(async () => {
+    fireEvent.click(getByTestId("save-button"));
+  });
+  await waitFor(() => {
+    expect(getByTestId("save-state").textContent).toMatch(/^saved$/i);
+  });
+});
+
+test("F1: a preset/flow layout shows the source-only layout notice", async () => {
+  const FLOW_DOC = `midl: 1.0.0
+screens:
+  - id: dash
+    elements:
+      sog:
+        type: single-value
+        bindings:
+          value: { kind: signalk, path: navigation.speedOverGround }
+      hdg:
+        type: single-value
+        bindings:
+          value: { kind: signalk, path: navigation.headingTrue }
+    layout: { flow: row, children: [{ element: sog }, { element: hdg }] }
+`;
+  const store = makeFakeStore();
+  store.get = async (_id: string) => ({
+    ref: { id: _id }, doc: FLOW_DOC, metadata: { revision: "rev-1", targetClass: "square-480" },
+  });
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId } = render(
+    <MidlEditor store={store} provider={provider} manifest={manifestSource} initialId="dashboard-1" targetClass="square-480" />,
+  );
+
+  await waitFor(() => {
+    const notice = getByTestId("layout-notice");
+    expect(notice.textContent).toMatch(/preset\/flow layout/i);
+    expect(getByTestId("layout-notice-source")).toBeTruthy();
+  }, { timeout: 3000 });
+});
+
 // ── Zoom controls ─────────────────────────────────────────────────────────────
 
 test("zoom-in increases scale beyond fit, zoom-fit resets to Fit", async () => {

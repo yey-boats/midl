@@ -8,9 +8,7 @@
 import type { Rect } from "@yey-boats/midl";
 import type { Theme } from "../theme";
 import type { ElementModel } from "../model";
-import {
-  FONT_FAMILY, GAUGE_TRACK, GAUGE_CYAN, GAUGE_TICK, AP_PILL_BG, BTN_INK, BAR_TRACK,
-} from "../theme";
+import { FONT_FAMILY } from "../theme";
 import { polar, arc, esc, f } from "./geometry";
 import { resolveColor } from "./color";
 
@@ -184,7 +182,7 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
   out.push(txt(cx, by - 14, hero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   // track
-  out.push(`<rect x="${f(bx)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" rx="3" fill="${BAR_TRACK}" stroke="${th.edge}" stroke-width="1"/>`);
+  out.push(`<rect x="${f(bx)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" rx="3" fill="${th.widgets.barTrack}" stroke="${th.edge}" stroke-width="1"/>`);
 
   if (opts.center != null) {
     // centered deviation needle bar (e.g. XTE): fraction 0..1 maps to -1..1.
@@ -209,11 +207,11 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
   const sw = 8;
 
   // track
-  out.push(`<path d="${arc(cx, cy, -135, 135, r)}" fill="none" stroke="${GAUGE_TRACK}" stroke-width="${sw}" stroke-linecap="round"/>`);
+  out.push(`<path d="${arc(cx, cy, -135, 135, r)}" fill="none" stroke="${th.widgets.gaugeTrack}" stroke-width="${sw}" stroke-linecap="round"/>`);
 
   // fill — use zone colour when available so the arc reflects threshold state
   const frac = Math.max(0, Math.min(1, m.fraction ?? 0));
-  const arcColor = m.zoneColor ? resolveColor(m.zoneColor, th, GAUGE_CYAN) : GAUGE_CYAN;
+  const arcColor = m.zoneColor ? resolveColor(m.zoneColor, th, th.widgets.gaugeFill) : th.widgets.gaugeFill;
   if (frac > 0) {
     out.push(`<path d="${arc(cx, cy, -135, -135 + frac * 270, r)}" fill="none" stroke="${arcColor}" stroke-width="${sw}" stroke-linecap="round"/>`);
   }
@@ -223,7 +221,7 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
     const a = -135 + (i / 4) * 270;
     const [x1, y1] = polar(cx, cy, a, r * 0.9);
     const [x2, y2] = polar(cx, cy, a, r * 0.75);
-    out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${GAUGE_TICK}" stroke-width="1"/>`);
+    out.push(`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${th.widgets.gaugeTick}" stroke-width="1"/>`);
   }
 
   // centre percent — colour follows zone (same as arc) so text and arc agree.
@@ -253,7 +251,7 @@ export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Them
     // filled area
     const area = `${f(pts[0][0])},${f(bottom)} ${poly} ${f(pts[pts.length - 1][0])},${f(bottom)}`;
     out.push(`<polygon points="${area}" fill="rgba(87,199,216,0.06)"/>`);
-    out.push(`<polyline points="${poly}" fill="none" stroke="${GAUGE_CYAN}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
+    out.push(`<polyline points="${poly}" fill="none" stroke="${th.widgets.gaugeFill}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
   }
   // numeric hero overlaid (accent, optionally overridden by colorRole)
   const trendValue = m.text + (m.side ?? "");
@@ -278,7 +276,7 @@ export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileO
   const engagedColor = resolveColor(opts.colorRole, th, th.good);
   // E2: engaged → filled AP_PILL_BG + bright engagedColor border + bright label.
   //     standby  → transparent fill (panel) + dim border + dim label text.
-  const pillFill = engaged ? AP_PILL_BG : "none";
+  const pillFill = engaged ? th.widgets.apPillBg : "none";
   const pillStroke = engaged ? engagedColor : th.dim;
   const labelColor = engaged ? engagedColor : th.dim;
   // For string size roles, derive font size from cell geometry; clamp to pill height.
@@ -309,7 +307,7 @@ export function buttonSvg(rect: Rect, label: string, th: Theme, opts: TileOpts =
   const fillColor = resolveColor(opts.colorRole, th, th.accent);
   const out: string[] = [];
   out.push(`<rect x="${f(x + 10)}" y="${f(y + 10)}" width="${f(bw)}" height="${f(bh)}" rx="20" fill="${fillColor}"/>`);
-  out.push(txt(cx, cy + fs * 0.34, fs, BTN_INK, label.toUpperCase(), 700, "middle", ` letter-spacing="0.04em"`));
+  out.push(txt(cx, cy + fs * 0.34, fs, th.widgets.btnInk, label.toUpperCase(), 700, "middle", ` letter-spacing="0.04em"`));
   return `<g>${out.join("")}</g>`;
 }
 
