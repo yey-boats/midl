@@ -794,6 +794,27 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
                   </div>
                 );
               })()}
+              {(() => {
+                // Placement hint: the select-a-cell-then-pick-an-element flow is not
+                // self-evident, so spell it out and reflect the current step. Only
+                // for grid layouts (the non-grid case is covered by layout-notice).
+                const g = model.layout as { cells?: Array<{ element?: string }> };
+                if (!("rows" in model.layout && "cols" in model.layout && "cells" in model.layout)) return null;
+                let msg: string;
+                if (selectedCell === null) {
+                  msg = "Select a cell on the canvas, then click an element in the palette to place it.";
+                } else if (!g.cells?.[selectedCell]?.element) {
+                  msg = `Cell ${selectedCell + 1} selected — click an element in the palette to place it here.`;
+                } else {
+                  msg = `Cell ${selectedCell + 1} selected — edit it in the Inspector (binding, limits, appearance).`;
+                }
+                return (
+                  <div data-testid="placement-hint" style={{ padding: "6px 12px", borderBottom: "1px solid var(--line, #1d2b3a)", fontSize: "11px", color: "var(--ink-dim, #8fa7bd)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ opacity: 0.7 }}>{selectedCell === null ? "①" : "②"}</span>
+                    <span>{msg}</span>
+                  </div>
+                );
+              })()}
               <div className="canvas-scroll">
                 <div
                   className="device-frame"

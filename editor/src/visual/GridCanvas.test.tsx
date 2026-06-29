@@ -111,15 +111,33 @@ test("selected cell has aria-selected=true; others do not", () => {
   expect(getByTestId("cell-2").getAttribute("aria-selected")).toBe("false");
 });
 
-test("cell with assigned element shows element id text", () => {
+test("filled cell shows its element label; empty cell shows the 'Empty' slot affordance", () => {
   const model = makeGridModel(1, 2, ["sog", undefined]);
 
   const { getByTestId } = render(
     <GridCanvas model={model} viewport={VIEWPORT} selected={null} onSelect={vi.fn()} />,
   );
 
+  // Filled cell shows a persistent name chip (label = element name||type||id).
   expect(getByTestId("cell-0").textContent).toContain("sog");
-  expect(getByTestId("cell-1").textContent).toBe("");
+  expect(getByTestId("cell-label-0").textContent).toBe("sog");
+  // Empty cell shows a clickable slot affordance ("+ Empty"), not blank space.
+  expect(getByTestId("cell-empty-1")).toBeTruthy();
+  expect(getByTestId("cell-1").textContent).toContain("Empty");
+});
+
+test("filled cell prefers the element's friendly name over its id", () => {
+  const model: EditorModel = {
+    midl: "1.0.0", screenId: "s", title: "T", titleLoc: "id",
+    elements: { "abc-uuid": { id: "abc-uuid", type: "single-value", name: "Speed" } },
+    layout: { rows: 1, cols: 1, cells: [{ element: "abc-uuid" }] },
+    variants: [],
+  };
+  const { getByTestId } = render(
+    <GridCanvas model={model} viewport={VIEWPORT} selected={0} onSelect={vi.fn()} />,
+  );
+  expect(getByTestId("cell-label-0").textContent).toBe("Speed");
+  expect(getByTestId("cell-0").textContent).not.toContain("abc-uuid");
 });
 
 test("flow layout model renders no editable cells and tags its layout kind", () => {

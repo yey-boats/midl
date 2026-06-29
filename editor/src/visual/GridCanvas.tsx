@@ -12,6 +12,7 @@ export interface GridCanvasProps {
 }
 
 export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: GridCanvasProps): React.JSX.Element {
+  const [hovered, setHovered] = React.useState<number | null>(null);
   const layout = model.layout;
 
   // Guard: only render the grid overlay when layout is a grid. Flow/preset
@@ -44,12 +45,30 @@ export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: G
         const widthPct = cellW * colSpan;
         const heightPct = cellH * rowSpan;
 
+        const isSelected = i === selected;
+        const isHovered = i === hovered;
+        const isEmpty = !cell.element;
+        // Friendly label: prefer the element's name, fall back to its type, then
+        // its id — never show a raw UUID as the primary text.
+        const el = cell.element ? model.elements[cell.element] : undefined;
+        const label = el?.name || el?.type || cell.element || "";
+
+        // Border: selected = solid accent; hovered = brighter dashed; otherwise a
+        // visible dashed slot outline (empty slots must read as clickable).
+        const border = isSelected
+          ? "2px solid var(--accent, #57c7d8)"
+          : isHovered
+            ? "1px dashed var(--accent, #57c7d8)"
+            : "1px dashed rgba(93,120,146,0.55)";
+
         return (
           <div
             key={i}
             data-testid={`cell-${i}`}
-            aria-selected={i === selected}
+            aria-selected={isSelected}
             onClick={() => onSelect(i)}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
             style={{
               position: "absolute",
               left: `${leftPct}%`,
@@ -57,12 +76,65 @@ export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: G
               width: `${widthPct}%`,
               height: `${heightPct}%`,
               boxSizing: "border-box",
-              border: i === selected ? "2px solid var(--accent, #57c7d8)" : "1px dashed rgba(93,120,146,0.3)",
-              backgroundColor: i === selected ? "rgba(87,199,216,0.04)" : "transparent",
+              border,
+              backgroundColor: isSelected
+                ? "rgba(87,199,216,0.08)"
+                : isHovered
+                  ? "rgba(87,199,216,0.04)"
+                  : "transparent",
               cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
             }}
           >
-            {cell.element ?? ""}
+            {isEmpty ? (
+              // Empty slot affordance: the SVG preview shows nothing here, so make
+              // the slot obviously clickable. Highlights when selected/hovered.
+              <div
+                data-testid={`cell-empty-${i}`}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "2px",
+                  color: isSelected || isHovered ? "var(--accent, #57c7d8)" : "rgba(93,120,146,0.7)",
+                  pointerEvents: "none",
+                  fontSize: "11px",
+                  lineHeight: 1.1,
+                  textAlign: "center",
+                }}
+              >
+                <span style={{ fontSize: "18px", fontWeight: 300 }}>+</span>
+                <span>{isSelected ? "Pick an element →" : "Empty"}</span>
+              </div>
+            ) : (
+              // Filled cell: the widget renders in the SVG preview underneath; a
+              // small top-left name chip identifies it without obscuring it. The
+              // chip is muted by default and brightens on select/hover.
+              <span
+                data-testid={`cell-label-${i}`}
+                style={{
+                  position: "absolute",
+                  top: "2px",
+                  left: "3px",
+                  maxWidth: "calc(100% - 6px)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  padding: "1px 4px",
+                  borderRadius: "3px",
+                  background: isSelected || isHovered ? "var(--accent, #57c7d8)" : "rgba(16,32,47,0.6)",
+                  color: isSelected || isHovered ? "var(--bg, #0a1018)" : "var(--ink-dim, #8fa7bd)",
+                  pointerEvents: "none",
+                }}
+              >
+                {label}
+              </span>
+            )}
           </div>
         );
       })}

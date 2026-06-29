@@ -132,6 +132,9 @@ function getMeta(type: string): TypeMeta {
 export function Palette({ manifest, onAdd }: PaletteProps): React.JSX.Element {
   return (
     <div data-component="palette" style={{ display: "flex", flexDirection: "column", gap: "3px", padding: "8px", flex: 1, overflowY: "auto" }}>
+      <div style={{ fontSize: "10px", color: "var(--ink-faint, #5b7286)", lineHeight: 1.3, padding: "0 2px 6px" }}>
+        Select a cell on the canvas, then click an element to place it there.
+      </div>
       {manifest.elements.map((el) => {
         const meta = getMeta(el.type);
         return (
