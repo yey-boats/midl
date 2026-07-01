@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    "types": [],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@yey-boats/midl": ["../ts/src/index.ts"],
+      "@yey-boats/midl-web": ["../web/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.lib.config.ts", "vitest.config.ts"]
+}
