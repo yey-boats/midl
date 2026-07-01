@@ -98,17 +98,62 @@ function checkNode(
   }
 
   if ("cells" in n) {
-    const expected = n.rows * n.cols;
-    if (n.cells.length !== expected) {
-      issues.push(
-        err(
-          `${path}/cells`,
-          `grid cells length must equal rows * cols (${n.rows} * ${n.cols} = ${expected}); got ${n.cells.length} cells`,
-        ),
-      );
+    const total = n.rows * n.cols;
+    // When any cell carries colSpan/rowSpan, fewer cells can fill the full
+    // grid. Compute the effective slot count from declared spans (clamped)
+    // to check whether the cells cover the grid without overflow.
+    const hasSpans = (n.cells as unknown[]).some(
+      (c) =>
+        typeof c === "object" && c !== null &&
+        (("colSpan" in (c as object) && (c as Record<string, unknown>)["colSpan"] !== 1) ||
+         ("rowSpan" in (c as object) && (c as Record<string, unknown>)["rowSpan"] !== 1)),
+    );
+    if (hasSpans) {
+      // With spans: the cells must not overflow the grid (they may under-fill
+      // if the user left trailing empty slots, but overflow is always an error).
+      const occupied = new Array<boolean>(total).fill(false);
+      let slot = 0;
+      let overflow = false;
+      for (let ci = 0; ci < n.cells.length; ci++) {
+        while (slot < total && occupied[slot]) slot++;
+        if (slot >= total) { overflow = true; break; }
+        const r = Math.floor(slot / n.cols);
+        const c = slot % n.cols;
+        const raw = n.cells[ci] as Record<string, unknown>;
+        const cs = Math.min(typeof raw["colSpan"] === "number" ? (raw["colSpan"] as number) : 1, n.cols - c);
+        const rs = Math.min(typeof raw["rowSpan"] === "number" ? (raw["rowSpan"] as number) : 1, n.rows - r);
+        for (let dr = 0; dr < rs; dr++)
+          for (let dc = 0; dc < cs; dc++)
+            occupied[(r + dr) * n.cols + (c + dc)] = true;
+      }
+      if (overflow) {
+        issues.push(
+          err(
+            `${path}/cells`,
+            `grid has more cells than can fit in ${n.rows} * ${n.cols} = ${total} slots after accounting for spans`,
+          ),
+        );
+      }
+    } else {
+      // No spans: classic row-major check — cells.length must equal rows*cols.
+      if (n.cells.length !== total) {
+        issues.push(
+          err(
+            `${path}/cells`,
+            `grid cells length must equal rows * cols (${n.rows} * ${n.cols} = ${total}); got ${n.cells.length} cells`,
+          ),
+        );
+      }
     }
     n.cells.forEach((c, i) => checkNode(c, `${path}/cells/${i}`, refs, issues));
     return;
+  }
+
+  // Spacer cell: an empty object (or one with only colSpan/rowSpan) is a valid
+  // unassigned grid slot. It carries no element reference, emits no issues.
+  const keys = Object.keys(n as object);
+  if (keys.every(k => k === "colSpan" || k === "rowSpan")) {
+    return; // valid spacer
   }
 
   issues.push(err(path, "layout node is not a recognized kind (element, flow/children, rows/cols/cells, or preset)"));
@@ -174,6 +219,49 @@ function checkElement(id: string, el: Element, path: string, issues: Issue[]): v
 
   for (const [field, src] of Object.entries(bindings))
     checkSource(src, `${path}/bindings/${field}`, issues);
+
+  checkLimits(id, el, path, issues);
+}
+
+// Validate style.range / style.zones arithmetic. `style` is free-form, so these
+// only fire when the fields are present and well-shaped:
+//   - range must be [lo, hi] with hi > lo (an inverted/zero-width range produces
+//     a degenerate gauge/bar fill) — hard error.
+//   - each zone threshold (`lt`) should fall within the range — advisory warning
+//     (a zone outside the range is silently unreachable at runtime).
+function checkLimits(id: string, el: Element, path: string, issues: Issue[]): void {
+  const style = (el.style ?? {}) as Record<string, unknown>;
+  const range = style.range;
+  let lo: number | undefined;
+  let hi: number | undefined;
+  if (Array.isArray(range) && range.length === 2 && typeof range[0] === "number" && typeof range[1] === "number") {
+    lo = range[0];
+    hi = range[1];
+    if (hi <= lo) {
+      issues.push(
+        err(`${path}/style/range`, `element "${id}" range [${lo}, ${hi}] is invalid: max must be greater than min`),
+      );
+    }
+  }
+
+  const zones = style.zones;
+  if (Array.isArray(zones) && lo !== undefined && hi !== undefined && hi > lo) {
+    // Zones select the first band whose `lt` exceeds the value. A threshold at or
+    // below the range floor can never be selected (values start at `lo`), so it is
+    // dead. A threshold at/above `hi` is the idiomatic top-bucket sentinel (e.g.
+    // `lt: 101` for a 0..100 range) and is intentional — do not flag it.
+    zones.forEach((z, i) => {
+      const lt = (z as { lt?: unknown })?.lt;
+      if (typeof lt === "number" && lt <= lo!) {
+        issues.push(
+          warn(
+            `${path}/style/zones/${i}/lt`,
+            `element "${id}" zone threshold ${lt} is at or below the range floor ${lo}; it will never apply`,
+          ),
+        );
+      }
+    });
+  }
 }
 
 // Validate one screen's layout (or a class variant's layout): structural node

@@ -14,12 +14,25 @@ screens:
       soc:
         type: bar
         name: SOC
+        format: { unit: "%", decimals: 0 }
+        style:
+          range: [0, 100]
+          zones:
+            - { lt: 20, color: bad }
+            - { lt: 50, color: warn }
+            - { lt: 101, color: good }
         bindings:
           value: { kind: signalk, path: electrical.batteries.house.capacity.stateOfCharge }
       volts:
         type: gauge
         name: VOLTS
-        format: { unit: V }
+        format: { unit: V, decimals: 1 }
+        style:
+          range: [10, 15]
+          zones:
+            - { lt: 11.5, color: bad }
+            - { lt: 12.2, color: warn }
+            - { lt: 15, color: good }
         bindings:
           value: { kind: signalk, path: electrical.batteries.house.voltage }
       solar:

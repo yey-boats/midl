@@ -37,11 +37,31 @@ export function solveLayout(node: Node, rect: Rect): Placement[] {
     const cw = rect.w / node.cols;
     const ch = rect.h / node.rows;
     const out: Placement[] = [];
-    node.cells.forEach((child, i) => {
-      const r = Math.floor(i / node.cols);
-      const c = i % node.cols;
-      out.push(...solveLayout(child, { x: rect.x + c * cw, y: rect.y + r * ch, w: cw, h: ch }));
-    });
+    // Track occupied slots in the rows×cols grid. A cell with colSpan/rowSpan
+    // marks multiple slots as occupied; subsequent cells skip occupied slots.
+    // When all spans are 1 (or absent) this degenerates to the original
+    // row-major index and produces byte-identical output.
+    const occupied = new Array<boolean>(node.rows * node.cols).fill(false);
+    let slot = 0; // next candidate slot
+    for (const child of node.cells) {
+      // Advance past any already-occupied slots.
+      while (slot < occupied.length && occupied[slot]) slot++;
+      if (slot >= occupied.length) break;
+      const r = Math.floor(slot / node.cols);
+      const c = slot % node.cols;
+      // Read optional span from cell; clamp to remaining grid space.
+      const raw = child as Record<string, unknown>;
+      const cs = Math.min(typeof raw["colSpan"] === "number" ? raw["colSpan"] : 1, node.cols - c);
+      const rs = Math.min(typeof raw["rowSpan"] === "number" ? raw["rowSpan"] : 1, node.rows - r);
+      // Mark all covered slots as occupied.
+      for (let dr = 0; dr < rs; dr++) {
+        for (let dc = 0; dc < cs; dc++) {
+          occupied[(r + dr) * node.cols + (c + dc)] = true;
+        }
+      }
+      const cellRect: Rect = { x: rect.x + c * cw, y: rect.y + r * ch, w: cw * cs, h: ch * rs };
+      out.push(...solveLayout(child, cellRect));
+    }
     return out;
   }
 
