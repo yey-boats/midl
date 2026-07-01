@@ -1,0 +1,933 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+   Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md. */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Design Tokens ──────────────────────────────────────────────────────── */
+[data-component="midl-editor"] {
+  --bg: #0a121c;
+  --surface: #0e1825;
+  --surface2: #0c1521;
+  --elev: #12202f;
+  --line: #1d2b3a;
+  --line2: #24364a;
+  --ink: #cbd6e2;
+  --ink-dim: #8aa0b4;
+  --ink-faint: #5b7286;
+  --ink-bright: #eef4fb;
+  --accent: #57c7d8;
+  --online: oklch(0.72 0.15 155);
+  --drift: oklch(0.80 0.13 75);
+  --danger: oklch(0.64 0.19 25);
+
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Top Bar ─────────────────────────────────────────────────────────────── */
+[data-component="midl-editor"] [data-testid="editor-header"] {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--line);
+  padding: 0 12px;
+  gap: 8px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+[data-component="midl-editor"] .editor-logo-mark {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  background: rgba(87,199,216,0.10);
+  border: 1px solid rgba(87,199,216,0.22);
+  border-radius: 4px;
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+
+[data-component="midl-editor"] .editor-logo-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+[data-component="midl-editor"] .topbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--line2);
+  flex-shrink: 0;
+}
+
+[data-component="midl-editor"] .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+[data-component="midl-editor"] .btn-ghost:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(87,199,216,0.08);
+}
+[data-component="midl-editor"] .btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+[data-component="midl-editor"] .btn-ghost:disabled:hover {
+  color: var(--ink);
+  border-color: var(--line2);
+  background: var(--elev);
+}
+
+/* ── Destructive button (Remove element / Clear widgets) ─────────────────── */
+[data-component="midl-editor"] .btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #e06a4f;
+  background: var(--elev);
+  border: 1px solid rgba(224,106,79,0.45);
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+[data-component="midl-editor"] .btn-danger:hover {
+  color: #f0876d;
+  border-color: #e06a4f;
+  background: rgba(224,106,79,0.12);
+}
+[data-component="midl-editor"] .btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+[data-component="midl-editor"] .btn-danger:disabled:hover {
+  color: #e06a4f;
+  border-color: rgba(224,106,79,0.45);
+  background: var(--elev);
+}
+
+[data-component="midl-editor"] .btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #0a121c;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+[data-component="midl-editor"] .btn-primary:hover {
+  opacity: 0.88;
+  box-shadow: 0 0 12px rgba(87,199,216,0.30);
+}
+[data-component="midl-editor"] .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+[data-component="midl-editor"] .topbar-select {
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+}
+[data-component="midl-editor"] .topbar-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(87,199,216,0.20);
+}
+
+/* ── Dark header dashboard-name input (#16) ──────────────────────────────── */
+[data-component="midl-editor"] .topbar-name {
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 5px;
+  padding: 4px 9px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  width: 160px;
+  max-width: 220px;
+  min-width: 100px;
+}
+[data-component="midl-editor"] .topbar-name::placeholder {
+  color: var(--ink-faint);
+}
+[data-component="midl-editor"] .topbar-name:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(87,199,216,0.20);
+  color: var(--ink-bright);
+}
+
+/* ── Inspector element Type dropdown — styled like .topbar-select (#9) ────── */
+[data-component="midl-editor"] .inspector-type-select {
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+}
+[data-component="midl-editor"] .inspector-type-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(87,199,216,0.20);
+}
+
+/* ── Mode tabs ────────────────────────────────────────────────────────────── */
+[data-component="midl-editor"] .mode-tabs {
+  display: flex;
+  align-items: center;
+  margin: 0 auto;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 0;
+}
+[data-component="midl-editor"] .mode-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+[data-component="midl-editor"] .mode-tab.active {
+  color: var(--ink-bright);
+  background: var(--surface);
+}
+
+/* ── Body row (fills remaining height between header and status bar) ─────────── */
+[data-component="midl-editor"] [data-testid="mode-body"] {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Visual mode body — 3-column grid ────────────────────────────────────────── */
+[data-component="midl-editor"] [data-testid="visual-mode-body"] {
+  display: grid;
+  grid-template-columns: 210px 1fr 220px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Left rail ─────────────────────────────────────────────────────────────── */
+/* FIX 1: Pin the left rail to a fixed width so the center canvas does not
+   reflow when switching tabs (Elements/Data/Layout). The visual-mode-body
+   grid already sets 210px for the first column; adding an explicit width +
+   min/max-width on the rail element itself prevents flex/grid from stretching
+   it when a wider child (e.g. DataTree with long paths) is rendered. */
+[data-component="midl-editor"] [data-section="left-rail"] {
+  width: 210px;
+  min-width: 210px;
+  max-width: 210px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+[data-component="midl-editor"] [data-section="rail-tabs"] {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+[data-component="midl-editor"] [data-section="rail-tabs"] button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  cursor: pointer;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  letter-spacing: 0.02em;
+}
+[data-component="midl-editor"] [data-section="rail-tabs"] button[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Palette ───────────────────────────────────────────────────────────────── */
+[data-component="palette"] {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 0;
+}
+[data-component="palette"] button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 9px;
+  height: 36px;
+  background: var(--elev);
+  border: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+[data-component="palette"] button:hover {
+  background: rgba(87,199,216,0.06);
+  border-left-color: var(--ink-faint);
+  border-color: var(--line2);
+}
+
+/* ── Center canvas column ─────────────────────────────────────────────────────── */
+[data-component="midl-editor"] .canvas-area {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+[data-component="midl-editor"] .canvas-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(93,120,146,0.18) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Canvas scroll container (fills canvas-area above zoom strip) ─────────────── */
+[data-component="midl-editor"] .canvas-scroll {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  z-index: 1;
+}
+
+/* ── Device frame — sized at native resolution, scaled via transform ────────────── */
+[data-component="midl-editor"] .device-frame {
+  background: var(--elev);
+  border: 2px solid var(--line2);
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.5),
+    0 8px 32px rgba(0,0,0,0.55);
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  /* width/height set inline from React; no aspect-ratio or min() constraints */
+}
+/* ── Day-theme framing (#14) — bezel so a light preview reads as a screen on a
+   dark workbench, rather than the whole app appearing un-themed. Visual only:
+   an inner inset shadow + thin dark inner ring around the preview host. ───── */
+[data-component="midl-editor"] .device-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 3;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.45),
+    inset 0 1px 3px rgba(0,0,0,0.35);
+}
+[data-component="midl-editor"] .device-frame > [data-testid="preview-host"] {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 2;
+}
+[data-component="midl-editor"] .device-frame > [data-testid="preview-host"] svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── Preview host — now lives inside .device-frame ──────────────────────────── */
+[data-component="midl-editor"] [data-testid="preview-host"] {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Zoom strip ────────────────────────────────────────────────────────────── */
+[data-component="midl-editor"] .zoom-strip {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  padding: 3px 4px;
+  flex-shrink: 0;
+  margin: 6px 0 8px;
+}
+[data-component="midl-editor"] .zoom-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+[data-component="midl-editor"] .zoom-btn:hover {
+  color: var(--accent);
+  background: rgba(87,199,216,0.10);
+  border-color: rgba(87,199,216,0.30);
+}
+[data-component="midl-editor"] .zoom-btn:active {
+  background: rgba(87,199,216,0.18);
+}
+[data-component="midl-editor"] .zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+[data-component="midl-editor"] .zoom-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  min-width: 36px;
+  text-align: center;
+}
+[data-component="midl-editor"] .zoom-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--line2);
+  margin: 0 2px;
+}
+[data-component="midl-editor"] .zoom-fit {
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+}
+[data-component="midl-editor"] .zoom-fit {
+  border: 1px solid transparent;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+[data-component="midl-editor"] .zoom-fit:hover {
+  color: var(--accent);
+  background: rgba(87,199,216,0.10);
+  border-color: rgba(87,199,216,0.30);
+}
+[data-component="midl-editor"] .zoom-fit:active {
+  background: rgba(87,199,216,0.18);
+}
+
+/* ── Right rail wrapper (inspector + data flyout) ────────────────────────────── */
+/* FIX 2: The right rail wrapper contains both the inspector and the data flyout.
+   It occupies the fixed 220px right column from the visual-mode-body grid.
+   The flyout overlays the inspector from the right. */
+[data-component="midl-editor"] .right-rail-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Data flyout — right-anchored, slides over the inspector ──────────────── */
+[data-component="midl-editor"] .data-flyout {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--surface);
+  border-left: 1px solid var(--line2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-component="midl-editor"] .data-flyout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--surface2);
+}
+
+[data-component="midl-editor"] .data-flyout-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-bright);
+}
+
+[data-component="midl-editor"] .data-flyout-close {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 50%;
+  color: var(--ink-faint);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ── Inspector ─────────────────────────────────────────────────────────────── */
+[data-component="inspector"] {
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+[data-component="inspector"] input,
+[data-component="inspector"] select {
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ── Bind call-to-action (#11) — primary next step for unbound elements ───── */
+[data-component="midl-editor"] .bind-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(87,199,216,0.10);
+  border: 1px solid rgba(87,199,216,0.40);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+[data-component="midl-editor"] .bind-cta:hover {
+  background: rgba(87,199,216,0.18);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(87,199,216,0.20);
+}
+
+/* ── Empty-cell affordance + selection ring (#10) ─────────────────────────── */
+/* Visual-only: positioning of overlay cells stays driven by inline left/top/
+   width/height. These rules only paint border / background / centered text. */
+[data-component="midl-editor"] .grid-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px dashed var(--line2);
+  border-radius: 6px;
+  background: rgba(87,199,216,0.02);
+  color: var(--ink-dim);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+[data-component="midl-editor"] .grid-empty:hover {
+  border-color: var(--accent);
+  background: rgba(87,199,216,0.08);
+  color: var(--ink-bright);
+}
+/* Selection ring — applies to empty or filled grid cells */
+[data-component="midl-editor"] .is-selected {
+  box-shadow: 0 0 0 2px var(--accent), 0 0 10px rgba(87,199,216,0.25);
+  border-color: var(--accent);
+  z-index: 5;
+}
+
+/* ── Unplaced widgets tray (#1) — Layout tab ─────────────────────────────── */
+[data-component="midl-editor"] .unplaced-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+  margin: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+}
+[data-component="midl-editor"] .unplaced-tray__label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+[data-component="midl-editor"] .unplaced-tray__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+[data-component="midl-editor"] .unplaced-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 9px;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+[data-component="midl-editor"] .unplaced-chip:hover {
+  border-color: var(--accent);
+  background: rgba(87,199,216,0.08);
+  color: var(--ink-bright);
+}
+[data-component="midl-editor"] .unplaced-chip__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+[data-component="midl-editor"] .unplaced-chip__x:hover {
+  background: rgba(224,106,79,0.18);
+  color: #e06a4f;
+}
+
+/* ── Status bar ────────────────────────────────────────────────────────────── */
+[data-testid="status-bar"] {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  background: var(--surface2, #0c1521);
+  border-top: 1px solid var(--line, #1d2b3a);
+  padding: 0 12px;
+  gap: 8px;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+[data-testid="status-bar"] .status-valid-indicator {
+  color: var(--online);
+  font-weight: 500;
+}
+[data-testid="status-bar"] .status-error-indicator {
+  color: var(--danger);
+  font-weight: 500;
+}
+[data-testid="status-bar"] .status-spacer { flex: 1; }
+[data-testid="status-bar"] .status-autosave {
+  color: var(--ink-faint);
+  font-size: 10.5px;
+}
+
+/* ── Mobile tabbar and sheet — hidden on desktop ──────────────────────────── */
+[data-component="midl-editor"] .mobile-tabbar {
+  display: none; /* shown only in media query */
+}
+[data-component="midl-editor"] .mobile-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 70%;
+  background: var(--surface);
+  border-top: 1.5px solid var(--line2);
+  border-radius: 16px 16px 0 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+[data-component="midl-editor"] .sheet-handle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0 6px;
+  flex-shrink: 0;
+}
+[data-component="midl-editor"] .sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--line2);
+  border-radius: 2px;
+}
+[data-component="midl-editor"] .sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+}
+[data-component="midl-editor"] .sheet-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-bright);
+}
+[data-component="midl-editor"] .sheet-close {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 50%;
+  color: var(--ink-faint);
+  font-size: 16px;
+  cursor: pointer;
+}
+[data-component="midl-editor"] .sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Topbar overflow menu — mobile only ───────────────────────────────────── */
+[data-component="midl-editor"] .topbar-overflow {
+  display: none; /* shown only in media query */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3.5px;
+  width: 32px;
+  height: 32px;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+[data-component="midl-editor"] .topbar-overflow span {
+  display: block;
+  width: 14px;
+  height: 1.5px;
+  background: var(--ink-dim);
+  border-radius: 1px;
+}
+[data-component="midl-editor"] .overflow-menu {
+  position: absolute;
+  top: 44px;
+  right: 12px;
+  width: 156px;
+  background: var(--elev);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 50;
+  overflow: hidden;
+}
+[data-component="midl-editor"] .overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+[data-component="midl-editor"] .overflow-item:last-child { border-bottom: none; }
+[data-component="midl-editor"] .overflow-item.primary { color: var(--accent); font-weight: 600; }
+
+/* ── Mobile tab buttons ───────────────────────────────────────────────────── */
+[data-component="midl-editor"] .mobile-tab-btn {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.12s, background 0.12s;
+}
+[data-component="midl-editor"] .mobile-tab-btn:active {
+  background: rgba(87,199,216,0.06);
+}
+[data-component="midl-editor"] .mobile-tab-btn.active,
+[data-component="midl-editor"] .mobile-tab-btn.is-active {
+  color: var(--accent);
+}
+[data-component="midl-editor"] .mobile-tab-btn.active::before,
+[data-component="midl-editor"] .mobile-tab-btn.is-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 0 0 2px 2px;
+}
+
+/* ── Tablet breakpoint (#15): collapse the 3-column layout so the canvas and
+   inspector never clip off the right edge at ~834px. We reuse the existing
+   mobile bottom-sheet pattern: the canvas fills the width and the palette +
+   inspector are reached via the bottom tabbar / sheet. This applies from the
+   phone breakpoint up to 1024px. Below it (≤640px true phone) the same rules
+   hold — they are all keyed off the shared mobile classes. ────────────────── */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Slightly tighter topbar so tabs/labels don't truncate on tablet. */
+  [data-component="midl-editor"] [data-testid="editor-header"] {
+    height: 38px;
+    padding: 0 10px;
+  }
+  [data-component="midl-editor"] .editor-logo-text {
+    font-size: 11px;
+  }
+  [data-component="midl-editor"] .topbar-select {
+    font-size: 10px;
+  }
+}
+
+/* ── Mobile + tablet bottom-sheet layout (≤1024px): single-column canvas,
+   rails hidden and reached via tabbar/sheet so nothing clips. ─────────────── */
+@media (max-width: 1024px) {
+  [data-component="midl-editor"] [data-section="left-rail"] {
+    display: none;
+  }
+  [data-component="midl-editor"] [data-component="inspector"] {
+    display: none;
+  }
+  [data-component="midl-editor"] [data-testid="visual-mode-body"] {
+    grid-template-columns: 1fr;
+  }
+  /* Canvas must fit within the single column without horizontal clipping. */
+  [data-component="midl-editor"] .canvas-area,
+  [data-component="midl-editor"] .canvas-scroll {
+    width: 100%;
+    max-width: 100%;
+  }
+  [data-component="midl-editor"] .mobile-tabbar {
+    display: flex;
+    background: var(--surface2);
+    border-top: 1px solid var(--line);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 20;
+    padding-bottom: 8px;
+  }
+  [data-component="midl-editor"] .topbar-overflow {
+    display: flex;
+  }
+  /* Hide desktop-only topbar items on mobile/tablet */
+  [data-component="midl-editor"] [data-testid="top-class-select"],
+  [data-component="midl-editor"] [data-testid="top-theme-select"],
+  [data-component="midl-editor"] [data-testid="name-input"],
+  [data-component="midl-editor"] [data-testid="save-button"],
+  [data-component="midl-editor"] [data-testid="top-push"] {
+    display: none;
+  }
+}
