@@ -73,18 +73,58 @@ def _check_node(n: Any, path: str, refs: List[Dict[str, str]], issues: List[Issu
 
     if "cells" in n:
         rows, cols = n["rows"], n["cols"]
-        expected = rows * cols
+        total = rows * cols
         cells = n["cells"]
-        if len(cells) != expected:
-            issues.append(
-                _err(
-                    f"{path}/cells",
-                    f"grid cells length must equal rows * cols ({rows} * {cols} = {expected}); got {len(cells)} cells",
-                )
+        # When any cell carries colSpan/rowSpan, fewer cells can fill the full
+        # grid. Check for span fields to decide which validation path to take.
+        has_spans = any(
+            isinstance(c, dict) and (
+                (c.get("colSpan") is not None and c.get("colSpan") != 1)
+                or (c.get("rowSpan") is not None and c.get("rowSpan") != 1)
             )
+            for c in cells
+        )
+        if has_spans:
+            # With spans: cells must not overflow the grid.
+            occupied = [False] * total
+            slot = 0
+            overflow = False
+            for c in cells:
+                while slot < total and occupied[slot]:
+                    slot += 1
+                if slot >= total:
+                    overflow = True
+                    break
+                r, col = divmod(slot, cols)
+                cs = min(c.get("colSpan", 1) if isinstance(c, dict) else 1, cols - col)
+                rs = min(c.get("rowSpan", 1) if isinstance(c, dict) else 1, rows - r)
+                for dr in range(rs):
+                    for dc in range(cs):
+                        occupied[(r + dr) * cols + (col + dc)] = True
+            if overflow:
+                issues.append(
+                    _err(
+                        f"{path}/cells",
+                        f"grid has more cells than can fit in {rows} * {cols} = {total} slots after accounting for spans",
+                    )
+                )
+        else:
+            # No spans: classic row-major check — cells.length must equal rows*cols.
+            if len(cells) != total:
+                issues.append(
+                    _err(
+                        f"{path}/cells",
+                        f"grid cells length must equal rows * cols ({rows} * {cols} = {total}); got {len(cells)} cells",
+                    )
+                )
         for i, c in enumerate(cells):
             _check_node(c, f"{path}/cells/{i}", refs, issues)
         return
+
+    # Spacer cell: an empty object (or one with only colSpan/rowSpan) is a valid
+    # unassigned grid slot. It carries no element reference, emits no issues.
+    if all(k in ("colSpan", "rowSpan") for k in n.keys()):
+        return  # valid spacer
 
     issues.append(
         _err(path, "layout node is not a recognized kind (element, flow/children, rows/cols/cells, or preset)")
@@ -144,6 +184,49 @@ def _check_element(el_id: str, el: Any, path: str, issues: List[Issue]) -> None:
 
     for fieldname, src in bindings.items():
         _check_source(src, f"{path}/bindings/{fieldname}", issues)
+
+    _check_limits(el_id, el, path, issues)
+
+
+def _check_limits(el_id: str, el: Any, path: str, issues: List[Issue]) -> None:
+    """Validate style.range / style.zones arithmetic — mirrors ts/src/semantic.ts.
+
+    range must be [lo, hi] with hi > lo (a hard error). A zone threshold at or
+    below the range floor can never apply (an advisory warning); a threshold
+    at/above hi is the idiomatic top-bucket sentinel and is NOT flagged.
+    """
+    style = el.get("style") or {}
+    if not isinstance(style, dict):
+        return
+
+    rng = style.get("range")
+    lo = hi = None
+    if (
+        isinstance(rng, list)
+        and len(rng) == 2
+        and isinstance(rng[0], (int, float))
+        and isinstance(rng[1], (int, float))
+    ):
+        lo, hi = rng[0], rng[1]
+        if hi <= lo:
+            issues.append(
+                _err(
+                    f"{path}/style/range",
+                    f'element "{el_id}" range [{lo}, {hi}] is invalid: max must be greater than min',
+                )
+            )
+
+    zones = style.get("zones")
+    if isinstance(zones, list) and lo is not None and hi is not None and hi > lo:
+        for i, z in enumerate(zones):
+            lt = z.get("lt") if isinstance(z, dict) else None
+            if isinstance(lt, (int, float)) and lt <= lo:
+                issues.append(
+                    _warn(
+                        f"{path}/style/zones/{i}/lt",
+                        f'element "{el_id}" zone threshold {lt} is at or below the range floor {lo}; it will never apply',
+                    )
+                )
 
 
 def _check_layout(layout: Any, layout_path: str, screen: Dict[str, Any], issues: List[Issue]) -> None:

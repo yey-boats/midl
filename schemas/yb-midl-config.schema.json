@@ -37,9 +37,9 @@
         "title": { "description": "Optional human-readable screen title shown in the UI.", "type": "string" },
         "meta": { "$ref": "#/$defs/meta" },
         "elements": {
-          "description": "Map of element-id -> element definition for this screen. Must be non-empty; the layout tree references these ids by key.",
+          "description": "Map of element-id -> element definition for this screen. May be empty (draft dashboard); the layout tree references these ids by key.",
           "type": "object",
-          "minProperties": 1,
+          "minProperties": 0,
           "additionalProperties": { "$ref": "#/$defs/element" }
         },
         "layout": { "description": "The base layout tree for this screen (a recursive node). Arranges the screen's elements into splits, grids or presets.", "$ref": "#/$defs/node" },
@@ -70,9 +70,78 @@
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/source" }
         },
-        "style": { "description": "Optional visual style overrides (color, size, …).", "type": "object" },
-        "format": { "description": "Optional value formatting (unit, precision, …).", "type": "object" },
-        "markers": { "description": "Optional dial markers (for compass/windrose), each an object with an optional glyph.", "type": "array" },
+        "style": {
+          "description": "Optional visual style overrides. Free-form and additive (unknown keys are admitted for forward-compat). The renderer-understood keys are: `range` and `zones` (gauge/bar limits in display units), `size` (font-size role), `color`/`colorRole` (accent override), `scale` (fixed|metric value scaling), `sectors` (bow-relative angular sectors), `hull` (boat-silhouette hint), `shape` (round|band dial) and `center` (center-zero reference for a bar). NOTE: not every key reaches every device — the device push pipeline (midlToV2 → firmware) currently carries only type/path/unit/title; the editor's device-capability lint flags the rest.",
+          "type": "object",
+          "properties": {
+            "range": {
+              "description": "Gauge/bar value limits [lo, hi] in DISPLAY units (post-format). The fill fraction is (value-lo)/(hi-lo). Semantic pass requires hi > lo.",
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "zones": {
+              "description": "Threshold colour bands for a gauge/bar/value. Each `{ lt, color }` means 'when the value is below `lt`, use `color`' (evaluated low→high). `lt` is in display units; `color` is a theme token or #rrggbb. A final band with `lt` at/above the range max is the idiomatic top-bucket sentinel.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["lt", "color"],
+                "properties": {
+                  "lt": { "description": "Upper bound (exclusive) of this colour band, in display units.", "type": "number" },
+                  "color": { "description": "Band colour (theme token or #rrggbb).", "type": "string" }
+                }
+              }
+            },
+            "size": {
+              "description": "Hero value font size: a role token (`S`, `M`, `L`, `XL`, `Fill`) which auto-fits, or a literal pixel number (legacy).",
+              "type": ["string", "number"]
+            },
+            "color": { "description": "Value/accent colour override: a theme token (`accent`, `warn`, `good`, `danger`, …) or a `#rrggbb` literal.", "type": "string" },
+            "colorRole": { "description": "Alias for `color` accepted by the renderer: a theme token mapped to the active palette.", "type": "string" },
+            "scale": { "description": "Value scaling mode: `fixed` (use the raw value) or `metric` (apply metric prefixing).", "type": "string", "enum": ["fixed", "metric"] },
+            "span": { "description": "Editor convenience for grid span as a `\"colsxrows\"` string (e.g. `\"2x1\"`); the authoritative span lives on the grid cell's colSpan/rowSpan.", "type": "string" },
+            "sectors": {
+              "description": "Optional bow-relative angular sectors drawn on a compass/windrose dial (e.g. close-hauled or no-go zones). Each `from`/`to` is in degrees and `color` is a theme token or #rrggbb.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["from", "to", "color"],
+                "properties": {
+                  "from": { "description": "Sector start angle in degrees (bow-relative).", "type": "number" },
+                  "to": { "description": "Sector end angle in degrees (bow-relative).", "type": "number" },
+                  "color": { "description": "Sector fill color (theme token or #rrggbb).", "type": "string" }
+                }
+              }
+            },
+            "hull": { "description": "Render hint: draw a boat-hull silhouette in the dial center.", "type": "boolean" },
+            "shape": { "description": "Dial geometry: `round` (default) or `band` (rolling heading-band compass).", "type": "string", "enum": ["round", "band"] },
+            "center": { "description": "Center-zero reference for a `bar` (e.g. an XTE cross-track needle), drawn as deviation around this value.", "type": "number" }
+          }
+        },
+        "format": {
+          "description": "Optional value formatting. Free-form and additive. Renderer-understood keys: `unit` (display unit the value is converted to and suffixed with), `decimals` (fixed decimal places; `precision` is accepted as an alias) and `side` (signed-angle port/starboard suffix). All optional.",
+          "type": "object",
+          "properties": {
+            "unit": { "description": "Display unit, e.g. `kn`, `m`, `°C`, `%`. The renderer converts the source value to this unit and appends it as a suffix.", "type": "string" },
+            "decimals": { "description": "Number of fixed decimal places to render.", "type": "integer", "minimum": 0 },
+            "precision": { "description": "Alias for `decimals` (fixed decimal places).", "type": "integer", "minimum": 0 },
+            "side": { "description": "Format a signed angle with a port/starboard side indication. `true` appends a magnitude + P/S suffix (e.g. 42 -> \"42S\"); a string selects a side-rendering style (e.g. \"port-stbd\"). Optional and additive.", "type": ["boolean", "string"] }
+          }
+        },
+        "markers": {
+          "description": "Optional dial markers (for compass/windrose). Each is an object with optional `glyph` (shape), `color` (theme token or #rrggbb), `dir` (a data source whose value is the marker's bow-relative angle), and `kind` (`rim` rim marker, default, or `vector` center vector e.g. tide/current). Additional keys are permitted for forward-compatibility.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "glyph": { "description": "Marker glyph/shape (e.g. triangle, diamond, chevron_out).", "type": "string" },
+              "color": { "description": "Marker color (theme token or #rrggbb).", "type": "string" },
+              "dir": { "description": "Data source whose value gives the marker's bow-relative angle.", "$ref": "#/$defs/source" },
+              "kind": { "description": "Marker kind: `rim` (default, orbits the dial rim) or `vector` (center vector, e.g. tide/current).", "type": "string", "enum": ["rim", "vector"] }
+            }
+          }
+        },
         "action": { "description": "Optional interaction performed when the element is activated (e.g. a button).", "$ref": "#/$defs/action" },
         "zoom": { "description": "Optional zoom/detail level hint for the element.", "type": "string" }
       }
@@ -111,11 +180,15 @@
       ]
     },
     "node": {
-      "description": "A recursive layout node. Exactly one of four shapes: an element leaf, a directional split (`flow` + `children`), a grid (`rows`/`cols`/`cells`), or a `preset` reference.",
+      "description": "A recursive layout node. Exactly one of five shapes: an element leaf, a directional split (`flow` + `children`), a grid (`rows`/`cols`/`cells`), a `preset` reference, or a spacer cell (empty object, optionally with span).",
       "oneOf": [
         { "type": "object", "required": ["element"], "additionalProperties": false,
-          "description": "Leaf node: places a single element (by its id in screen.elements) filling the available rect.",
-          "properties": { "element": { "description": "Element id (a key in the enclosing screen's `elements`).", "type": "string", "minLength": 1 } } },
+          "description": "Leaf node: places a single element (by its id in screen.elements) filling the available rect. Optional `colSpan`/`rowSpan` extend the cell across multiple grid columns/rows when this node appears as a grid cell (default 1).",
+          "properties": {
+            "element": { "description": "Element id (a key in the enclosing screen's `elements`).", "type": "string", "minLength": 1 },
+            "colSpan": { "description": "How many grid columns this cell spans (default 1). Only meaningful when this node is a direct child of a grid (`rows`/`cols`/`cells`).", "type": "integer", "minimum": 1 },
+            "rowSpan": { "description": "How many grid rows this cell spans (default 1). Only meaningful when this node is a direct child of a grid (`rows`/`cols`/`cells`).", "type": "integer", "minimum": 1 }
+          } },
         { "type": "object", "required": ["flow", "children"], "additionalProperties": false,
           "description": "Directional split: arranges children along one axis. `flow: row` = horizontal main axis (children side by side); `flow: col` = vertical main axis (children stacked).",
           "properties": {
@@ -132,7 +205,13 @@
           "description": "Preset reference: expands a named layout template, filling its holes from `slots`. The preset name must be known (checked semantically).",
           "properties": {
             "preset": { "description": "Name of a known layout preset (e.g. full, hero-split).", "type": "string", "minLength": 1 },
-            "slots": { "description": "Element ids that fill the preset's holes, in the order the preset consumes them.", "type": "array", "items": { "type": "string" } } } }
+            "slots": { "description": "Element ids that fill the preset's holes, in the order the preset consumes them.", "type": "array", "items": { "type": "string" } } } },
+        { "type": "object", "additionalProperties": false,
+          "description": "Spacer cell: an unassigned grid slot. No `element` required. Optionally carries `colSpan`/`rowSpan` to extend the empty space across multiple columns/rows.",
+          "properties": {
+            "colSpan": { "description": "How many grid columns this spacer spans (default 1).", "type": "integer", "minimum": 1 },
+            "rowSpan": { "description": "How many grid rows this spacer spans (default 1).", "type": "integer", "minimum": 1 }
+          } }
       ]
     },
     "alarm": {

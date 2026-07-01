@@ -15,8 +15,8 @@ describe("top-level structure tightening (schema req #2)", () => {
     expect(ok({ midl: "1.0.0", screens: [] })).toBe(false);
   });
 
-  test("a screen with empty elements is rejected", () => {
-    expect(ok({ midl: "1.0.0", screens: [{ id: "d", elements: {}, layout: { element: "x" } }] })).toBe(false);
+  test("a screen with empty elements is now valid (draft dashboard — minProperties relaxed to 0)", () => {
+    expect(ok({ midl: "1.0.0", screens: [{ id: "d", elements: {}, layout: { rows: 1, cols: 1, cells: [{}] } }] })).toBe(true);
   });
 
   test("a split with empty children is rejected", () => {
@@ -37,6 +37,118 @@ describe("top-level structure tightening (schema req #2)", () => {
 
   test("a minimal well-formed config still passes", () => {
     expect(ok({ midl: "1.0.0", screens: [{ id: "d", elements: { a: { type: "button" } }, layout: { element: "a" } }] })).toBe(true);
+  });
+});
+
+describe("MIDL marine extensions (additive, backward-compatible)", () => {
+  const screen = (el: unknown) => ({
+    midl: "1.0.0",
+    screens: [{ id: "d", elements: { a: el }, layout: { element: "a" } }],
+  });
+
+  test("a legacy doc WITHOUT any new attrs still validates", () => {
+    expect(
+      ok(
+        screen({
+          type: "compass",
+          bindings: { value: { kind: "signalk", path: "navigation.headingTrue" } },
+          style: { title: "HDG", size: 48 },
+          markers: [{ glyph: "triangle" }],
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("a doc WITH sectors/shape/hull on a dial validates", () => {
+    expect(
+      ok(
+        screen({
+          type: "windrose",
+          bindings: { value: { kind: "signalk", path: "environment.wind.speedApparent" } },
+          style: {
+            shape: "round",
+            hull: true,
+            sectors: [
+              { from: 30, to: 60, color: "starboard" },
+              { from: -60, to: -30, color: "port" },
+            ],
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("a bar WITH style.center (XTE center-zero needle) validates", () => {
+    expect(
+      ok(
+        screen({
+          type: "bar",
+          bindings: { value: { kind: "signalk", path: "navigation.xte" } },
+          style: { center: 0, range: [-0.5, 0.5] },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("format.side validates as boolean and as a string variant", () => {
+    expect(
+      ok(
+        screen({
+          type: "windrose",
+          bindings: { value: { kind: "signalk", path: "environment.wind.angleApparent" } },
+          format: { side: true },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      ok(
+        screen({
+          type: "single-value",
+          bindings: { value: { kind: "signalk", path: "navigation.xte" } },
+          format: { side: "port-stbd" },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("markers with color, dir source, and kind validate", () => {
+    expect(
+      ok(
+        screen({
+          type: "compass",
+          bindings: { value: { kind: "signalk", path: "navigation.headingTrue" } },
+          markers: [
+            { glyph: "chevron_out", color: "accent", dir: { kind: "signalk", path: "navigation.courseOverGroundTrue" } },
+            { glyph: "circle", color: "#ff8800", kind: "rim" },
+            { glyph: "triangle", color: "tide", kind: "vector", dir: { kind: "signalk", path: "environment.current.setTrue" } },
+          ],
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("an invalid shape enum is rejected", () => {
+    expect(
+      ok(
+        screen({
+          type: "compass",
+          bindings: { value: { kind: "signalk", path: "navigation.headingTrue" } },
+          style: { shape: "hexagon" },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  test("an invalid marker kind enum is rejected", () => {
+    expect(
+      ok(
+        screen({
+          type: "compass",
+          bindings: { value: { kind: "signalk", path: "navigation.headingTrue" } },
+          markers: [{ glyph: "triangle", kind: "bogus" }],
+        }),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -107,5 +219,54 @@ describe("alarm tightening (schema req #5)", () => {
   });
   test("a complete alarm passes", () => {
     expect(ok(wrap({ id: "a", source: { kind: "signalk", path: "x" }, level: "alarm", gt: 1, message: "Over limit" }))).toBe(true);
+  });
+});
+
+describe("spacer cell and empty-elements (schema)", () => {
+  test("a grid cell {} (spacer) is valid as a node", () => {
+    expect(ok({
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: { a: { type: "button" } },
+        layout: { rows: 1, cols: 2, cells: [{ element: "a" }, {}] }
+      }]
+    })).toBe(true);
+  });
+
+  test("a screen with zero elements (elements: {}) is valid", () => {
+    expect(ok({
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: {},
+        layout: { rows: 1, cols: 1, cells: [{}] }
+      }]
+    })).toBe(true);
+  });
+
+  test("a spacer cell with colSpan/rowSpan is valid", () => {
+    expect(ok({
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: { a: { type: "button" } },
+        layout: { rows: 2, cols: 2, cells: [
+          { element: "a" },
+          { colSpan: 1, rowSpan: 2 },
+        ]}
+      }]
+    })).toBe(true);
+  });
+
+  test("a spacer cell with an extra unknown property is INVALID (additionalProperties: false)", () => {
+    expect(ok({
+      midl: "1.0.0",
+      screens: [{
+        id: "d",
+        elements: { a: { type: "button" } },
+        layout: { rows: 1, cols: 2, cells: [{ element: "a" }, { bogus: true }] }
+      }]
+    })).toBe(false);
   });
 });

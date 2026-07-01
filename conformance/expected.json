@@ -53,5 +53,13 @@
       "/screens/0/elements/a/bindings/value",
       "/screens/0/elements/b/bindings/value"
     ]
+  },
+  "valid-spacer-cell": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-empty-elements": {
+    "ok": true,
+    "paths": []
   }
 }
