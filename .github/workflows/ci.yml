@@ -1,0 +1,59 @@
+# MIDL-3: single-job CI enforcing catalog checks, manifest freshness,
+# type-checks and the TS/web/editor test suites.
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      # C++17 helper tools (catalog checker + manifest generator).
+      - name: Check C++ toolchain
+        run: make check-tools
+
+      - name: Validate catalog
+        run: make check-catalog
+
+      # Regenerate manifests and fail if the committed schemas are stale.
+      - name: Manifest freshness
+        run: |
+          make gen-manifest
+          git diff --exit-code schemas/gen
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Type-check the publishable sources of each workspace. The `.build`
+      # configs (and ts/tsconfig.json) cover src/. Full type-checking of the
+      # *.test.ts(x) files is deferred: those carry pre-existing type debt on
+      # main (tracked separately) and are exercised by vitest below.
+      - name: Type-check (ts)
+        run: npx tsc --noEmit -p ts/tsconfig.json
+
+      - name: Type-check (web)
+        run: npx tsc --noEmit -p web/tsconfig.build.json
+
+      - name: Type-check (editor)
+        run: npx tsc --emitDeclarationOnly -p editor/tsconfig.build.json
+
+      - name: Test (ts)
+        run: npm test -w @yey-boats/midl
+
+      - name: Test (web)
+        run: npm test -w @yey-boats/midl-web
+
+      - name: Test (editor)
+        run: npm test -w @yey-boats/midl-editor
