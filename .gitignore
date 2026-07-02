@@ -2,6 +2,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# MIDL-6: compiled C++ helper tools (make gen-manifest / check-catalog)
+cpp/build/
+
 # Python
 .venv/
 __pycache__/
