@@ -64,7 +64,7 @@ cases:
 
   - name: invalid-too-many-tiles
     targetClass: square-480
-    note: five leaves exceeds square-480 maxTiles (4)
+    note: ten leaves exceeds square-480 maxTiles (9, 3×3 grid — catalog 39f9684)
     doc: |
       midl: 1.0.0
       screens:
@@ -75,7 +75,12 @@ cases:
             c: { type: single-value, bindings: { value: { kind: signalk, path: c } } }
             d: { type: single-value, bindings: { value: { kind: signalk, path: d } } }
             e: { type: single-value, bindings: { value: { kind: signalk, path: e } } }
-          layout: { flow: row, children: [ { element: a }, { element: b }, { element: c }, { element: d }, { element: e } ] }
+            f: { type: single-value, bindings: { value: { kind: signalk, path: f } } }
+            g: { type: single-value, bindings: { value: { kind: signalk, path: g } } }
+            h: { type: single-value, bindings: { value: { kind: signalk, path: h } } }
+            i: { type: single-value, bindings: { value: { kind: signalk, path: i } } }
+            j: { type: single-value, bindings: { value: { kind: signalk, path: j } } }
+          layout: { flow: row, children: [ { element: a }, { element: b }, { element: c }, { element: d }, { element: e }, { element: f }, { element: g }, { element: h }, { element: i }, { element: j } ] }
 
   - name: invalid-incompatible-version
     targetClass: square-480
