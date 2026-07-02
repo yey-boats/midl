@@ -287,6 +287,92 @@ test("second consecutive save sends expectedRevision from the revision refreshed
   expect(secondCall.expectedRevision).toBe("rev-1");
 });
 
+// ── MIDL-7: revision tracking via save() return value ──────────────────────────
+
+test("MIDL-7: save() returning a revision is used directly without a follow-up get()", async () => {
+  // A store that returns the committed revision from save() and whose get()
+  // throws if called after init — proving the success path does not depend on get().
+  const savedCalls: Array<{ expectedRevision?: string }> = [];
+  let initDone = false;
+  let getRevision = "rev-1";
+  const store: DashboardStoreAdapter = {
+    capabilities: "full",
+    async list() { return []; },
+    async get(id: string) {
+      if (initDone) throw new Error("get() must not be called on the save success path");
+      return { ref: { id }, doc: FIXTURE_DOC, metadata: { revision: getRevision, targetClass: "square-480" } };
+    },
+    async save(input) {
+      savedCalls.push({ expectedRevision: input.expectedRevision });
+      // Simulate the server incrementing the revision on each save.
+      getRevision = getRevision === "rev-1" ? "rev-2" : "rev-3";
+      return { ref: { id: input.id ?? "new-id" }, validation: { ok: true, issues: [] }, revision: getRevision };
+    },
+    async remove() { return { id: "x" }; },
+    async clone() { return { ref: { id: "cloned-id" } }; },
+  };
+
+  const { getByTestId, queryByTestId } = render(
+    <MidlEditor store={store} provider={new MockDataProvider({})} manifest={makeFakeManifestSource()} initialId="dashboard-1" />,
+  );
+  await waitFor(() => { expect(getByTestId("save-button")).toBeTruthy(); });
+  initDone = true; // any get() from here on is a bug
+
+  // First save → returns rev-2; second save must carry expectedRevision "rev-2".
+  await act(async () => { fireEvent.click(getByTestId("save-button")); });
+  await waitFor(() => { expect(savedCalls.length).toBe(1); });
+  await act(async () => { fireEvent.click(getByTestId("save-button")); });
+  await waitFor(() => { expect(savedCalls.length).toBe(2); });
+
+  expect(savedCalls[1].expectedRevision).toBe("rev-2");
+  // No warning banner on the happy path.
+  expect(queryByTestId("save-warning-banner")).toBeNull();
+});
+
+test("MIDL-7: save-then-get-fails-then-save does not spuriously conflict (soft warning shown)", async () => {
+  // Legacy adapter: save() returns no revision, so the editor falls back to get().
+  // Injecting a get() failure after save must NOT crash and must NOT drop the
+  // known revision to a value that spuriously conflicts on the next save.
+  const savedCalls: Array<{ expectedRevision?: string }> = [];
+  let getShouldFail = false;
+  const store: DashboardStoreAdapter = {
+    capabilities: "full",
+    async list() { return []; },
+    async get(id: string) {
+      if (getShouldFail) throw new Error("simulated get() failure");
+      return { ref: { id }, doc: FIXTURE_DOC, metadata: { revision: "rev-1", targetClass: "square-480" } };
+    },
+    async save(input) {
+      savedCalls.push({ expectedRevision: input.expectedRevision });
+      // No revision in the result → forces the get() fallback.
+      return { ref: { id: input.id ?? "new-id" }, validation: { ok: true, issues: [] } };
+    },
+    async remove() { return { id: "x" }; },
+    async clone() { return { ref: { id: "cloned-id" } }; },
+  };
+
+  const { getByTestId, queryByTestId } = render(
+    <MidlEditor store={store} provider={new MockDataProvider({})} manifest={makeFakeManifestSource()} initialId="dashboard-1" />,
+  );
+  await waitFor(() => { expect(getByTestId("save-button")).toBeTruthy(); });
+
+  // Make the post-save get() fail, then save.
+  getShouldFail = true;
+  await act(async () => { fireEvent.click(getByTestId("save-button")); });
+  await waitFor(() => { expect(savedCalls.length).toBe(1); });
+
+  // Soft warning surfaced; no error banner or crash.
+  await waitFor(() => { expect(getByTestId("save-warning-banner")).toBeTruthy(); });
+  expect(queryByTestId("save-error-banner")).toBeNull();
+
+  // Second save still works and reuses the last-known revision ("rev-1" from init)
+  // rather than sending undefined and forcing an overwrite/conflict.
+  await act(async () => { fireEvent.click(getByTestId("save-button")); });
+  await waitFor(() => { expect(savedCalls.length).toBe(2); });
+  expect(savedCalls[1].expectedRevision).toBe("rev-1");
+  expect(queryByTestId("conflict-banner")).toBeNull();
+});
+
 test("save that throws RevisionConflict shows conflict-banner and Overwrite retries", async () => {
   const store = makeFakeStore();
   store.conflictOnNext = true;

@@ -58,14 +58,19 @@ export interface DashboardStoreAdapter {
   list(opts?: { targetClass?: string }): Promise<DashboardSummary[]>;
   /** Fetch a single dashboard by id. */
   get(id: string): Promise<{ ref: DashboardRef; doc: string; metadata: Meta }>;
-  /** Save (create or update) a dashboard. */
+  /** Save (create or update) a dashboard.
+   *
+   * MIDL-7: implementations SHOULD return the newly-committed `revision` so the
+   * editor can track optimistic-concurrency state without a follow-up `get()`.
+   * If an adapter cannot return it, the editor falls back to `get()`, and if
+   * that also fails it surfaces a soft warning that the next save may conflict. */
   save(input: {
     id?: string;
     source: string;
     name: string;
     targetClass: string;
     expectedRevision?: string;
-  }): Promise<{ ref: DashboardRef; validation: Validation }>;
+  }): Promise<{ ref: DashboardRef; validation: Validation; revision?: string }>;
   /** Delete a dashboard. Requires expectedRevision for conflict detection. */
   remove(input: { id: string; expectedRevision: string }): Promise<{ id: string }>;
   /** Clone a catalogue or user dashboard under a new name. */

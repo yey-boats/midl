@@ -282,6 +282,9 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
   const [saving, setSaving] = useState(false);
   const [conflictVisible, setConflictVisible] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // MIDL-7: soft warning shown when a save succeeded but the new revision could
+  // not be confirmed (adapter returned no revision and the follow-up get failed).
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
   // Transient "Saved ✓" confirmation on the Save button (~1.5s after success).
   const [justSaved, setJustSaved] = useState(false);
   const savedTimerRef = useRef<number | null>(null);
@@ -484,6 +487,7 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     async (overwrite: boolean) => {
       setSaving(true);
       setSaveError(null);
+      setSaveWarning(null);
       try {
         const source = serializeMidl(model, "yaml");
         const result = await store.save({
@@ -496,15 +500,24 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
         // Update tracking state on success
         const savedId = result.ref.id;
         idRef.current = savedId;
-        // Refresh revision so the next save can send expectedRevision (optimistic concurrency).
-        // Attempt to get the latest revision from the store; if not available, keep the last
-        // known revision rather than nulling it (nulling would lose optimistic concurrency).
-        try {
-          const { metadata } = await store.get(savedId);
-          revisionRef.current = metadata.revision;
-        } catch {
-          // TODO: if store.get fails here, revisionRef.current retains its pre-save value
-          // (better than undefined — at least the next save sends *something*).
+        setSaveWarning(null);
+        // MIDL-7: prefer the revision returned directly by save() — this avoids the
+        // extra round-trip and the stale-revision hazard when the follow-up get() fails.
+        if (result.revision !== undefined) {
+          revisionRef.current = result.revision;
+        } else {
+          // Older adapters don't return a revision from save(); fall back to a
+          // follow-up get(). If that also fails, keep the last known revision
+          // (better than nulling it) but surface a soft warning that the next
+          // save may spuriously conflict.
+          try {
+            const { metadata } = await store.get(savedId);
+            revisionRef.current = metadata.revision;
+          } catch {
+            setSaveWarning(
+              "Saved, but the latest revision could not be confirmed — your next save may report a conflict. Reload if that happens.",
+            );
+          }
         }
         setConflictVisible(false);
         // Saved successfully — this serialized source (which now embeds the title)
@@ -874,6 +887,13 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
       {saveError && (
         <div data-testid="save-error-banner" role="alert">
           {saveError}
+        </div>
+      )}
+
+      {/* Save warning banner (MIDL-7: revision could not be confirmed) */}
+      {saveWarning && (
+        <div data-testid="save-warning-banner" role="status">
+          {saveWarning}
         </div>
       )}
 
