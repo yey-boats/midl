@@ -26,7 +26,8 @@ test("square-480 advertises the 9 element types and correct limits", () => {
     ["autopilot", "bar", "button", "compass", "gauge", "single-value", "text", "trend", "windrose"].sort(),
   );
   const c = m.classes.find((x) => x.id === "square-480")!;
-  expect(c.maxTiles).toBe(4);
+  // square-480 → 3×3 grid, maxTiles 9 (catalog commit 39f9684).
+  expect(c.maxTiles).toBe(9);
   expect(c.maxDepth).toBe(3);
   expect(m.midl).toMatch(/^\d+\.\d+\.\d+$/);
 });
