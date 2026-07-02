@@ -23,6 +23,11 @@ const DATA_HREF_STRIP_TAGS = new Set(["image", "use"]);
  * Removed:
  *   - All <script> elements
  *   - All <foreignObject> elements
+ *   - All SMIL animation elements (<animate>, <animateTransform>,
+ *     <animateMotion>, <set>) — these can rewrite attributes such as href
+ *     to a javascript: URI at runtime, bypassing the static attribute check.
+ *   - All <style> elements — untrusted CSS can load external resources or
+ *     otherwise exfiltrate/attack, and the renderer never emits <style>.
  *   - Any attribute whose name starts with "on" (event handlers)
  *   - href / xlink:href attributes whose value is a javascript: URI
  *
@@ -37,10 +42,23 @@ export function sanitizeSvg(svg: string): string {
     return SAFE_EMPTY_SVG;
   }
 
-  // Remove <script> and <foreignObject> elements — walk ALL elements and match by
-  // lowercase tagName so uppercase/mixed-case variants (e.g. <SCRIPT>, <ForeignObject>)
-  // are caught too. (querySelectorAll is case-sensitive in XML documents.)
-  const DANGEROUS_TAGS = new Set(["script", "foreignobject"]);
+  // Remove dangerous elements — walk ALL elements and match by lowercase
+  // tagName so uppercase/mixed-case variants (e.g. <SCRIPT>, <ForeignObject>,
+  // <Set>) are caught too. (querySelectorAll is case-sensitive in XML documents.)
+  //
+  // SMIL animation elements are included because <set>/<animate> can mutate a
+  // benign href/xlink:href into a javascript: URI *after* this static pass runs,
+  // defeating the href checks below. <style> is included because untrusted CSS
+  // is out of scope for a trusted-renderer SVG.
+  const DANGEROUS_TAGS = new Set([
+    "script",
+    "foreignobject",
+    "animate",
+    "animatetransform",
+    "animatemotion",
+    "set",
+    "style",
+  ]);
   for (const el of Array.from(doc.querySelectorAll("*"))) {
     if (DANGEROUS_TAGS.has(el.tagName.toLowerCase())) {
       el.parentNode?.removeChild(el);

@@ -121,6 +121,55 @@ describe("sanitizeSvg — malicious inputs neutralized", () => {
     const useEl = doc.querySelector("use");
     expect(useEl?.getAttributeNS(xlinkNs, "href") ?? null).toBeNull();
   });
+
+  // MIDL-4 — SMIL <set> can rewrite href to javascript: at runtime, bypassing
+  // the static href check. The <set> element must be removed entirely.
+  it("removes <set attributeName=\"href\" to=\"javascript:...\"> inside <a>", () => {
+    const input = `<svg xmlns="http://www.w3.org/2000/svg"><a href="#safe"><set attributeName="href" to="javascript:alert(1)"/><text>y</text></a></svg>`;
+    const out = sanitizeSvg(input);
+    const doc = parse(out);
+    const sets = Array.from(doc.querySelectorAll("*")).filter(
+      (el) => el.tagName.toLowerCase() === "set"
+    );
+    expect(sets).toHaveLength(0);
+    // The benign <a> and its <text> child survive.
+    expect(doc.querySelector("a")).not.toBeNull();
+    expect(doc.querySelector("text")).not.toBeNull();
+  });
+
+  // MIDL-4 — <animate> targeting href is an equivalent runtime-rewrite vector.
+  it("removes <animate attributeName=\"href\" values=\"javascript:...\">", () => {
+    const input = `<svg xmlns="http://www.w3.org/2000/svg"><a href="#safe"><animate attributeName="href" values="javascript:alert(1)"/></a></svg>`;
+    const out = sanitizeSvg(input);
+    const doc = parse(out);
+    const animates = Array.from(doc.querySelectorAll("*")).filter(
+      (el) => el.tagName.toLowerCase() === "animate"
+    );
+    expect(animates).toHaveLength(0);
+  });
+
+  // MIDL-4 — animateTransform / animateMotion are removed too.
+  it("removes <animateTransform> and <animateMotion> elements", () => {
+    const input = `<svg xmlns="http://www.w3.org/2000/svg"><g><animateTransform attributeName="transform" type="rotate"/><animateMotion path="M0 0"/></g></svg>`;
+    const out = sanitizeSvg(input);
+    const doc = parse(out);
+    const smil = Array.from(doc.querySelectorAll("*")).filter((el) =>
+      ["animatetransform", "animatemotion"].includes(el.tagName.toLowerCase())
+    );
+    expect(smil).toHaveLength(0);
+    // benign <g> survives
+    expect(doc.querySelector("g")).not.toBeNull();
+  });
+
+  // MIDL-4 — hostile <style> payload is stripped entirely.
+  it("removes <style> element with a hostile CSS payload", () => {
+    const input = `<svg xmlns="http://www.w3.org/2000/svg"><style>* { background: url("javascript:alert(1)"); }</style><rect/></svg>`;
+    const out = sanitizeSvg(input);
+    const doc = parse(out);
+    expect(doc.querySelectorAll("style")).toHaveLength(0);
+    // sibling geometry survives
+    expect(doc.querySelectorAll("rect")).toHaveLength(1);
+  });
 });
 
 describe("sanitizeSvg — benign SVG survives structurally unchanged", () => {
