@@ -10,6 +10,9 @@ import { MockDataProvider } from "@yey-boats/midl-web";
 import type { DashboardStoreAdapter, ManifestSource } from "./adapters";
 import { RevisionConflict } from "./adapters";
 import { MidlEditor } from "./MidlEditor";
+import type { MidlEditorHandle } from "./MidlEditor";
+import { parseMidl } from "./midl-io";
+import { EditorError } from "./model";
 
 // ── rAF shims ─────────────────────────────────────────────────────────────────
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
@@ -850,4 +853,160 @@ test("topbar-overflow button renders in DOM", async () => {
   await waitFor(() => {
     expect(getByTestId("topbar-overflow")).toBeTruthy();
   });
+});
+
+// ── MidlEditorHandle (imperative ref API for the editor-chat surface) ─────────
+
+const PROPOSAL_DOC = `midl: 1.0.0
+screens:
+  - id: dash
+    meta:
+      title: Agent Proposal
+    elements:
+      sog:
+        type: single-value
+        name: SOG
+        bindings:
+          value: { kind: signalk, path: navigation.speedOverGround }
+      hdg:
+        type: single-value
+        name: HDG
+        bindings:
+          value: { kind: signalk, path: navigation.headingTrue }
+    layout: { rows: 2, cols: 1, cells: [{ element: sog }, { element: hdg }] }
+`;
+
+// parseMidl requires exactly 1 screen (midl-io.ts:169-175) — this doc throws EditorError.
+const TWO_SCREEN_DOC = `midl: 1.0.0
+screens:
+  - id: a
+    elements: {}
+    layout: { rows: 1, cols: 1, cells: [{}] }
+  - id: b
+    elements: {}
+    layout: { rows: 1, cols: 1, cells: [{}] }
+`;
+
+test("handle.getDoc serializes the current model (yaml + json) and getModel round-trips", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  // Wait for async init: the fixture doc is loaded and the name mirror is set.
+  await waitFor(() => {
+    expect((getByTestId("name-input") as HTMLInputElement).value).toBe("Test Dashboard");
+  }, { timeout: 3000 });
+
+  expect(ref.current).toBeTruthy();
+  const yamlDoc = ref.current!.getDoc();
+  expect(yamlDoc).toContain("Test Dashboard");
+  // Round-trip: the serialized doc parses back to the same title.
+  expect(parseMidl(yamlDoc).title).toBe("Test Dashboard");
+  // Default format equals explicit "yaml".
+  expect(ref.current!.getDoc("yaml")).toBe(yamlDoc);
+  // JSON format is valid canonical JSON.
+  const jsonDoc = ref.current!.getDoc("json");
+  expect(JSON.parse(jsonDoc).midl).toBe("1.0.0");
+  // getModel exposes the live model snapshot.
+  expect(ref.current!.getModel().title).toBe("Test Dashboard");
+  expect(Object.keys(ref.current!.getModel().elements)).toContain("sog");
+});
+
+test("handle.setDoc replaces the doc, syncs the name mirror, and marks the editor dirty", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  // Clean baseline after load.
+  await waitFor(() => {
+    expect(getByTestId("save-state").textContent).toMatch(/^saved$/i);
+  }, { timeout: 3000 });
+
+  await act(async () => {
+    ref.current!.setDoc(PROPOSAL_DOC);
+  });
+
+  // Name mirror synced from parsed.title; model replaced.
+  expect((getByTestId("name-input") as HTMLInputElement).value).toBe("Agent Proposal");
+  expect(ref.current!.getModel().title).toBe("Agent Proposal");
+  expect(Object.keys(ref.current!.getModel().elements).sort()).toEqual(["hdg", "sog"]);
+  // savedSourceRef untouched → the dirty effect flags unsaved changes.
+  await waitFor(() => {
+    expect(getByTestId("save-state").textContent).toMatch(/unsaved/i);
+  });
+});
+
+test("handle.setDoc throws EditorError on invalid source and leaves editor state intact", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => {
+    expect((getByTestId("name-input") as HTMLInputElement).value).toBe("Test Dashboard");
+  }, { timeout: 3000 });
+
+  const before = ref.current!.getDoc();
+  // No silent fallback (unlike the init effect): the parse error propagates.
+  expect(() => ref.current!.setDoc(TWO_SCREEN_DOC)).toThrow(EditorError);
+  // State untouched by the failed setDoc.
+  expect((getByTestId("name-input") as HTMLInputElement).value).toBe("Test Dashboard");
+  expect(ref.current!.getDoc()).toBe(before);
+});
+
+test("save after handle.setDoc persists the new body through the normal save path", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const store = makeFakeStore();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={store}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => {
+    expect((getByTestId("name-input") as HTMLInputElement).value).toBe("Test Dashboard");
+  }, { timeout: 3000 });
+
+  await act(async () => {
+    ref.current!.setDoc(PROPOSAL_DOC);
+  });
+  await act(async () => {
+    fireEvent.click(getByTestId("save-button"));
+  });
+  await waitFor(() => {
+    expect(store.savedCalls.length).toBeGreaterThan(0);
+  });
+
+  const saved = store.savedCalls[store.savedCalls.length - 1];
+  expect(saved.source).toContain("Agent Proposal");
+  expect(saved.source).toContain("hdg");
+  expect(saved.name).toBe("Agent Proposal");
+  // Same dashboard identity + optimistic concurrency preserved:
+  // idRef/revisionRef were NOT touched by setDoc.
+  expect(saved.id).toBe("dashboard-1");
+  expect(saved.expectedRevision).toBe("rev-1");
 });

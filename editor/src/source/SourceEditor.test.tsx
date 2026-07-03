@@ -254,7 +254,12 @@ describe("SourceEditor", () => {
 describe("Public API index exports", () => {
   it("exports MidlEditor as a function", async () => {
     const mod = await import("../index");
-    expect(typeof (mod as Record<string, unknown>)["MidlEditor"]).toBe("function");
+    const editor = (mod as Record<string, unknown>)["MidlEditor"];
+    // MidlEditor is a forwardRef component, which is an exotic object {$$typeof, render}
+    // Accept either a function (for backward compatibility) or a forwardRef object
+    const isFunction = typeof editor === "function";
+    const isForwardRef = !!editor && typeof editor === "object" && typeof (editor as Record<string, unknown>)["render"] === "function";
+    expect(isFunction || isForwardRef).toBe(true);
   });
 
   it("exports parseMidl as a function", async () => {
