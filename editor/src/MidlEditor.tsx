@@ -60,6 +60,15 @@ export interface MidlEditorHandle {
   setDoc(doc: string): void;
   /** Current in-memory model (read-only snapshot). */
   getModel(): EditorModel;
+  /**
+   * True when the current model differs from the last successful save/load
+   * baseline (the same comparison that drives the status bar's "Unsaved
+   * changes" state and the beforeunload guard — see the `dirty` state
+   * below). Callers (e.g. the chat panel's pre-Apply context) should read
+   * this live rather than snapshotting dirty-ness at an earlier point in
+   * time, since edits made before that snapshot would otherwise be missed.
+   */
+  isDirty(): boolean;
 }
 
 type Mode = "visual" | "source";
@@ -504,8 +513,11 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
       getModel(): EditorModel {
         return model;
       },
+      isDirty(): boolean {
+        return dirty;
+      },
     }),
-    [model],
+    [model, dirty],
   );
 
   // ── Preview ──────────────────────────────────────────────────────────────────

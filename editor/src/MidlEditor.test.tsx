@@ -1010,3 +1010,46 @@ test("save after handle.setDoc persists the new body through the normal save pat
   expect(saved.id).toBe("dashboard-1");
   expect(saved.expectedRevision).toBe("rev-1");
 });
+
+test("handle.isDirty reflects setDoc and clears after a successful save", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const store = makeFakeStore();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={store}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => {
+    expect(getByTestId("save-state").textContent).toMatch(/^saved$/i);
+  }, { timeout: 3000 });
+
+  // Clean baseline after load: not dirty.
+  expect(ref.current!.isDirty()).toBe(false);
+
+  await act(async () => {
+    ref.current!.setDoc(PROPOSAL_DOC);
+  });
+
+  // setDoc leaves savedSourceRef untouched -> the dirty effect flags it, and
+  // isDirty() reflects that live state (not a snapshot from before the edit).
+  await waitFor(() => {
+    expect(ref.current!.isDirty()).toBe(true);
+  });
+
+  await act(async () => {
+    fireEvent.click(getByTestId("save-button"));
+  });
+  await waitFor(() => {
+    expect(store.savedCalls.length).toBeGreaterThan(0);
+  });
+
+  // A successful save re-baselines savedSourceRef -> isDirty() goes false again.
+  await waitFor(() => {
+    expect(ref.current!.isDirty()).toBe(false);
+  });
+});
