@@ -49,8 +49,16 @@ try {
   if (!exports || typeof exports !== "object") throw new Error("window.MidlEditor is not an object");
   console.log("  ✓ window.MidlEditor is an object");
 
-  if (typeof exports.MidlEditor !== "function") throw new Error("window.MidlEditor.MidlEditor is not a function");
-  console.log("  ✓ window.MidlEditor.MidlEditor is a function");
+  // MidlEditor is a forwardRef component since the MidlEditorHandle change:
+  // React represents it as an exotic object {$$typeof, render: fn}, not a
+  // plain function. Accept either shape (function kept for future-proofing).
+  const editorExport = exports.MidlEditor;
+  const isForwardRef =
+    !!editorExport && typeof editorExport === "object" && typeof editorExport.render === "function";
+  if (typeof editorExport !== "function" && !isForwardRef) {
+    throw new Error("window.MidlEditor.MidlEditor is not a React component (function or forwardRef object)");
+  }
+  console.log("  ✓ window.MidlEditor.MidlEditor is a React component (forwardRef)");
 
   if (typeof exports.parseMidl !== "function") throw new Error("window.MidlEditor.parseMidl is not a function");
   console.log("  ✓ window.MidlEditor.parseMidl is a function");
