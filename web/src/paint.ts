@@ -150,7 +150,12 @@ export function paintScreen(
       case "autopilot": pill(ctx, p, m.text || "STBY", th.accent, th); break;
       case "button": centerText(ctx, p, title, 16, th.accent); break;
       case "text": centerText(ctx, p, m.text, 20, fg(m, th)); break;
-      default: centerText(ctx, p, m.text, 32, fg(m, th)); break; // single-value
+      // TODO(firmware-parity-wave5): `clinometer` (heel/pitch attitude dial,
+      // catalog wave5) has no dedicated Canvas painter yet — it falls through
+      // to the generic numeric readout below. Model an arc widget on `dial()`
+      // (heel arc + port/stbd bands + pitch secondary) when a Canvas preview
+      // of it is needed; the SVG backend has the matching TODO in render-svg.ts.
+      default: centerText(ctx, p, m.text, 32, fg(m, th)); break; // single-value, clinometer
     }
   }
 }

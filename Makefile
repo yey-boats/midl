@@ -20,6 +20,7 @@ gen-manifest: check-tools
 	$(BUILD_DIR)/yb_midl_gen square-480 esp32-4848s040 > schemas/gen/yb-midl-capabilities.square-480.json
 	$(BUILD_DIR)/yb_midl_gen landscape-800x480 waveshare-touch-lcd-4_3 > schemas/gen/yb-midl-capabilities.landscape-800x480.json
 	$(BUILD_DIR)/yb_midl_gen landscape-1024x600 waveshare-touch-lcd-5_1024x600 > schemas/gen/yb-midl-capabilities.landscape-1024x600.json
+	$(BUILD_DIR)/yb_midl_gen round-360 waveshare-esp32-s3-round-360 > schemas/gen/yb-midl-capabilities.round-360.json
 	@echo "generated schemas/gen/*.json"
 
 check-catalog: check-tools

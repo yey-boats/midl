@@ -61,5 +61,15 @@
   "valid-empty-elements": {
     "ok": true,
     "paths": []
+  },
+  "valid-clinometer-round-360": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-clinometer-missing-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/heel/bindings/value"
+    ]
   }
 }

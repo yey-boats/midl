@@ -17,6 +17,7 @@ test("committed generated manifests match a fresh generation", () => {
     ["square-480", "esp32-4848s040"],
     ["landscape-800x480", "waveshare-touch-lcd-4_3"],
     ["landscape-1024x600", "waveshare-touch-lcd-5_1024x600"],
+    ["round-360", "waveshare-esp32-s3-round-360"],
   ];
   for (const [cls, board] of cases) {
     const fresh = execSync(`/tmp/yb_midl_gen_test ${cls} ${board}`, { cwd: repo }).toString();

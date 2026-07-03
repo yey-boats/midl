@@ -37,6 +37,11 @@ inline constexpr const char *A_DIAL[] = {"title", "size",  "color",
 inline constexpr const char *A_WIND[] = {"title", "format", "size",  "unit",  "color",
                                          "side",  "sectors", "hull", "shape", nullptr};
 inline constexpr const char *A_TREND[] = {"title", "size", "unit", "color", nullptr};
+// clinometer (heel/pitch attitude dial): `format` carries format.decimals;
+// `color` and `zones` are optional style overrides — `zones` doubles as the
+// port/stbd heel-angle bands, `range` bounds the arc (e.g. max heel degrees).
+inline constexpr const char *A_CLIN[] = {"title", "format", "size", "unit",
+                                         "color", "zones",  "range", nullptr};
 
 inline constexpr ElementType ELEMENTS[] = {
     {"single-value", "Numeric", B_VALUE, A_NUM, false},
@@ -48,6 +53,9 @@ inline constexpr ElementType ELEMENTS[] = {
     {"trend", "Trend", B_VALUE, A_TREND, false},
     {"autopilot", "Autopilot", B_VALUE, A_BASIC, false},
     {"button", "Button", B_NONE, A_BASIC, false},
+    // Heel arc with port/stbd bands + pitch secondary; binds
+    // navigation.attitude roll (value). No glyphs — it is not a marker dial.
+    {"clinometer", "Clinometer", B_VALUE, A_CLIN, false},
 };
 inline constexpr size_t ELEMENT_COUNT = sizeof(ELEMENTS) / sizeof(ELEMENTS[0]);
 
@@ -70,7 +78,9 @@ inline constexpr size_t ACTION_KIND_COUNT = (sizeof(ACTION_KINDS) / sizeof(ACTIO
 inline constexpr int FONTS[] = {14, 20, 28, 48};
 inline constexpr size_t FONT_COUNT = sizeof(FONTS) / sizeof(FONTS[0]);
 
-inline constexpr const char *THEMES[] = {"day", "night", "high-contrast", nullptr};
+// `red-night` and `classic` are palette-only themes (no new capability
+// surface) — same element/attr set, different firmware color palette.
+inline constexpr const char *THEMES[] = {"day", "night", "high-contrast", "red-night", "classic", nullptr};
 inline constexpr size_t THEME_COUNT = (sizeof(THEMES) / sizeof(THEMES[0])) - 1;
 
 inline constexpr const char *PRESETS[] = {"full", "hero-split", nullptr};
@@ -84,6 +94,10 @@ inline constexpr ResClass CLASSES[] = {
     {"square-480", 480, 480, 3, 3, 9, 3},
     {"landscape-800x480", 800, 480, 3, 2, 6, 3},
     {"landscape-1024x600", 1024, 600, 3, 2, 6, 4},
+    // Round face: circular clipping leaves far less usable corner area than a
+    // square/landscape panel of similar diagonal, so tile budget and nesting
+    // depth are constrained well below square-480 (2x2 grid, max 4 tiles).
+    {"round-360", 360, 360, 2, 2, 4, 2},
 };
 inline constexpr size_t CLASS_COUNT = sizeof(CLASSES) / sizeof(CLASSES[0]);
 

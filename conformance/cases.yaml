@@ -163,3 +163,25 @@ cases:
             cols: 1
             cells:
               - {}
+
+  - name: valid-clinometer-round-360
+    targetClass: round-360
+    note: firmware-parity wave5 — clinometer element on the round-360 display class
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            heel: { type: clinometer, format: { decimals: 1 }, style: { zones: [{ lt: -20, color: port }, { lt: 20, color: fg }, { lt: 41, color: starboard }] }, bindings: { value: { kind: signalk, path: navigation.attitude } } }
+          layout: { element: heel }
+
+  - name: invalid-clinometer-missing-value
+    targetClass: round-360
+    note: clinometer requires a value binding, same as gauge/bar
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            heel: { type: clinometer }
+          layout: { element: heel }

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
 // Host consistency check: the catalog's element WidgetKind names must
-// exactly match the firmware's 9 painters (include/ui_layouts.h
+// exactly match the firmware's 10 painters (include/ui_layouts.h
 // WidgetKind). Update BOTH this list and the catalog when adding a
 // painter. Exits non-zero on mismatch.
 #include <cstdio>
@@ -12,9 +12,10 @@
 #include "yb_midl_catalog.h"
 
 int main() {
-    // Mirror of include/ui_layouts.h WidgetKind (the 9 real painters).
+    // Mirror of include/ui_layouts.h WidgetKind (the 10 real painters).
     const std::set<std::string> kinds = {
         "Numeric", "Compass", "Gauge", "Bar", "WindRose", "Autopilot", "Text", "Button", "Trend",
+        "Clinometer",
     };
     std::set<std::string> catalog;
     for (size_t i = 0; i < yb_midl_catalog::ELEMENT_COUNT; ++i)

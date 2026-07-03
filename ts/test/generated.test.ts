@@ -13,23 +13,34 @@ const genDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "schema
 const load = (cls: string): Manifest =>
   JSON.parse(readFileSync(join(genDir, `yb-midl-capabilities.${cls}.json`), "utf8"));
 
-const CLASSES = ["square-480", "landscape-800x480", "landscape-1024x600"];
+const CLASSES = ["square-480", "landscape-800x480", "landscape-1024x600", "round-360"];
 
 test.each(CLASSES)("generated manifest %s is structurally valid", (cls) => {
   expect(validateManifestStructure(load(cls))).toEqual([]);
 });
 
-test("square-480 advertises the 9 element types and correct limits", () => {
+test("square-480 advertises the 10 element types and correct limits", () => {
   const m = load("square-480");
   const types = m.elements.map((e) => e.type).sort();
   expect(types).toEqual(
-    ["autopilot", "bar", "button", "compass", "gauge", "single-value", "text", "trend", "windrose"].sort(),
+    ["autopilot", "bar", "button", "clinometer", "compass", "gauge", "single-value", "text", "trend", "windrose"].sort(),
   );
   const c = m.classes.find((x) => x.id === "square-480")!;
   // square-480 → 3×3 grid, maxTiles 9 (catalog commit 39f9684).
   expect(c.maxTiles).toBe(9);
   expect(c.maxDepth).toBe(3);
   expect(m.midl).toMatch(/^\d+\.\d+\.\d+$/);
+});
+
+test("round-360 advertises a constrained tile budget", () => {
+  const m = load("round-360");
+  const c = m.classes.find((x) => x.id === "round-360")!;
+  // Round face: circular clipping leaves less usable area than square/landscape
+  // classes of similar diagonal — 2×2 grid, maxTiles 4 (catalog wave5).
+  expect(c.maxTiles).toBe(4);
+  expect(c.maxDepth).toBe(2);
+  expect(c.width).toBe(360);
+  expect(c.height).toBe(360);
 });
 
 test("dial elements carry glyphs, non-dial elements do not", () => {

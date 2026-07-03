@@ -67,8 +67,15 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
       return buttonSvg(rect, str(style.title) ?? el.name ?? "", th, opts);
     case "text":
       return textSvg(rect, m, th, opts);
+    // TODO(firmware-parity-wave5): `clinometer` (heel/pitch attitude dial,
+    // catalog wave5) has no dedicated SVG tile yet — it falls through to the
+    // generic single-value readout below. No test currently requires every
+    // catalog element to have a bespoke render, so this stub is deliberate;
+    // when a real render is wanted, model it on dialSvg() (arc + port/stbd
+    // zone bands from style.zones + a pitch secondary), matching the Canvas
+    // TODO in paint.ts.
     default:
-      return singleValueSvg(rect, m, th, opts); // single-value
+      return singleValueSvg(rect, m, th, opts); // single-value, clinometer
   }
 }
 

@@ -1,14 +1,14 @@
 {
   "midl": "1.0.0",
-  "board": "waveshare-touch-lcd-5_1024x600",
+  "board": "waveshare-esp32-s3-round-360",
   "maxMarkersPerDial": 12,
   "classes": [
     {
-      "id": "landscape-1024x600",
-      "width": 1024,
-      "height": 600,
-      "maxTiles": 6,
-      "maxDepth": 4,
+      "id": "round-360",
+      "width": 360,
+      "height": 360,
+      "maxTiles": 4,
+      "maxDepth": 2,
       "presets": ["full", "hero-split"],
       "elements": ["single-value", "text", "gauge", "bar", "compass", "windrose", "trend", "autopilot", "button", "clinometer"]
     }
