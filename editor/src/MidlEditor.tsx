@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import type { Manifest } from "@yey-boats/midl";
 import type { DataProvider } from "@yey-boats/midl-web";
 import type { DashboardStoreAdapter, ManifestSource, DashboardRef } from "./adapters";
@@ -45,6 +45,21 @@ export interface MidlEditorProps {
   initialId?: string;
   targetClass?: string;
   onSaved?: (ref: DashboardRef) => void;
+}
+
+// Imperative API exposed via ref (spec: webshell editor-chat surface, §6.1).
+// getDoc/getModel are read-only snapshots; setDoc replaces the document body
+// exactly like a user edit — the editor goes DIRTY (savedSourceRef untouched)
+// and the same dashboard identity + optimistic concurrency apply on save
+// (idRef/revisionRef untouched). setDoc does NOT swallow parse errors: it
+// throws EditorError so the caller (e.g. the chat proposal card) can show it.
+export interface MidlEditorHandle {
+  /** Serialized current model. */
+  getDoc(fmt?: "yaml" | "json"): string;
+  /** Replace the document body. Throws EditorError on invalid source. */
+  setDoc(doc: string): void;
+  /** Current in-memory model (read-only snapshot). */
+  getModel(): EditorModel;
 }
 
 type Mode = "visual" | "source";
@@ -259,7 +274,8 @@ function LayoutControls({
 
 // ── MidlEditor component ───────────────────────────────────────────────────────
 
-export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
+export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
+  function MidlEditor(props: MidlEditorProps, ref): React.JSX.Element {
   const { store, provider, manifest: manifestSource, initialId, onSaved } = props;
   const defaultClass = props.targetClass ?? "square-480";
 
@@ -462,6 +478,35 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
     setName(value);
     setModel((m) => (m.title === value ? m : { ...m, title: value }));
   }, []);
+
+  // ── Imperative handle (MidlEditorHandle) ────────────────────────────────────
+  useImperativeHandle(
+    ref,
+    (): MidlEditorHandle => ({
+      getDoc(fmt?: "yaml" | "json"): string {
+        return serializeMidl(model, fmt ?? "yaml");
+      },
+      setDoc(doc: string): void {
+        // parseMidl throws EditorError on invalid source (e.g. ≠1 screen) —
+        // propagate it; no silent fallback (unlike the init-load effect).
+        const parsed = parseMidl(doc);
+        setModel(parsed);
+        // `name` is a separate mirror of model.title — sync it or the header
+        // desyncs (same as the init/reload paths).
+        setName(parsed.title);
+        // selectedCell indexes the OLD grid — clear it.
+        setSelectedCell(null);
+        // savedSourceRef, idRef, revisionRef INTENTIONALLY untouched:
+        // the dirty effect then marks the editor dirty, so agent edits look
+        // like unsaved user edits and flow through the normal
+        // save/validate/conflict path against the same dashboard revision.
+      },
+      getModel(): EditorModel {
+        return model;
+      },
+    }),
+    [model],
+  );
 
   // ── Preview ──────────────────────────────────────────────────────────────────
 
@@ -1184,4 +1229,5 @@ export function MidlEditor(props: MidlEditorProps): React.JSX.Element {
       })()}
     </div>
   );
-}
+  },
+);
