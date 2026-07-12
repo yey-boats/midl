@@ -91,7 +91,7 @@ export function usePreview(
       const mf = manifestRef.current;
       const o = optsRef.current;
 
-      const validation = validateModel(m, mf);
+      const validation = validateModel(m, mf, o.className);
       const firstError = validation.issues.find(
         (i) => i.severity === "error" || i.severity === undefined,
       );

@@ -14,6 +14,8 @@ export interface SourceEditorProps {
   model: EditorModel;
   manifest: Manifest;
   onModelChange: (m: EditorModel) => void;
+  /** Device class to validate against (defaults to manifest.classes[0]). */
+  className?: string;
 }
 
 /**
@@ -30,12 +32,13 @@ export function SourceEditor({
   model,
   manifest,
   onModelChange,
+  className,
 }: SourceEditorProps): React.JSX.Element {
   // The text currently in the textarea.
   const [text, setText] = useState(() => serializeMidl(model, "yaml"));
   // Validation / parse issues to show below the textarea.
   // Initialize from the current model so issues are visible immediately on mount.
-  const [issues, setIssues] = useState<Issue[]>(() => validateModel(model, manifest).issues);
+  const [issues, setIssues] = useState<Issue[]>(() => validateModel(model, manifest, className).issues);
   // Whether the textarea is focused (user is editing).
   const focusedRef = useRef(false);
   // Debounce timer reference.
@@ -51,10 +54,10 @@ export function SourceEditor({
       setText(serialized);
       lastModelRef.current = model;
       // Recompute issues for the new model.
-      const validation = validateModel(model, manifest);
+      const validation = validateModel(model, manifest, className);
       setIssues(validation.issues);
     }
-  }, [model, manifest]);
+  }, [model, manifest, className]);
 
   // Apply the current text: parse → validate → propagate.
   const applyText = useCallback(
@@ -70,10 +73,10 @@ export function SourceEditor({
       // Successful parse → update model and run validation.
       lastModelRef.current = parsed;
       onModelChange(parsed);
-      const validation = validateModel(parsed, manifest);
+      const validation = validateModel(parsed, manifest, className);
       setIssues(validation.issues);
     },
-    [onModelChange, manifest],
+    [onModelChange, manifest, className],
   );
 
   const handleChange = useCallback(

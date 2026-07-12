@@ -249,6 +249,74 @@ describe("SourceEditor", () => {
   });
 });
 
+// ── SourceEditor className routing ────────────────────────────────────────────
+
+describe("SourceEditor — validates against the className prop", () => {
+  // classes[0] is RESTRICTED (no single-value); the second class supports it.
+  const TWO_CLASS_MANIFEST: Manifest = {
+    ...MINIMAL_MANIFEST,
+    classes: [
+      { id: "square-480", maxTiles: 4, maxDepth: 3, elements: ["text"] },
+      { id: "landscape-800x480", maxTiles: 6, maxDepth: 3, elements: ["single-value"] },
+    ],
+    elements: [
+      { type: "text", bindings: ["value"] },
+      { type: "single-value", bindings: ["value"] },
+    ],
+  };
+
+  it("no issues on mount for a model valid only for the selected (non-first) class", () => {
+    const { getByTestId } = render(
+      <SourceEditor
+        model={MODEL_WITH_ELEMENT}
+        manifest={TWO_CLASS_MANIFEST}
+        className="landscape-800x480"
+        onModelChange={vi.fn()}
+      />,
+    );
+    const items = getByTestId("source-issues").querySelectorAll("li");
+    expect(items.length).toBe(0);
+  });
+
+  it("issues on mount when className is omitted (defaults to classes[0])", () => {
+    const { getByTestId } = render(
+      <SourceEditor
+        model={MODEL_WITH_ELEMENT}
+        manifest={TWO_CLASS_MANIFEST}
+        onModelChange={vi.fn()}
+      />,
+    );
+    const items = getByTestId("source-issues").querySelectorAll("li");
+    expect(items.length).toBeGreaterThan(0);
+  });
+
+  it("applyText (edit + blur) validates against the className prop", async () => {
+    const onModelChange = vi.fn();
+    const { getByTestId } = render(
+      <SourceEditor
+        model={BASE_MODEL}
+        manifest={TWO_CLASS_MANIFEST}
+        className="landscape-800x480"
+        onModelChange={onModelChange}
+      />,
+    );
+
+    const textarea = getByTestId("source-textarea") as HTMLTextAreaElement;
+    const editedYaml = serializeMidl(MODEL_WITH_ELEMENT, "yaml");
+
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: editedYaml } });
+    });
+    await act(async () => {
+      fireEvent.blur(textarea);
+    });
+
+    expect(onModelChange).toHaveBeenCalled();
+    const items = getByTestId("source-issues").querySelectorAll("li");
+    expect(items.length).toBe(0);
+  });
+});
+
 // ── Public API / index exports tests ─────────────────────────────────────────
 
 describe("Public API index exports", () => {

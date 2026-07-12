@@ -605,7 +605,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
     // require confirmation before persisting invalid MIDL to the device. Warnings
     // do not block. If no confirm dialog is available, proceed (don't hard-fail).
     if (manifest) {
-      const v = validateModel(model, manifest);
+      const v = validateModel(model, manifest, className);
       const errorCount = v.ok ? 0 : v.issues.filter((i) => i.severity !== "warning").length;
       if (errorCount > 0) {
         const msg = `This dashboard has ${errorCount} validation error${errorCount !== 1 ? "s" : ""}:\n\n` +
@@ -623,7 +623,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
       }
     }
     void doSave(false);
-  }, [doSave, model, manifest]);
+  }, [doSave, model, manifest, className]);
 
   const handleOverwrite = useCallback(() => {
     void doSave(true);
@@ -1130,6 +1130,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
           <SourceEditor
             model={model}
             manifest={manifest}
+            className={className}
             onModelChange={setModel}
           />
         ) : (
@@ -1190,7 +1191,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
                     </span>
                   );
                 }
-                const v = validateModel(model, manifest);
+                const v = validateModel(model, manifest, className);
                 if (v.ok) {
                   return (
                     <>
