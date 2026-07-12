@@ -1299,3 +1299,101 @@ test("theme switcher offers all five renderer-implemented themes", async () => {
   });
   expect(select.value).toBe("red-night");
 });
+
+// ── Keyboard shortcuts (WS1-T6) ───────────────────────────────────────────────
+
+test("Delete removes the selected element; Backspace in the name input does not", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("cell-0")).toBeTruthy(); }, { timeout: 3000 });
+  expect(ref.current!.getModel().elements["sog"]).toBeTruthy();
+
+  // Focus guard: Backspace while typing in the name input must NOT delete.
+  await act(async () => { fireEvent.click(getByTestId("cell-0")); });
+  const nameInput = getByTestId("name-input") as HTMLInputElement;
+  nameInput.focus();
+  await act(async () => { fireEvent.keyDown(nameInput, { key: "Backspace" }); });
+  expect(ref.current!.getModel().elements["sog"]).toBeTruthy();
+
+  // Delete with the canvas selection active removes the element.
+  await act(async () => { fireEvent.keyDown(window, { key: "Delete" }); });
+  await waitFor(() => {
+    expect(ref.current!.getModel().elements["sog"]).toBeUndefined();
+  });
+});
+
+test("Backspace (outside inputs) removes the selected element too", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("cell-0")).toBeTruthy(); }, { timeout: 3000 });
+  await act(async () => { fireEvent.click(getByTestId("cell-0")); });
+  await act(async () => { fireEvent.keyDown(window, { key: "Backspace" }); });
+  await waitFor(() => {
+    expect(ref.current!.getModel().elements["sog"]).toBeUndefined();
+  });
+});
+
+test("Escape clears the cell selection", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("cell-0")).toBeTruthy(); }, { timeout: 3000 });
+  await act(async () => { fireEvent.click(getByTestId("cell-0")); });
+  expect(ref.current!.getSelection().cellIndex).toBe(0);
+
+  await act(async () => { fireEvent.keyDown(window, { key: "Escape" }); });
+  await waitFor(() => {
+    expect(ref.current!.getSelection().cellIndex).toBeNull();
+  });
+});
+
+test("Cmd/Ctrl+S saves (and prevents the browser dialog)", async () => {
+  const store = makeFakeStore();
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("status-bar")).toBeTruthy(); }, { timeout: 3000 });
+
+  await act(async () => { fireEvent.keyDown(window, { key: "s", metaKey: true }); });
+  await waitFor(() => { expect(store.savedCalls.length).toBe(1); });
+
+  await act(async () => { fireEvent.keyDown(window, { key: "s", ctrlKey: true }); });
+  await waitFor(() => { expect(store.savedCalls.length).toBe(2); });
+
+  // A bare "s" keypress must not save.
+  await act(async () => { fireEvent.keyDown(window, { key: "s" }); });
+  await new Promise((r) => setTimeout(r, 50));
+  expect(store.savedCalls.length).toBe(2);
+});
