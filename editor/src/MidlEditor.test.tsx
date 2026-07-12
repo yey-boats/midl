@@ -1274,3 +1274,28 @@ test("class switcher offers round-360 (marked unsupported under a square-only ma
   expect(option!.disabled).toBe(true);
   expect(option!.textContent).toContain("(preview unsupported)");
 });
+
+// ── Preview-theme selector offers every implemented theme (WS1-T5) ───────────
+
+test("theme switcher offers all five renderer-implemented themes", async () => {
+  const { getByTestId } = render(
+    <MidlEditor
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("theme-switch")).toBeTruthy(); });
+
+  const select = getByTestId("theme-switch") as HTMLSelectElement;
+  const values = Array.from(select.options).map((o) => o.value);
+  expect(values).toEqual(["night", "day", "high-contrast", "red-night", "classic"]);
+
+  // Selecting a new theme sticks.
+  await act(async () => {
+    fireEvent.change(select, { target: { value: "red-night" } });
+  });
+  expect(select.value).toBe("red-night");
+});
