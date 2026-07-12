@@ -75,6 +75,12 @@ export interface MidlEditorHandle {
   /** Validation issues for the SELECTED class (validateModel + device-lint merged),
    *  same class the status bar validates against. Empty array when clean. */
   getValidationIssues(): ValidationIssue[];
+  /** LIVE target class — the class switcher's current selection (the same class
+   *  getValidationIssues() and the status bar validate against), which may differ
+   *  from the mount-time `targetClass` prop once the user switches. Added post-
+   *  review as the M-2 fix so callers (e.g. the Builder chat context) never
+   *  report a stale hardcoded class alongside live validation issues. */
+  getTargetClass(): string;
 }
 
 /** One merged validation finding surfaced through `MidlEditorHandle.getValidationIssues()`.
@@ -578,6 +584,9 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
           source: "device-lint",
         }));
         return [...manifestIssues, ...lintIssues];
+      },
+      getTargetClass(): string {
+        return className;
       },
     }),
     [model, dirty, manifest, selectedCell, className],
