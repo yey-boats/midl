@@ -842,6 +842,46 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
     [],
   );
 
+  // ── Keyboard shortcuts (WS1-T6) ──────────────────────────────────────────────
+  // Delete/Backspace removes the selected element, Esc deselects, Cmd/Ctrl+S
+  // saves. A focus guard keeps Delete/Backspace inert while the user is typing
+  // in an input/textarea/contenteditable (which covers the source-mode editor).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    function isTypingTarget(t: EventTarget | null): boolean {
+      if (!t || !(t instanceof Element)) return false;
+      const tag = t.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if ((t as HTMLElement).isContentEditable) return true;
+      return typeof t.closest === "function" && t.closest("[contenteditable]") !== null;
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      // Cmd/Ctrl+S: always intercept (otherwise the browser opens its own
+      // save-page dialog), even while an input has focus.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+      if (isTypingTarget(e.target)) return; // focus guard
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedElementId) {
+          e.preventDefault();
+          handleRemoveFromList(selectedElementId);
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        setSelectedCell(null);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedElementId, handleSave, handleRemoveFromList]);
+
   // ── Layout tab: re-place an unplaced/orphaned widget (#1/#2 data-loss) ───────
   // Drops the orphan into the currently-selected empty cell if there is one, else
   // the first empty cell. If the grid is full, no-op (the chip stays in the tray).
