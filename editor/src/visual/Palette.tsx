@@ -113,6 +113,18 @@ const TYPE_META: Record<string, TypeMeta> = {
       </svg>
     ),
   },
+  "clinometer": {
+    label: "Clinometer",
+    description: "Heel / roll angle",
+    icon: (
+      <svg width={W} height={H} viewBox="0 0 14 14" fill="none" aria-hidden>
+        {/* Arc with an off-center bubble/needle suggesting heel */}
+        <path d="M2 10 A6 6 0 0 1 12 10" stroke="currentColor" strokeWidth="1.3"/>
+        <line x1="7" y1="11" x2="9.8" y2="5.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+        <circle cx="7" cy="11" r="1.2" fill="currentColor"/>
+      </svg>
+    ),
+  },
 };
 
 function getMeta(type: string): TypeMeta {

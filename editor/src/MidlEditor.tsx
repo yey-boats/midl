@@ -91,7 +91,16 @@ export interface ValidationIssue {
 }
 
 type Mode = "visual" | "source";
-type Theme = "night" | "day";
+// Every theme the renderer implements (web/src/theme.ts THEMES) — the selector
+// below renders one option per entry, in this order.
+type Theme = "night" | "day" | "high-contrast" | "red-night" | "classic";
+const PREVIEW_THEMES: Array<{ value: Theme; label: string }> = [
+  { value: "night", label: "Preview: Night" },
+  { value: "day", label: "Preview: Day" },
+  { value: "high-contrast", label: "Preview: High contrast" },
+  { value: "red-night", label: "Preview: Red night" },
+  { value: "classic", label: "Preview: Classic" },
+];
 type LeftTab = "elements" | "data" | "layout";
 type MobileSheet = "elements" | "data" | "layout" | "inspector" | null;
 
@@ -933,8 +942,9 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
             title="Themes the device screen preview, not the editor"
             onChange={(e) => setThemeChoice(e.target.value as Theme)}
           >
-            <option value="night">Preview: Night</option>
-            <option value="day">Preview: Day</option>
+            {PREVIEW_THEMES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
           </select>
         </div>
 

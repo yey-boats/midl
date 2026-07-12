@@ -128,3 +128,21 @@ test("unknown type falls back gracefully (renders without crashing)", () => {
   );
   expect(getByTestId("palette-custom-unknown-widget")).toBeTruthy();
 });
+
+test("clinometer has a dedicated TYPE_META entry (label + description, not the generic fallback)", () => {
+  const manifestWithClino: Manifest = {
+    ...MANIFEST,
+    elements: [...MANIFEST.elements, { type: "clinometer", bindings: ["value"] }],
+  };
+  const { getByTestId } = render(
+    <Palette manifest={manifestWithClino} onAdd={vi.fn()} />,
+  );
+  const item = getByTestId("palette-clinometer");
+  // A curated label (not the raw "clinometer" type string used by the fallback).
+  expect(item.textContent).toContain("Clinometer");
+  // The fallback has an empty description; the curated entry must describe itself.
+  expect(item.textContent).toMatch(/heel|tilt|roll/i);
+  // Fallback icon is a bare rounded rect; the curated icon differs.
+  expect(item.querySelector("svg")).toBeTruthy();
+  expect(item.innerHTML).not.toContain('<rect x="2" y="2" width="10" height="10"');
+});
