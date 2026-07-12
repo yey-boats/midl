@@ -202,6 +202,65 @@ describe("validateModel — Validation shape", () => {
   });
 });
 
+describe("validateModel — className resolution (3-arg form)", () => {
+  // A two-class manifest where classes[0] is RESTRICTED (no compass) and the
+  // second class supports everything. navigation.midl.yaml uses a compass, so
+  // it is invalid for classes[0] but valid for the second class.
+  const TWO_CLASS_MANIFEST: Manifest = {
+    ...SQUARE_480_MANIFEST,
+    classes: [
+      {
+        id: "square-480",
+        maxTiles: 4,
+        maxDepth: 3,
+        elements: ["single-value", "bar"], // restricted: no compass
+      },
+      {
+        id: "landscape-800x480",
+        maxTiles: 6,
+        maxDepth: 3,
+        elements: ["single-value", "text", "gauge", "bar", "compass", "windrose", "trend", "autopilot", "button"],
+      },
+    ],
+  };
+
+  function loadCompassModel(): import("./model").EditorModel {
+    const model = parseMidl(loadFixture("navigation.midl.yaml"));
+    // Clear variants so satisfy.ts validates the base layout for every class.
+    model.variants = [];
+    return model;
+  }
+
+  it("validates against the named class: ok:true for the permissive second class", () => {
+    const model = loadCompassModel();
+    const result = validateModel(model, TWO_CLASS_MANIFEST, "landscape-800x480");
+    expect(result.ok).toBe(true);
+  });
+
+  it("defaults to classes[0] when className is omitted (back-compat): ok:false", () => {
+    const model = loadCompassModel();
+    const result = validateModel(model, TWO_CLASS_MANIFEST);
+    expect(result.ok).toBe(false);
+    expect(result.issues.length).toBeGreaterThan(0);
+  });
+
+  it("unknown className falls back to classes[0]", () => {
+    const model = loadCompassModel();
+    const unknown = validateModel(model, TWO_CLASS_MANIFEST, "hexagon-999");
+    const defaulted = validateModel(model, TWO_CLASS_MANIFEST);
+    expect(unknown.ok).toBe(false);
+    expect(unknown.ok).toBe(defaulted.ok);
+  });
+
+  it("explicitly naming classes[0] matches the two-arg default", () => {
+    const model = loadCompassModel();
+    const named = validateModel(model, TWO_CLASS_MANIFEST, "square-480");
+    const defaulted = validateModel(model, TWO_CLASS_MANIFEST);
+    expect(named.ok).toBe(defaulted.ok);
+    expect(named.issues.length).toBe(defaulted.issues.length);
+  });
+});
+
 describe("validateModel — empty cells and empty elements (post-schema fix)", () => {
   it("model with an empty grid cell {} returns ok:true (spacer is valid)", () => {
     // Simulates the state after removeElement on a 1x2 grid with one element
