@@ -9,7 +9,7 @@ import type { Manifest } from "@yey-boats/midl";
 import { MockDataProvider } from "@yey-boats/midl-web";
 import type { DashboardStoreAdapter, ManifestSource } from "./adapters";
 import { RevisionConflict } from "./adapters";
-import { MidlEditor } from "./MidlEditor";
+import { MidlEditor, getDeviceDimensions } from "./MidlEditor";
 import type { MidlEditorHandle } from "./MidlEditor";
 import { parseMidl } from "./midl-io";
 import { EditorError } from "./model";
@@ -1241,4 +1241,36 @@ test("handle.getValidationIssues returns [] when the manifest has not loaded", a
   );
   await waitFor(() => { expect(ref.current).toBeTruthy(); });
   expect(ref.current!.getValidationIssues()).toEqual([]);
+});
+
+// ── round-360 class support (WS1-T4) ─────────────────────────────────────────
+
+test("getDeviceDimensions parses round-N classes", () => {
+  expect(getDeviceDimensions("round-360")).toEqual({ w: 360, h: 360 });
+  expect(getDeviceDimensions("round-240")).toEqual({ w: 240, h: 240 });
+  // Existing patterns unchanged.
+  expect(getDeviceDimensions("square-480")).toEqual({ w: 480, h: 480 });
+  expect(getDeviceDimensions("landscape-800x480")).toEqual({ w: 800, h: 480 });
+  expect(getDeviceDimensions("unknown-junk")).toEqual({ w: 480, h: 480 });
+});
+
+test("class switcher offers round-360 (marked unsupported under a square-only manifest)", async () => {
+  const { getByTestId } = render(
+    <MidlEditor
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("class-switch")).toBeTruthy(); });
+
+  const select = getByTestId("class-switch") as HTMLSelectElement;
+  const option = Array.from(select.options).find((o) => o.value === "round-360");
+  expect(option).toBeTruthy();
+  // The test manifest only declares square-480 → round-360 is disabled and
+  // labeled "(preview unsupported)", consistent with the isClassSupported gate.
+  expect(option!.disabled).toBe(true);
+  expect(option!.textContent).toContain("(preview unsupported)");
 });
