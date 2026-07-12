@@ -4,7 +4,7 @@
 export const EDITOR_VERSION = "0.1.0";
 
 export { MidlEditor } from "./MidlEditor";
-export type { MidlEditorProps, MidlEditorHandle } from "./MidlEditor";
+export type { MidlEditorProps, MidlEditorHandle, ValidationIssue } from "./MidlEditor";
 
 export { parseMidl, serializeMidl } from "./midl-io";
 
