@@ -1224,6 +1224,32 @@ screens:
   });
 });
 
+test("handle.getTargetClass returns the LIVE class, tracking the class switcher (M-2)", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("class-switch")).toBeTruthy(); }, { timeout: 3000 });
+
+  // Initially the prop's class.
+  expect(ref.current!.getTargetClass()).toBe("square-480");
+
+  // The user switches the live class via the top-bar selector → the handle
+  // must report the NEW class (the one getValidationIssues/status bar use),
+  // not the mount-time targetClass prop.
+  await act(async () => {
+    fireEvent.change(getByTestId("class-switch"), { target: { value: "landscape-800x480" } });
+  });
+  expect(ref.current!.getTargetClass()).toBe("landscape-800x480");
+});
+
 test("handle.getValidationIssues returns [] when the manifest has not loaded", async () => {
   const ref = React.createRef<MidlEditorHandle>();
   const pendingManifestSource: ManifestSource = {
