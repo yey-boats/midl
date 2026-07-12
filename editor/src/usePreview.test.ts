@@ -90,6 +90,54 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("usePreview — validates against opts.className", () => {
+  // classes[0] is RESTRICTED (does not allow single-value); the second class
+  // supports it. The preview must validate against opts.className, not the
+  // manifest's first class.
+  const TWO_CLASS_MANIFEST: Manifest = {
+    ...MANIFEST,
+    classes: [
+      { id: "square-480", maxTiles: 4, maxDepth: 3, elements: ["text"] },
+      { id: "landscape-800x480", maxTiles: 6, maxDepth: 3, elements: ["single-value"] },
+    ],
+    elements: [
+      { type: "text", bindings: ["value"] },
+      { type: "single-value", bindings: ["value"] },
+    ],
+  };
+
+  it("renders without error for a model valid only for the selected (non-first) class", async () => {
+    const { provider } = makeFakeProvider(4.5);
+    const opts = { theme: "night", className: "landscape-800x480" };
+
+    const { result } = renderHook(() =>
+      usePreview(MODEL_WITH_BINDING, provider, TWO_CLASS_MANIFEST, opts)
+    );
+
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 50));
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.svg).toContain("<svg");
+  });
+
+  it("reports a validation error when the selected class does not support the model", async () => {
+    const { provider } = makeFakeProvider(4.5);
+    const opts = { theme: "night", className: "square-480" };
+
+    const { result } = renderHook(() =>
+      usePreview(MODEL_WITH_BINDING, provider, TWO_CLASS_MANIFEST, opts)
+    );
+
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 50));
+    });
+
+    expect(result.current.error).not.toBeNull();
+  });
+});
+
 describe("usePreview — live data subscription", () => {
   it("re-renders SVG when provider tick fires for a bound path (no model change)", async () => {
     const { provider, tick } = makeFakeProvider(4.5);

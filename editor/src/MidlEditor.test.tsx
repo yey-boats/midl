@@ -1053,3 +1053,52 @@ test("handle.isDirty reflects setDoc and clears after a successful save", async 
     expect(ref.current!.isDirty()).toBe(false);
   });
 });
+
+// ── validateModel receives the live className (WS1-T2) ───────────────────────
+
+test("status bar validates against the SELECTED class, not manifest.classes[0]", async () => {
+  // classes[0] is RESTRICTED (no single-value); the second class supports it.
+  // FIXTURE_DOC uses a single-value element, so it is only valid for the
+  // second class — the status bar must agree with the class it names.
+  const TWO_CLASS_MANIFEST: Manifest = {
+    ...SQUARE_480_MANIFEST,
+    classes: [
+      { id: "square-480", maxTiles: 4, maxDepth: 3, elements: ["text"] },
+      { id: "landscape-800x480", maxTiles: 6, maxDepth: 3, elements: ["single-value"] },
+    ],
+    elements: [
+      { type: "text", bindings: ["value"] },
+      { type: "single-value", bindings: ["value"] },
+    ],
+  };
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource: ManifestSource = {
+    async get(_targetClass: string) { return TWO_CLASS_MANIFEST; },
+  };
+
+  const { getByTestId } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+      targetClass="landscape-800x480"
+    />,
+  );
+
+  // The model is valid FOR THE SELECTED CLASS → "✓ Valid for landscape-800x480".
+  await waitFor(() => {
+    expect(getByTestId("status-bar").textContent).toContain("✓ Valid for landscape-800x480");
+  }, { timeout: 3000 });
+
+  // Switching to the restricted first class must flip the status to errors.
+  await act(async () => {
+    fireEvent.change(getByTestId("class-switch"), { target: { value: "square-480" } });
+  });
+  await waitFor(() => {
+    const text = getByTestId("status-bar").textContent || "";
+    expect(text).not.toContain("✓ Valid");
+    expect(text).toMatch(/error/i);
+  }, { timeout: 3000 });
+});
