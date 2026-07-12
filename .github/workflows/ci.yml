@@ -36,10 +36,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ts/test/dist.test.ts imports ../dist/index.js, so both the ts
+      # type-check (ts/tsconfig.json includes test/) and the ts vitest run
+      # need the tsup build output to exist first.
+      - name: Build (ts dist)
+        run: npm run build -w @yey-boats/midl
+
       # Type-check the publishable sources of each workspace. The `.build`
-      # configs (and ts/tsconfig.json) cover src/. Full type-checking of the
-      # *.test.ts(x) files is deferred: those carry pre-existing type debt on
-      # main (tracked separately) and are exercised by vitest below.
+      # configs cover src/; ts/tsconfig.json also covers test/ (which is why
+      # the dist build above must come first). Full type-checking of the
+      # editor/web *.test.ts(x) files is deferred: those carry pre-existing
+      # type debt on main (tracked separately) and are exercised by vitest below.
       - name: Type-check (ts)
         run: npx tsc --noEmit -p ts/tsconfig.json
 
