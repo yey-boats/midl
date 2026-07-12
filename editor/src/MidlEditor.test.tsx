@@ -1102,3 +1102,143 @@ test("status bar validates against the SELECTED class, not manifest.classes[0]",
     expect(text).toMatch(/error/i);
   }, { timeout: 3000 });
 });
+
+// ── MidlEditorHandle: getSelection + getValidationIssues (WS1-T3) ────────────
+
+const TWO_CELL_DOC = `midl: 1.0.0
+screens:
+  - id: dash
+    meta:
+      title: Two Cells
+    elements:
+      sog:
+        type: single-value
+        name: SOG
+        bindings:
+          value: { kind: signalk, path: navigation.speedOverGround }
+    layout: { rows: 1, cols: 2, cells: [{ element: sog }, {}] }
+`;
+
+const LINT_DOC = `midl: 1.0.0
+screens:
+  - id: dash
+    meta:
+      title: Lint Dashboard
+    elements:
+      sog:
+        type: single-value
+        name: SOG
+        style: { color: "#ff0000" }
+        bindings:
+          value: { kind: signalk, path: navigation.speedOverGround }
+    layout: { rows: 1, cols: 1, cells: [{ element: sog }] }
+`;
+
+test("handle.getSelection reflects the selected cell and its element (null when none)", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("cell-0")).toBeTruthy(); }, { timeout: 3000 });
+
+  // No selection yet.
+  expect(ref.current!.getSelection()).toEqual({ cellIndex: null, elementId: null });
+
+  // Select the filled cell → cellIndex 0, elementId "sog".
+  await act(async () => { fireEvent.click(getByTestId("cell-0")); });
+  expect(ref.current!.getSelection()).toEqual({ cellIndex: 0, elementId: "sog" });
+
+  // Select an EMPTY cell → cellIndex set, elementId null.
+  await act(async () => { ref.current!.setDoc(TWO_CELL_DOC); });
+  await waitFor(() => { expect(getByTestId("cell-1")).toBeTruthy(); });
+  await act(async () => { fireEvent.click(getByTestId("cell-1")); });
+  expect(ref.current!.getSelection()).toEqual({ cellIndex: 1, elementId: null });
+});
+
+test("handle.getValidationIssues merges manifest validation and device-lint for the selected class", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("status-bar")).toBeTruthy(); }, { timeout: 3000 });
+
+  // The clean fixture model has no manifest errors and no device-lint issues.
+  expect(ref.current!.getValidationIssues()).toEqual([]);
+
+  // A colour override is dropped by the device push pipeline → device-lint error.
+  await act(async () => { ref.current!.setDoc(LINT_DOC); });
+  await waitFor(() => {
+    const issues = ref.current!.getValidationIssues();
+    const lint = issues.filter((i) => i.source === "device-lint");
+    expect(lint.length).toBeGreaterThan(0);
+    expect(lint[0].severity).toBe("error");
+    expect(typeof lint[0].message).toBe("string");
+    expect(lint[0].path).toBe("");
+  });
+});
+
+test("handle.getValidationIssues reports manifest issues with source 'manifest'", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const BAD_TYPE_DOC = `midl: 1.0.0
+screens:
+  - id: dash
+    meta:
+      title: Bad Type
+    elements:
+      x:
+        type: totally-unknown-widget
+    layout: { rows: 1, cols: 1, cells: [{ element: x }] }
+`;
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(getByTestId("status-bar")).toBeTruthy(); }, { timeout: 3000 });
+
+  await act(async () => { ref.current!.setDoc(BAD_TYPE_DOC); });
+  await waitFor(() => {
+    const issues = ref.current!.getValidationIssues();
+    const manifestIssues = issues.filter((i) => i.source === "manifest");
+    expect(manifestIssues.length).toBeGreaterThan(0);
+    expect(manifestIssues.some((i) => i.severity === "error")).toBe(true);
+  });
+});
+
+test("handle.getValidationIssues returns [] when the manifest has not loaded", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const pendingManifestSource: ManifestSource = {
+    get: () => new Promise<Manifest>(() => { /* never resolves */ }),
+  };
+  render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={pendingManifestSource}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => { expect(ref.current).toBeTruthy(); });
+  expect(ref.current!.getValidationIssues()).toEqual([]);
+});

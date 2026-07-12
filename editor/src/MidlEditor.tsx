@@ -69,6 +69,25 @@ export interface MidlEditorHandle {
    * time, since edits made before that snapshot would otherwise be missed.
    */
   isDirty(): boolean;
+  /** Current selection. cellIndex indexes the grid cells; elementId is the element
+   *  referenced by that cell (null when no cell selected or cell is empty). */
+  getSelection(): { cellIndex: number | null; elementId: string | null };
+  /** Validation issues for the SELECTED class (validateModel + device-lint merged),
+   *  same class the status bar validates against. Empty array when clean. */
+  getValidationIssues(): ValidationIssue[];
+}
+
+/** One merged validation finding surfaced through `MidlEditorHandle.getValidationIssues()`.
+ *  Union of the manifest-validation `Issue` shape and the device-capability lint:
+ *  `source:"manifest"` issues come from `validateModel` (severity defaulting to
+ *  "error" per the MIDL spec), `source:"device-lint"` issues come from
+ *  `lintDeviceCapabilities` (kind "drop"→"error", "degrade"→"warning"; path ""). */
+export interface ValidationIssue {
+  /** Issue path within the doc; "" for whole-doc / device-lint issues. */
+  path: string;
+  message: string;
+  severity: "error" | "warning";
+  source: "manifest" | "device-lint";
 }
 
 type Mode = "visual" | "source";
@@ -516,8 +535,41 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
       isDirty(): boolean {
         return dirty;
       },
+      getSelection(): { cellIndex: number | null; elementId: string | null } {
+        // Same derivation as the selectedElementId const below — inlined here
+        // because the handle is installed before that const is computed.
+        let elementId: string | null = null;
+        if (selectedCell !== null) {
+          const isGrid = "rows" in model.layout && "cols" in model.layout && "cells" in model.layout;
+          if (isGrid) {
+            const cells = (model.layout as { cells: Array<{ element?: string }> }).cells;
+            elementId = cells[selectedCell]?.element ?? null;
+          }
+        }
+        return { cellIndex: selectedCell, elementId };
+      },
+      getValidationIssues(): ValidationIssue[] {
+        // Manifest not loaded yet → nothing to validate against; never throw.
+        if (!manifest) return [];
+        const v = validateModel(model, manifest, className);
+        const manifestIssues: ValidationIssue[] = v.issues.map((i) => ({
+          path: i.path,
+          message: i.message,
+          // Omitted severity defaults to "error" per the MIDL spec.
+          severity: i.severity === "warning" ? "warning" : "error",
+          source: "manifest",
+        }));
+        const maxTiles = manifest.classes.find((c) => c.id === className)?.maxTiles ?? 4;
+        const lintIssues: ValidationIssue[] = lintDeviceCapabilities(model, maxTiles, manifest).map((iss) => ({
+          path: "",
+          message: iss.message,
+          severity: iss.kind === "drop" ? "error" : "warning",
+          source: "device-lint",
+        }));
+        return [...manifestIssues, ...lintIssues];
+      },
     }),
-    [model, dirty],
+    [model, dirty, manifest, selectedCell, className],
   );
 
   // ── Preview ──────────────────────────────────────────────────────────────────
