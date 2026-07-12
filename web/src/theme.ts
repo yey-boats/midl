@@ -80,8 +80,28 @@ const WIDGETS_HC: WidgetColors = {
   hudBand: "#ffffff", dialTick: "#888888", dialCardDim: "#333333",
   dialInk: "#000000", cardinalN: "#ff3030",
 };
+// Red-night: night-vision preservation. Everything is drawn in reds (with the
+// warn slot allowed a red-orange) on a true-black ground — no blue or green
+// bleed anywhere, so the helm keeps their dark adaptation. Semantic pairs that
+// normally split hue (good/bad, port/starboard) split on brightness instead.
+const WIDGETS_RED_NIGHT: WidgetColors = {
+  gaugeTrack: "#4a1512", gaugeFill: "#ff5a4e", gaugeTick: "#8a2c26",
+  windApparent: "#ff7530", windTrue: "#ff5a4e",
+  apPillBg: "#2a0b08", btnInk: "#1a0404", barTrack: "#200806",
+  hudBand: "#ff4438", dialTick: "#7a2620", dialCardDim: "#571d18",
+  dialInk: "#1a0404", cardinalN: "#ff1a10",
+};
+// Classic: cream/brass analog-instrument look — warm cream faces, dark ink
+// numerals, brass bezels/accents, like a varnished-wood chartroom panel.
+const WIDGETS_CLASSIC: WidgetColors = {
+  gaugeTrack: "#cbbb98", gaugeFill: "#8c6d1f", gaugeTick: "#6b5a40",
+  windApparent: "#a86412", windTrue: "#35566b",
+  apPillBg: "#d8e2cf", btnInk: "#f8f2e4", barTrack: "#ddd0b2",
+  hudBand: "#2b2114", dialTick: "#6b5a40", dialCardDim: "#b3a684",
+  dialInk: "#f3ead8", cardinalN: "#b02a20",
+};
 
-export const THEMES: Record<"night" | "day" | "high-contrast", Theme> = {
+export const THEMES: Record<"night" | "day" | "high-contrast" | "red-night" | "classic", Theme> = {
   // Manager night palette (source of truth).
   night: {
     bg: "#0a1018", panel: "#101b29", panel2: "#16222f", edge: "#1f2d3d",
@@ -106,10 +126,28 @@ export const THEMES: Record<"night" | "day" | "high-contrast", Theme> = {
     port: "#ff3030", starboard: "#00ff88", tide: "#3aa0ff", stale: "#666666",
     widgets: WIDGETS_HC,
   },
+  // Night-vision-safe: true-black ground, red-only inks (see WIDGETS_RED_NIGHT).
+  "red-night": {
+    bg: "#000000", panel: "#140303", panel2: "#1c0505", edge: "#401010",
+    fg: "#ff4438", dim: "#a03028", accent: "#ff6a5c", accent2: "#e0352b",
+    good: "#ff8a50", warn: "#ff7530", bad: "#ff2018", danger: "#ff2018",
+    port: "#ff2018", starboard: "#ff8a50", tide: "#c03a30", stale: "#5c211c",
+    widgets: WIDGETS_RED_NIGHT,
+  },
+  // Cream/brass analog look: warm cream surfaces, dark ink, brass accents.
+  classic: {
+    bg: "#f3ead8", panel: "#efe4cd", panel2: "#e7d9bd", edge: "#b09a6a",
+    fg: "#2b2114", dim: "#6b5a40", accent: "#8c6d1f", accent2: "#7a5a14",
+    good: "#3f6b3a", warn: "#a86412", bad: "#8c2f24", danger: "#8c2f24",
+    port: "#8c2f24", starboard: "#3f6b3a", tide: "#35566b", stale: "#a89878",
+    widgets: WIDGETS_CLASSIC,
+  },
 };
 
 export function theme(name?: string): Theme {
   if (name === "day") return THEMES.day;
   if (name === "high-contrast") return THEMES["high-contrast"];
+  if (name === "red-night") return THEMES["red-night"];
+  if (name === "classic") return THEMES.classic;
   return THEMES.night;
 }
