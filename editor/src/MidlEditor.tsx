@@ -96,7 +96,7 @@ type LeftTab = "elements" | "data" | "layout";
 type MobileSheet = "elements" | "data" | "layout" | "inspector" | null;
 
 // Supported class values for the class-switch dropdown
-const SUPPORTED_CLASSES = ["square-480", "landscape-800x480", "landscape-1024x600"];
+const SUPPORTED_CLASSES = ["square-480", "landscape-800x480", "landscape-1024x600", "round-360"];
 
 // ── Blank model factory ────────────────────────────────────────────────────────
 
@@ -114,9 +114,11 @@ function makeBlankModel(targetClass: string): EditorModel {
 
 // ── Device dimension helper ───────────────────────────────────────────────────
 
-function getDeviceDimensions(cls: string): { w: number; h: number } {
+export function getDeviceDimensions(cls: string): { w: number; h: number } {
   const sq = /^square-(\d+)$/.exec(cls);
   if (sq) { const n = parseInt(sq[1], 10); return { w: n, h: n }; }
+  const rd = /^round-(\d+)$/.exec(cls);
+  if (rd) { const n = parseInt(rd[1], 10); return { w: n, h: n }; }
   const ls = /^landscape-(\d+)x(\d+)$/.exec(cls);
   if (ls) return { w: parseInt(ls[1], 10), h: parseInt(ls[2], 10) };
   return { w: 480, h: 480 };
