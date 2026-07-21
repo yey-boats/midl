@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 
-// Use the 2020-12 dialect build of Ajv: the schemas use $defs / oneOf and
-// declare $schema draft 2020-12. The default Ajv export is draft-07.
-import Ajv2020 from "ajv/dist/2020";
+// The two MIDL schemas (2020-12 dialect: $defs / oneOf) are PRECOMPILED to
+// standalone validators at build time — see ts/scripts/gen-validators.mjs. We
+// import those instead of calling ajv.compile() at runtime, because the
+// front-shell serves a strict CSP without 'unsafe-eval' and Ajv's runtime
+// compilation uses `new Function`, which that CSP blocks (blank-screen crash).
+// Regenerate the module (`npm run gen:validators`) whenever the schemas change.
 import type { ValidateFunction } from "ajv";
-import configSchema from "../../schemas/yb-midl-config.schema.json";
-import capsSchema from "../../schemas/yb-midl-capabilities.schema.json";
+import { validateConfig as vConfig, validateCaps as vCaps } from "./generated/midl-validators.cjs";
 import type { Issue } from "./types";
-
-const ajv = new Ajv2020({ allErrors: true, strict: false });
-// Cast: the imported JSON's inferred literal type does not match Ajv's
-// AnySchemaObject; the runtime value is a valid schema object.
-const vConfig: ValidateFunction = ajv.compile(configSchema as object);
-const vCaps: ValidateFunction = ajv.compile(capsSchema as object);
 
 function toIssues(v: ValidateFunction): Issue[] {
   return (v.errors ?? []).map((e) => ({ path: e.instancePath || "/", message: e.message ?? "invalid" }));
