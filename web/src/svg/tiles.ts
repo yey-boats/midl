@@ -11,6 +11,7 @@ import type { ElementModel } from "../model";
 import { FONT_FAMILY } from "../theme";
 import { polar, arc, esc, f } from "./geometry";
 import { resolveColor } from "./color";
+import { unitLabel } from "../format";
 
 const FN = FONT_FAMILY;
 
@@ -88,7 +89,9 @@ const NO_DATA_MAX_FS = 40;
 export function singleValueSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = {}): string {
   const { x, y, w, h } = rect;
   const cx = x + w / 2, cy = y + h / 2;
-  const unit = opts.unit;
+  // Map the unit token to its display symbol (e.g. "deg" -> "°") so the dim unit
+  // drawn separately matches the glyph formatValue put into m.text.
+  const unit = unitLabel(opts.unit);
   // formatValue already appends the unit to m.text (e.g. "6.0 kn"); strip it so
   // the dim unit drawn separately below isn't duplicated ("6.0 kn kn").
   let body = m.text;

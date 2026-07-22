@@ -186,6 +186,35 @@ screens:
     expect(r.svg).toContain("<svg");
     expect(r.svg).toContain("</svg>");
   });
+
+  // yey.boats#2: a value tile whose format.unit token is `deg` must render the
+  // ° glyph, never the literal string "deg".
+  test("renders a deg-unit value tile with the ° glyph, not literal 'deg'", () => {
+    const degDoc = `
+midl: "1.0.0"
+screens:
+  - id: main
+    elements:
+      cog:
+        type: single-value
+        name: COG
+        format: { unit: deg, decimals: 0 }
+        bindings: { value: { kind: signalk, path: navigation.courseOverGroundTrue } }
+    layout:
+      rows: 1
+      cols: 1
+      cells:
+        - { element: cog }
+`;
+    const degProvider = new MockDataProvider({
+      "navigation.courseOverGroundTrue": { value: 2.0071, sourceUnit: "rad" }, // ≈115°
+    });
+    const r = renderDashboardSvg(degDoc, MANIFEST, "square-480", { x: 0, y: 0, w: 480, h: 480 }, degProvider, { theme: "night" });
+    expect(r.ok).toBe(true);
+    expect(r.svg).toContain(">115<");   // hero value
+    expect(r.svg).toContain(">°<");     // unit drawn as the glyph
+    expect(r.svg).not.toContain(">deg<"); // never the literal token
+  });
 });
 
 // ── heroFontSize / single-value auto-fit tests ────────────────────────────────

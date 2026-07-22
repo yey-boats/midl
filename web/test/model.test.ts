@@ -134,7 +134,7 @@ test("A1: headingTrue 2.0 rad, no sourceUnit, format.unit 'deg' → '115'", () =
   const p = new MockDataProvider({ "navigation.headingTrue": { value: 2.0 } });
   const m = resolveElement(sv("navigation.headingTrue", { unit: "deg", decimals: 0 }), p);
   expect(m.state).toBe("ok");
-  expect(m.text).toBe("115 deg");
+  expect(m.text).toBe("115 °"); // "deg" token renders as the ° glyph (yey.boats#2)
   expect(m.numeric).toBeCloseTo(114.59, 0);
 });
 

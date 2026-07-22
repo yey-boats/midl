@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 import { test, expect } from "vitest";
-import { convert, formatValue } from "../src/format";
+import { convert, formatValue, unitLabel } from "../src/format";
 
 test("converts m/s to kn", () => {
   expect(convert(1, "m/s", "kn")).toBeCloseTo(1.94384, 4);
@@ -83,4 +83,31 @@ test("formatValue 293.15 K with unit F decimals 1 gives '68.0 F'", () => {
   const r = formatValue(293.15, { unit: "F", decimals: 1 }, "K");
   expect(r.text).toBe("68.0 F");
   expect(r.numeric).toBeCloseTo(68, 4);
+});
+
+// yey.boats#2: angular/temperature unit *tokens* must display as glyphs, not
+// the literal words. `deg` was rendering as the text "deg" in value tiles.
+test("unitLabel maps deg/degC/degF tokens to glyphs and leaves other units unchanged", () => {
+  expect(unitLabel("deg")).toBe("°");
+  expect(unitLabel("degC")).toBe("°C");
+  expect(unitLabel("degF")).toBe("°F");
+  // Already-glyph and non-angular units pass through untouched.
+  expect(unitLabel("°C")).toBe("°C");
+  expect(unitLabel("kn")).toBe("kn");
+  expect(unitLabel("C")).toBe("C");
+  expect(unitLabel("")).toBe("");
+  expect(unitLabel(undefined)).toBe("");
+});
+
+test("formatValue renders the deg unit as the ° glyph, not the literal 'deg'", () => {
+  // PI rad -> 180 deg; the display unit must be the ° glyph.
+  const r = formatValue(Math.PI, { unit: "deg", decimals: 0 }, "rad");
+  expect(r.text).toBe("180 °");
+  expect(r.numeric).toBeCloseTo(180, 6);
+});
+
+test("formatValue renders the degC token as the °C glyph", () => {
+  const r = formatValue(293.15, { unit: "degC", decimals: 1 }, "K");
+  expect(r.text).toBe("20.0 °C");
+  expect(r.numeric).toBeCloseTo(20, 4);
 });

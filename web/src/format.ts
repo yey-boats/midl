@@ -33,6 +33,25 @@ function normTempUnit(u: string): string {
   return u; // not a temperature unit — leave as-is
 }
 
+// Display symbols for unit *tokens* that a MIDL document authors as words.
+// Conversion keys (see FACTORS) keep the word form (e.g. "rad->deg"); only the
+// human-facing label is mapped, so "deg" shows as "°" instead of the text "deg".
+const UNIT_SYMBOL: Record<string, string> = {
+  deg: "°",
+  degC: "°C",
+  degF: "°F",
+};
+
+/**
+ * Map a unit token to the symbol shown to the user. Angular/temperature word
+ * tokens ("deg", "degC", "degF") become their glyphs; every other unit —
+ * including units already written as glyphs ("°C") — is returned unchanged.
+ */
+export function unitLabel(u: string | undefined): string {
+  if (!u) return "";
+  return UNIT_SYMBOL[u] ?? u;
+}
+
 export function convert(value: number, fromUnit: string | undefined, toUnit: string | undefined): number {
   if (!fromUnit || !toUnit || fromUnit === toUnit) return value;
   // Normalize temperature units before building the lookup key so that
@@ -68,5 +87,5 @@ export function formatValue(
   const decimals = typeof format?.decimals === "number" ? (format.decimals as number) : undefined;
   const n = convert(value, sourceUnit, toUnit);
   const body = decimals != null ? n.toFixed(decimals) : String(n);
-  return { text: toUnit ? `${body} ${toUnit}` : body, numeric: n };
+  return { text: toUnit ? `${body} ${unitLabel(toUnit)}` : body, numeric: n };
 }
