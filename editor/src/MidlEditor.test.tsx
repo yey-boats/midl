@@ -448,7 +448,40 @@ test("status-bar shows valid state when model validates", async () => {
   }, { timeout: 3000 });
 });
 
-test("top-push button triggers store.save", async () => {
+test("cloud default: single primary Save button, no device-push wording", async () => {
+  const store = makeFakeStore();
+  const provider = new MockDataProvider({});
+  const manifestSource = makeFakeManifestSource();
+
+  const { getByTestId, queryByTestId, container } = render(
+    <MidlEditor
+      store={store}
+      provider={provider}
+      manifest={manifestSource}
+      initialId="dashboard-1"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(getByTestId("save-button")).toBeTruthy();
+  });
+
+  const save = getByTestId("save-button");
+  expect(save.textContent).toBe("Save");
+  expect(save.className).toContain("btn-primary");
+  expect(queryByTestId("top-push")).toBeNull();
+  expect(container.textContent ?? "").not.toMatch(/push to device/i);
+
+  const prevCount = store.savedCalls.length;
+  await act(async () => {
+    fireEvent.click(save);
+  });
+  await waitFor(() => {
+    expect(store.savedCalls.length).toBeGreaterThan(prevCount);
+  });
+});
+
+test("pushLabel: top-push button shows the label and triggers store.save", async () => {
   const store = makeFakeStore();
   const provider = new MockDataProvider({});
   const manifestSource = makeFakeManifestSource();
@@ -459,12 +492,15 @@ test("top-push button triggers store.save", async () => {
       provider={provider}
       manifest={manifestSource}
       initialId="dashboard-1"
+      pushLabel="Push to device ▸"
     />,
   );
 
   await waitFor(() => {
     expect(getByTestId("top-push")).toBeTruthy();
   });
+  expect(getByTestId("top-push").textContent).toBe("Push to device ▸");
+  expect(getByTestId("save-button").className).toContain("btn-ghost");
 
   const prevCount = store.savedCalls.length;
 
