@@ -1,5 +1,6 @@
-# MIDL-3: single-job CI enforcing catalog checks, manifest freshness,
-# type-checks and the TS/web/editor test suites.
+# MIDL-3: CI enforcing catalog checks, manifest freshness,
+# type-checks and the TS/web/editor test suites; plus the Python validator
+# tests and the live TS<->Python conformance parity check (midl#15).
 name: CI
 
 on:
@@ -64,3 +65,42 @@ jobs:
 
       - name: Test (editor)
         run: npm test -w @yey-boats/midl-editor
+
+  # midl#15: the Python validator (py/) and TS<->Python parity were never run
+  # in CI. Installs py/, runs its pytest, then runs BOTH validators live over
+  # conformance/cases.yaml and fails on any verdict difference (TS vs Python,
+  # and each vs the frozen conformance/expected.json).
+  python-validator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install py/ (with test extras)
+        run: pip install -e "py[test]"
+
+      - name: Test (py)
+        run: pytest -v py/tests
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (ts dist)
+        run: npm run build -w @yey-boats/midl
+
+      - name: TS verdicts over conformance/cases.yaml
+        run: node conformance/gen-expected.mjs --out "$RUNNER_TEMP/ts-verdicts.json"
+
+      - name: TS vs Python validator parity
+        run: python conformance/parity.py --ts "$RUNNER_TEMP/ts-verdicts.json"

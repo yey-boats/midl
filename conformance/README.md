@@ -6,7 +6,14 @@ documents + their `targetClass`; [`expected.json`](expected.json) holds each cas
 
 - The **TypeScript** validator runs it in [`../ts/test/conformance.test.ts`](../ts/test/conformance.test.ts).
 - The **Python** validator runs the same `cases.yaml`/`expected.json` and must produce identical
-  verdicts; a divergence is a parity failure.
+  verdicts; a divergence is a parity failure ([`../py/tests/test_conformance.py`](../py/tests/test_conformance.py)).
+- CI (`python-validator` job) also runs both validators live and diffs them directly:
+
+  ```bash
+  pip install -e py && npm run build -w @yey-boats/midl
+  node conformance/gen-expected.mjs --out /tmp/ts.json
+  python3 conformance/parity.py --ts /tmp/ts.json   # fails on any TS/Python/expected.json difference
+  ```
 
 Severities/messages are advisory; per-pointer multiplicity is normalized out — only `ok` + the
 ordered distinct issue-path list are contractual (see
