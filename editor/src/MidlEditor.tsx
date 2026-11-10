@@ -45,6 +45,14 @@ export interface MidlEditorProps {
   initialId?: string;
   targetClass?: string;
   onSaved?: (ref: DashboardRef) => void;
+  /**
+   * Label for a separate "push to device" primary action. Omit it (the default,
+   * e.g. the yey.boats cloud builder) when saving only persists the dashboard to
+   * the store: the editor then shows a single primary "Save" button. Hosts where
+   * saving really pushes to a device (e.g. Instruments-manager on the boat) pass
+   * a label such as "Push to device ▸" to get the ghost Save + primary push pair.
+   */
+  pushLabel?: string;
 }
 
 // Imperative API exposed via ref (spec: webshell editor-chat surface, §6.1).
@@ -321,7 +329,7 @@ function LayoutControls({
 
 export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
   function MidlEditor(props: MidlEditorProps, ref): React.JSX.Element {
-  const { store, provider, manifest: manifestSource, initialId, onSaved } = props;
+  const { store, provider, manifest: manifestSource, initialId, onSaved, pushLabel } = props;
   const defaultClass = props.targetClass ?? "square-480";
 
   // ── State ────────────────────────────────────────────────────────────────────
@@ -682,7 +690,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
       if (errorCount > 0) {
         const msg = `This dashboard has ${errorCount} validation error${errorCount !== 1 ? "s" : ""}:\n\n` +
           v.issues.filter((i) => i.severity !== "warning").slice(0, 5).map((i) => `• ${i.message}`).join("\n") +
-          `\n\nPush to device anyway?`;
+          `\n\n${pushLabel ? "Push to device" : "Save"} anyway?`;
         let proceed = true;
         try {
           if (typeof window !== "undefined" && typeof window.confirm === "function") {
@@ -695,7 +703,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
       }
     }
     void doSave(false);
-  }, [doSave, model, manifest, className]);
+  }, [doSave, model, manifest, className, pushLabel]);
 
   const handleOverwrite = useCallback(() => {
     void doSave(true);
@@ -1008,25 +1016,29 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
           style={{ flex: 1, minWidth: 0 }}
         />
 
-        {/* Save button */}
+        {/* Save button — the primary CTA unless the host has a real device
+            push (pushLabel), in which case Save is secondary to it. */}
         <button
           data-testid="save-button"
-          className="btn-ghost"
+          className={pushLabel ? "btn-ghost" : "btn-primary"}
           onClick={handleSave}
           disabled={saving}
         >
           {saving ? "Saving…" : justSaved ? "Saved ✓" : "Save"}
         </button>
 
-        {/* Push to device — primary CTA, wired to same save path */}
-        <button
-          data-testid="top-push"
-          className="btn-primary"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          Push to device ▸
-        </button>
+        {/* Push to device — primary CTA, wired to same save path. Only shown
+            where saving really pushes to a device (pushLabel set). */}
+        {pushLabel && (
+          <button
+            data-testid="top-push"
+            className="btn-primary"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {pushLabel}
+          </button>
+        )}
 
         {/* Topbar overflow menu — mobile only, hidden on desktop via CSS */}
         <button
@@ -1038,8 +1050,10 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
         </button>
         {overflowMenuOpen && (
           <div className="overflow-menu">
-            <div className="overflow-item" onClick={() => { handleSave(); setOverflowMenuOpen(false); }}>Save</div>
-            <div className="overflow-item primary" onClick={() => { handleSave(); setOverflowMenuOpen(false); }}>Push to device</div>
+            <div className={pushLabel ? "overflow-item" : "overflow-item primary"} onClick={() => { handleSave(); setOverflowMenuOpen(false); }}>Save</div>
+            {pushLabel && (
+              <div className="overflow-item primary" onClick={() => { handleSave(); setOverflowMenuOpen(false); }}>{pushLabel.replace(/\s*▸$/, "")}</div>
+            )}
           </div>
         )}
       </div>
