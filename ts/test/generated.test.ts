@@ -50,3 +50,12 @@ test("dial elements carry glyphs, non-dial elements do not", () => {
   expect(compass.glyphs && compass.glyphs.length).toBeGreaterThan(0);
   expect(numeric.glyphs).toBeUndefined();
 });
+
+// midl#22: the catalog must advertise exactly the source / action kinds the
+// firmware implements (instruments include/midl_kinds.h SOURCES /
+// ACTION_KINDS), so the manager's validation agrees with the device manifest.
+test.each(CLASSES)("%s advertises the firmware's source and action kinds (const, put)", (cls) => {
+  const m = load(cls);
+  expect([...(m.sources ?? [])].sort()).toEqual(["const", "local", "signalk"]);
+  expect([...(m.actionKinds ?? [])].sort()).toEqual(["command", "nav", "put"]);
+});

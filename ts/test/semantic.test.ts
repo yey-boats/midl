@@ -285,3 +285,61 @@ describe("limits arithmetic (range / zones, check D1)", () => {
     expect(validateSemantics(gaugeDoc({ range: [0, 100], zones: [{ lt: 20, color: "bad" }, { lt: 50, color: "warn" }, { lt: 101, color: "good" }] }))).toEqual([]);
   });
 });
+
+// midl#22: a `put` target must be a SignalK path (instruments midl_kinds.h
+// put_target_ok): 2+ segments of [A-Za-z0-9_-] separated by single dots, no
+// leading/trailing dot, at most 95 chars (ACTION_TARGET_MAX). Anything else
+// could reach the console-command funnel or escape the PUT URL on the device.
+describe("put action targets (midl#22)", () => {
+  const putDoc = (target: unknown): ConfigDoc =>
+    ({
+      midl: "1.0.0",
+      screens: [
+        {
+          id: "d",
+          elements: { b: { type: "button", action: { kind: "put", target, value: 1 } } },
+          layout: { element: "b" },
+        },
+      ],
+    }) as ConfigDoc;
+  const targetErrs = (target: unknown) =>
+    semanticErrors(putDoc(target)).filter((i) => i.path === "/screens/0/elements/b/action/target");
+
+  test.each([
+    "steering.autopilot.state",
+    "electrical.switches.anchorLight.state",
+    "a.b",
+    "propulsion.port-engine.state",
+    "tanks.fuel_0.currentLevel",
+    "a." + "b".repeat(93), // exactly 95 chars
+  ])("accepts SignalK path %s", (t) => {
+    expect(targetErrs(t)).toEqual([]);
+  });
+
+  test.each([
+    ["single segment", "autopilot"],
+    ["leading dot", ".a.b"],
+    ["trailing dot", "a.b."],
+    ["empty segment", "a..b"],
+    ["slash (URL escape)", "../../x.y"],
+    ["path separator", "a/b.c"],
+    ["space", "a.b c"],
+    ["percent", "a.b%2F"],
+    ["empty", ""],
+    ["96 chars", "a." + "b".repeat(94)],
+  ])("rejects %s", (_label, t) => {
+    expect(targetErrs(t)).toHaveLength(1);
+  });
+
+  test("nav and command targets are not held to the SignalK path rule", () => {
+    for (const kind of ["nav", "command"] as const) {
+      const doc = {
+        midl: "1.0.0",
+        screens: [
+          { id: "d", elements: { b: { type: "button", action: { kind, target: "tack port" } } }, layout: { element: "b" } },
+        ],
+      } as ConfigDoc;
+      expect(semanticErrors(doc)).toEqual([]);
+    }
+  });
+});

@@ -19,11 +19,14 @@ the rules those cases pin. Both validators consume the **same** artifacts — th
    - `flow` `weights` length equals `children` length; grid `cells` length equals `rows*cols`;
    - per-type required bindings are present (`single-value/text/gauge/bar/trend/autopilot` → `value`;
      `compass/windrose` → `value`+`dir`; `button` → none);
-   - an unknown element `type` is a **warning** (capability satisfaction decides admissibility).
+   - an unknown element `type` is a **warning** (capability satisfaction decides admissibility);
+   - a `put` action `target` is a SignalK path: 2+ segments of `[A-Za-z0-9_-]` separated by single
+     dots, at most 95 chars (firmware `midl::kinds::put_target_ok` / `ACTION_TARGET_MAX`), else an
+     error at `…/action/target`. `nav`/`command` targets are free-form.
 4. **Version compatibility** — `compatible(doc, manifest)` = same major AND `doc.minor <= manifest.minor`
    (old config on a newer device is allowed; newer config on an older device is not). Failure → `/midl`.
 5. **Capability satisfaction** — against the target class: element `type` ∈ class `elements`; source
-   `kind` ∈ manifest `sources`; tile count ≤ `maxTiles`; nesting depth ≤ `maxDepth`. Per-class layout
+   `kind` ∈ manifest `sources`; action `kind` ∈ manifest `actionKinds` (when advertised); tile count ≤ `maxTiles`; nesting depth ≤ `maxDepth`. Per-class layout
    uses the matching `variants[].layout` when present, else the base `layout`.
 
 ## Verdict contract

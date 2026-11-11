@@ -68,12 +68,24 @@ inline constexpr size_t GLYPH_COUNT = (sizeof(GLYPHS) / sizeof(GLYPHS[0])) - 1;
 
 // `local` advertises onboard sensor/diagnostic ids (the firmware system
 // screens bind local sensor ids, e.g. net.ip, sys.heap); `signalk` is the
-// network source. Additive — adding a source kind only widens what validates.
-inline constexpr const char *SOURCES[] = {"signalk", "local", nullptr};
+// network source; `const` is a literal value (labels, fixed readouts).
+// Additive — adding a source kind only widens what validates.
+// Keep in step with the firmware's midl::kinds::SOURCES / ACTION_KINDS
+// (instruments include/midl_kinds.h), which the device embeds in its served
+// manifest (midl#22). `computed` is in the language but not implemented.
+inline constexpr const char *SOURCES[] = {"signalk", "local", "const", nullptr};
 inline constexpr size_t SOURCE_COUNT = (sizeof(SOURCES) / sizeof(SOURCES[0])) - 1;
 
-inline constexpr const char *ACTION_KINDS[] = {"nav", "command", nullptr};
+// `put` writes a value to a SignalK path. Its target must be a SignalK path:
+// 2+ segments of [A-Za-z0-9_-] separated by single dots, at most
+// ACTION_TARGET_MAX chars (firmware midl::kinds::put_target_ok). The semantic
+// pass enforces this (ts/src/semantic.ts, py/.../semantic.py).
+inline constexpr const char *ACTION_KINDS[] = {"nav", "command", "put", nullptr};
 inline constexpr size_t ACTION_KIND_COUNT = (sizeof(ACTION_KINDS) / sizeof(ACTION_KINDS[0])) - 1;
+
+// Longest action target the firmware stores (midl::kinds::ACTION_TARGET_MAX,
+// a 96-byte buffer incl. NUL). Longer put targets are rejected, never truncated.
+inline constexpr size_t ACTION_TARGET_MAX = 95;
 
 inline constexpr int FONTS[] = {14, 20, 28, 48};
 inline constexpr size_t FONT_COUNT = sizeof(FONTS) / sizeof(FONTS[0]);

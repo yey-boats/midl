@@ -223,7 +223,33 @@ function checkElement(id: string, el: Element, path: string, issues: Issue[]): v
   for (const [field, src] of Object.entries(bindings))
     checkSource(src, `${path}/bindings/${field}`, issues);
 
+  checkAction(el, path, issues);
   checkLimits(id, el, path, issues);
+}
+
+// midl#22: a `put` target must be a SignalK path — 2+ segments of
+// [A-Za-z0-9_-] separated by single dots, at most PUT_TARGET_MAX chars. Mirrors
+// the firmware's midl::kinds::put_target_ok (instruments include/midl_kinds.h)
+// and yb_midl_catalog::ACTION_TARGET_MAX: anything else could fall through to
+// the device's console-command funnel or escape the SignalK PUT URL, and an
+// over-long target is rejected by the device rather than truncated.
+export const PUT_TARGET_MAX = 95;
+const SIGNALK_PATH_RE = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+$/;
+
+export function isPutTarget(target: unknown): boolean {
+  return typeof target === "string" && target.length <= PUT_TARGET_MAX && SIGNALK_PATH_RE.test(target);
+}
+
+function checkAction(el: Element, path: string, issues: Issue[]): void {
+  const action = el.action;
+  if (!action || typeof action !== "object" || action.kind !== "put") return;
+  if (typeof action.target === "string" && !isPutTarget(action.target))
+    issues.push(
+      err(
+        `${path}/action/target`,
+        `put target "${action.target}" must be a SignalK path (dotted segments of [A-Za-z0-9_-], at most ${PUT_TARGET_MAX} chars)`,
+      ),
+    );
 }
 
 // Validate style.range / style.zones arithmetic. `style` is free-form, so these

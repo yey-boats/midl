@@ -9,6 +9,7 @@ declare the bindings they need. Errors halt the pipeline; warnings do not.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List
 
 from .presets import PRESETS
@@ -187,7 +188,32 @@ def _check_element(el_id: str, el: Any, path: str, issues: List[Issue]) -> None:
     for fieldname, src in bindings.items():
         _check_source(src, f"{path}/bindings/{fieldname}", issues)
 
+    _check_action(el, path, issues)
     _check_limits(el_id, el, path, issues)
+
+
+# midl#22: a `put` target must be a SignalK path — mirrors ts/src/semantic.ts
+# and the firmware's midl::kinds::put_target_ok (instruments include/midl_kinds.h).
+PUT_TARGET_MAX = 95
+_SIGNALK_PATH_RE = re.compile(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+", re.ASCII)
+
+
+def is_put_target(target: Any) -> bool:
+    return isinstance(target, str) and len(target) <= PUT_TARGET_MAX and _SIGNALK_PATH_RE.fullmatch(target) is not None
+
+
+def _check_action(el: Any, path: str, issues: List[Issue]) -> None:
+    action = el.get("action")
+    if not isinstance(action, dict) or action.get("kind") != "put":
+        return
+    target = action.get("target")
+    if isinstance(target, str) and not is_put_target(target):
+        issues.append(
+            _err(
+                f"{path}/action/target",
+                f'put target "{target}" must be a SignalK path (dotted segments of [A-Za-z0-9_-], at most {PUT_TARGET_MAX} chars)',
+            )
+        )
 
 
 def _check_limits(el_id: str, el: Any, path: str, issues: List[Issue]) -> None:
