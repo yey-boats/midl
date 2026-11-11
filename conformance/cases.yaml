@@ -185,3 +185,59 @@ cases:
           elements:
             heel: { type: clinometer }
           layout: { element: heel }
+
+  # midl#22: firmware source/action kinds (instruments include/midl_kinds.h).
+  - name: valid-const-source
+    targetClass: square-480
+    note: a const source is advertised by every class (firmware renders literal values)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            lbl: { type: text, bindings: { value: { kind: const, value: HELM } } }
+          layout: { element: lbl }
+
+  - name: valid-put-action
+    targetClass: square-480
+    note: a put action with a dotted SignalK path target is advertised by every class
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            auto: { type: button, name: AUTO, action: { kind: put, target: steering.autopilot.state, value: auto } }
+          layout: { element: auto }
+
+  - name: invalid-put-target-not-path
+    targetClass: square-480
+    note: a put target must be a SignalK path (2+ dotted segments), never a bare command name
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            auto: { type: button, action: { kind: put, target: autopilot, value: auto } }
+          layout: { element: auto }
+
+  - name: invalid-put-target-url-escape
+    targetClass: square-480
+    note: a put target with '/' or '..' could climb out of the SignalK PUT URL (instruments#31)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            auto: { type: button, action: { kind: put, target: ../../x.y, value: 1 } }
+          layout: { element: auto }
+
+  - name: invalid-put-target-too-long
+    targetClass: square-480
+    note: a put target over 95 chars (firmware ACTION_TARGET_MAX) is rejected, never truncated
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            auto: { type: button, action: { kind: put, target: a.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, value: 1 } }
+          layout: { element: auto }

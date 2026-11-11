@@ -71,5 +71,31 @@
     "paths": [
       "/screens/0/elements/heel/bindings/value"
     ]
+  },
+  "valid-const-source": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-put-action": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-put-target-not-path": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/auto/action/target"
+    ]
+  },
+  "invalid-put-target-url-escape": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/auto/action/target"
+    ]
+  },
+  "invalid-put-target-too-long": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/auto/action/target"
+    ]
   }
 }
