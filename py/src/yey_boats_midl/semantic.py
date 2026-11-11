@@ -204,11 +204,28 @@ def is_put_target(target: Any) -> bool:
     return isinstance(target, str) and len(target) <= PUT_TARGET_MAX and _SIGNALK_PATH_RE.fullmatch(target) is not None
 
 
+# midl#25: the firmware stores `command` targets in the same 96-byte buffer and
+# rejects longer ones whole — mirrors ts/src/semantic.ts ACTION_TARGET_MAX.
+ACTION_TARGET_MAX = PUT_TARGET_MAX
+
+
 def _check_action(el: Any, path: str, issues: List[Issue]) -> None:
     action = el.get("action")
-    if not isinstance(action, dict) or action.get("kind") != "put":
+    if not isinstance(action, dict):
         return
     target = action.get("target")
+    if action.get("kind") == "command":
+        # Counted in UTF-8 bytes, as the firmware's strlen() does.
+        if isinstance(target, str) and len(target.encode("utf-8")) > ACTION_TARGET_MAX:
+            issues.append(
+                _err(
+                    f"{path}/action/target",
+                    f"command target is {len(target.encode('utf-8'))} bytes; at most {ACTION_TARGET_MAX} bytes (firmware rejects longer targets)",
+                )
+            )
+        return
+    if action.get("kind") != "put":
+        return
     if isinstance(target, str) and not is_put_target(target):
         issues.append(
             _err(

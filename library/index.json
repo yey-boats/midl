@@ -12,7 +12,8 @@
       "watch"
     ],
     "classes": [
-      "square-480"
+      "square-480",
+      "round-360"
     ],
     "elements": [
       "single-value",
@@ -119,7 +120,8 @@
       "steering"
     ],
     "classes": [
-      "square-480"
+      "square-480",
+      "round-360"
     ],
     "elements": [
       "windrose",

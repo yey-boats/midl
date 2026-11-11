@@ -5,7 +5,7 @@
 // The Python validator runs the SAME conformance/cases.yaml against the SAME
 // conformance/expected.json — divergence between the two is a parity failure.
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
@@ -39,6 +39,26 @@ describe("validation conformance corpus (TS)", () => {
 
   it("every case has a frozen expected verdict", () => {
     expect(cases.map((c) => c.name).sort()).toEqual(Object.keys(expected).sort());
+  });
+
+  // midl#25: a case's name states its verdict. `invalid` cases must be rejected;
+  // `valid-*` and `library-*` cases must be admissible.
+  it("case names agree with their expected verdicts", () => {
+    const wrong = Object.entries(expected)
+      .filter(([n, v]) => (n.split("-").includes("invalid") ? v.ok : /^(valid|library)-/.test(n) && !v.ok))
+      .map(([n]) => n);
+    expect(wrong).toEqual([]);
+  });
+
+  // midl#25: every standard library layout must validate on every device class.
+  it("covers every library layout on every generated device class", () => {
+    const libs = readdirSync(join(root, "library")).filter((f) => f.endsWith(".midl.yaml"));
+    const classes = readdirSync(join(root, "schemas", "gen"))
+      .map((f) => /^yb-midl-capabilities\.(.+)\.json$/.exec(f)?.[1])
+      .filter((c): c is string => !!c);
+    const have = new Set(cases.filter((c) => c.docFile?.startsWith("library/")).map((c) => `${c.docFile}@${c.targetClass}`));
+    const missing = libs.flatMap((f) => classes.map((c) => `library/${f}@${c}`)).filter((k) => !have.has(k));
+    expect(missing).toEqual([]);
   });
 
   for (const c of cases) {

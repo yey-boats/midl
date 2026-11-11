@@ -559,6 +559,28 @@ cases:
             tack: { type: button, name: TACK, action: { kind: command, target: tack port } }
           layout: { element: tack }
 
+  - name: valid-command-target-max-length
+    targetClass: square-480
+    note: a command target of exactly 95 chars (firmware ACTION_TARGET_MAX) is admissible (midl#25)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: command, target: ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc } }
+          layout: { element: b }
+
+  - name: invalid-command-target-too-long
+    targetClass: square-480
+    note: a command target over 95 chars is rejected by the firmware, never truncated (midl#25)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: command, target: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc } }
+          layout: { element: b }
+
   - name: valid-put-action-on-numeric
     targetClass: landscape-800x480
     note: an action on a non-button element, put value of any JSON type
@@ -1237,12 +1259,24 @@ cases:
     docFile: ts/test/fixtures/valid/hero-split.yaml
 
   - name: fixture-invalid-too-many-tiles
+    targetClass: round-360
+    note: 5 tiles exceed round-360's 4-tile budget (was written for the retired 4-tile sunton-480 fixture manifest)
+    docFile: ts/test/fixtures/invalid/too-many-tiles.json
+
+  - name: fixture-too-many-tiles-admissible-square-480
     targetClass: square-480
-    note: was over the old 4-tile sunton-480 budget (ts/test/fixtures/manifest.sunton-480.json); admissible on square-480 (9 tiles)
+    note: the same 5-tile document is admissible on square-480 (9 tiles)
     docFile: ts/test/fixtures/invalid/too-many-tiles.json
 
   - name: fixture-invalid-unknown-element
     targetClass: square-480
-    note: windrose was unknown to the old sunton-480 fixture manifest; admissible on square-480 (dir optional)
+    note: windrose is not in this class's element list (mirrors the retired sunton-480 fixture manifest)
+    manifestOverrides:
+      classes:
+        - { id: square-480, width: 480, height: 480, maxTiles: 9, maxDepth: 3, presets: [full, hero-split], elements: [single-value, text, gauge, bar, compass] }
     docFile: ts/test/fixtures/invalid/unknown-element.json
 
+  - name: fixture-unknown-element-admissible-square-480
+    targetClass: square-480
+    note: the same windrose document is admissible on the real square-480 manifest (dir optional)
+    docFile: ts/test/fixtures/invalid/unknown-element.json
