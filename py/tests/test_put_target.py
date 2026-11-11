@@ -50,3 +50,24 @@ def test_rejects_non_paths(target):
 @pytest.mark.parametrize("kind", ["nav", "command"])
 def test_other_kinds_not_held_to_path_rule(kind):
     assert semantic_errors(_doc(kind, "tack port")) == []
+
+
+# midl#25: the firmware rejects `command` targets over ACTION_TARGET_MAX (95)
+# too; command targets are otherwise free-form.
+def _cmd_errs(target):
+    return [i for i in semantic_errors(_doc("command", target)) if i.path == _TARGET]
+
+
+def test_command_target_95_chars_ok():
+    assert _cmd_errs("x" * 95) == []
+
+
+def test_command_target_96_chars_rejected():
+    errs = _cmd_errs("x" * 96)
+    assert len(errs) == 1
+    assert "at most 95 bytes" in errs[0].message
+
+
+def test_command_target_counted_in_utf8_bytes():
+    assert _cmd_errs("\u00e9" * 47 + "x") == []  # 95 bytes
+    assert len(_cmd_errs("\u00e9" * 48)) == 1  # 96 bytes, 48 chars

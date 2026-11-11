@@ -19,12 +19,26 @@ describe("standard layout library", () => {
     expect(files.length).toBeGreaterThanOrEqual(6);
   });
 
+  // midl#25: library × device-class conformance — every layout must validate on
+  // every class the repo generates a manifest for (round-360 included), so a
+  // layout that only fits square-480 can't ship again.
+  const classes = readdirSync(GEN)
+    .map((f) => /^yb-midl-capabilities\.(.+)\.json$/.exec(f)?.[1])
+    .filter((c): c is string => !!c)
+    .sort();
+
+  it("checks every generated device class", () => {
+    expect(classes).toEqual(["landscape-1024x600", "landscape-800x480", "round-360", "square-480"]);
+  });
+
   for (const f of files) {
-    it(`${f} validates against square-480`, () => {
-      const res = validateDocument(readFileSync(join(LIB, f), "utf8"), manifest("square-480"), "square-480");
-      expect(res.issues).toEqual([]);
-      expect(res.ok).toBe(true);
-    });
+    for (const cls of classes) {
+      it(`${f} validates against ${cls}`, () => {
+        const res = validateDocument(readFileSync(join(LIB, f), "utf8"), manifest(cls), cls);
+        expect(res.issues).toEqual([]);
+        expect(res.ok).toBe(true);
+      });
+    }
   }
 
   it("collectively exercises all 9 element types", () => {

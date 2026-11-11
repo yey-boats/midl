@@ -240,9 +240,27 @@ export function isPutTarget(target: unknown): boolean {
   return typeof target === "string" && target.length <= PUT_TARGET_MAX && SIGNALK_PATH_RE.test(target);
 }
 
+// midl#25: the firmware stores `command` targets in the same 96-byte buffer and
+// rejects longer ones whole (instruments midl::kinds::check_doc), so a command
+// target is free-form but at most ACTION_TARGET_MAX (= PUT_TARGET_MAX) chars.
+// Counted in UTF-8 bytes, as the firmware's strlen() does.
+export const ACTION_TARGET_MAX = PUT_TARGET_MAX;
+const utf8Length = (s: string): number => new TextEncoder().encode(s).length;
+
 function checkAction(el: Element, path: string, issues: Issue[]): void {
   const action = el.action;
-  if (!action || typeof action !== "object" || action.kind !== "put") return;
+  if (!action || typeof action !== "object") return;
+  if (action.kind === "command") {
+    if (typeof action.target === "string" && utf8Length(action.target) > ACTION_TARGET_MAX)
+      issues.push(
+        err(
+          `${path}/action/target`,
+          `command target is ${utf8Length(action.target)} bytes; at most ${ACTION_TARGET_MAX} bytes (firmware rejects longer targets)`,
+        ),
+      );
+    return;
+  }
+  if (action.kind !== "put") return;
   if (typeof action.target === "string" && !isPutTarget(action.target))
     issues.push(
       err(

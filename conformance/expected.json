@@ -244,6 +244,16 @@
     "ok": true,
     "paths": []
   },
+  "valid-command-target-max-length": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-command-target-too-long": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action/target"
+    ]
+  },
   "valid-put-action-on-numeric": {
     "ok": true,
     "paths": []
@@ -533,10 +543,8 @@
     "paths": []
   },
   "library-anchor-watch-round-360": {
-    "ok": false,
-    "paths": [
-      "/screens/0/layout"
-    ]
+    "ok": true,
+    "paths": []
   },
   "library-electrical-square-480": {
     "ok": true,
@@ -615,10 +623,8 @@
     "paths": []
   },
   "library-wind-steering-round-360": {
-    "ok": false,
-    "paths": [
-      "/screens/0/layout"
-    ]
+    "ok": true,
+    "paths": []
   },
   "fixture-valid-minimal": {
     "ok": true,
@@ -629,10 +635,22 @@
     "paths": []
   },
   "fixture-invalid-too-many-tiles": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "fixture-too-many-tiles-admissible-square-480": {
     "ok": true,
     "paths": []
   },
   "fixture-invalid-unknown-element": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/w/type"
+    ]
+  },
+  "fixture-unknown-element-admissible-square-480": {
     "ok": true,
     "paths": []
   }
