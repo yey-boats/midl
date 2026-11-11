@@ -17,8 +17,8 @@ the rules those cases pin. Both validators consume the **same** artifacts — th
    - every layout `element` ref resolves to a key in the enclosing screen's `elements`;
    - screen ids are unique across the document;
    - `flow` `weights` length equals `children` length; grid `cells` length equals `rows*cols`;
-   - per-type required bindings are present (`single-value/text/gauge/bar/trend/autopilot` → `value`;
-     `compass/windrose` → `value`+`dir`; `button` → none);
+   - per-type required bindings are present (`single-value/text/gauge/bar/trend/autopilot/clinometer`
+     and `compass/windrose` → `value`, with `dir` optional on the dials; `button` → none);
    - an unknown element `type` is a **warning** (capability satisfaction decides admissibility);
    - a `put` action `target` is a SignalK path: 2+ segments of `[A-Za-z0-9_-]` separated by single
      dots, at most 95 chars (firmware `midl::kinds::put_target_ok` / `ACTION_TARGET_MAX`), else an

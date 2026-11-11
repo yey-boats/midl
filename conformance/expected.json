@@ -97,5 +97,543 @@
     "paths": [
       "/screens/0/elements/auto/action/target"
     ]
+  },
+  "valid-element-text": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-gauge-range-zones": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-bar": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-compass-value-only": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-windrose-with-dir": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-windrose-value-only": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-trend": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-autopilot": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-button-no-bindings": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-element-clinometer-square-480": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-text-missing-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/t/bindings/value"
+    ]
+  },
+  "invalid-bar-missing-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/bindings/value"
+    ]
+  },
+  "invalid-trend-missing-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/t/bindings/value"
+    ]
+  },
+  "invalid-autopilot-missing-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/ap/bindings/value"
+    ]
+  },
+  "invalid-compass-dir-only": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/hdg/bindings/value"
+    ]
+  },
+  "invalid-windrose-missing-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/wind/bindings/value"
+    ]
+  },
+  "invalid-binding-field-unsupported": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/sog/bindings/dir"
+    ]
+  },
+  "warning-unregistered-element-type": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/x/type"
+    ]
+  },
+  "valid-local-source": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-legacy-signalk-binding": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-local-source-no-id": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/heap/bindings/value"
+    ]
+  },
+  "invalid-const-source-no-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/lbl/bindings/value"
+    ]
+  },
+  "invalid-computed-source-unsupported": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/vmg/bindings/value"
+    ]
+  },
+  "invalid-computed-source-no-expr": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/vmg/bindings/value"
+    ]
+  },
+  "invalid-signalk-source-empty-path": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/sog/bindings/value/path"
+    ]
+  },
+  "invalid-source-unknown-kind": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/sog/bindings/value/kind"
+    ]
+  },
+  "invalid-const-source-not-advertised": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/lbl/bindings/value"
+    ]
+  },
+  "valid-nav-action": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-command-action-freeform-target": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-put-action-on-numeric": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-put-action-no-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action"
+    ]
+  },
+  "invalid-nav-action-no-target": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action"
+    ]
+  },
+  "invalid-command-action-no-target": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action"
+    ]
+  },
+  "invalid-action-unknown-kind": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action/kind"
+    ]
+  },
+  "invalid-put-target-empty-segment": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action/target"
+    ]
+  },
+  "invalid-put-not-advertised": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action"
+    ]
+  },
+  "invalid-command-not-advertised": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action"
+    ]
+  },
+  "invalid-nav-not-advertised": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/action"
+    ]
+  },
+  "invalid-two-actions-not-advertised": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/c/action",
+      "/screens/0/elements/p/action"
+    ]
+  },
+  "valid-action-kinds-not-advertised": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-square-480-nine-tiles": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-landscape-800x480-six-tiles": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-landscape-800x480-seven-tiles": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "valid-landscape-1024x600-six-tiles": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-landscape-1024x600-seven-tiles": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "valid-round-360-four-tiles": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-round-360-five-tiles": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "invalid-round-360-too-deep": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "valid-square-480-depth-3": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-landscape-800x480-depth-4": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "valid-landscape-1024x600-depth-4": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-too-many-tiles-and-too-deep": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "valid-variant-fits-round-360": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-variant-ignored-on-other-class": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-variant-too-many-tiles": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "invalid-variant-ref-missing": {
+    "ok": false,
+    "paths": [
+      "/screens/0/variants/0/layout/element"
+    ]
+  },
+  "valid-version-patch-newer": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-version-minor-newer": {
+    "ok": false,
+    "paths": [
+      "/midl"
+    ]
+  },
+  "invalid-version-major-older": {
+    "ok": false,
+    "paths": [
+      "/midl"
+    ]
+  },
+  "invalid-version-malformed": {
+    "ok": false,
+    "paths": [
+      "/midl"
+    ]
+  },
+  "invalid-version-newer-and-unsupported": {
+    "ok": false,
+    "paths": [
+      "/midl"
+    ]
+  },
+  "invalid-gauge-range-inverted": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/g/style/range"
+    ]
+  },
+  "invalid-bar-range-zero-width": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/b/style/range"
+    ]
+  },
+  "warning-zone-below-range-floor": {
+    "ok": true,
+    "paths": [
+      "/screens/0/elements/g/style/zones/0/lt"
+    ]
+  },
+  "invalid-range-inverted-with-zones": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/g/style/range"
+    ]
+  },
+  "invalid-duplicate-screen-id": {
+    "ok": false,
+    "paths": [
+      "/screens/1/id"
+    ]
+  },
+  "invalid-duplicate-alarm-id": {
+    "ok": false,
+    "paths": [
+      "/alarms/1/id"
+    ]
+  },
+  "valid-alarms": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-alarm-no-threshold": {
+    "ok": false,
+    "paths": [
+      "/alarms/0"
+    ]
+  },
+  "invalid-flow-weights-mismatch": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout/weights"
+    ]
+  },
+  "valid-flow-weights": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-grid-cells-mismatch": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout/cells"
+    ]
+  },
+  "valid-grid-span": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-preset-hero-split": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-preset-unknown": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout/preset"
+    ]
+  },
+  "invalid-preset-slot-ref-missing": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout/slots/0/element"
+    ]
+  },
+  "invalid-layout-node-shape": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "invalid-semantic-halts-before-capability": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/a/bindings/value"
+    ]
+  },
+  "invalid-multi-screen-ordered": {
+    "ok": false,
+    "paths": [
+      "/screens/1/elements/y/type",
+      "/screens/0/elements/x/bindings/value"
+    ]
+  },
+  "valid-put-target-max-length": {
+    "ok": true,
+    "paths": []
+  },
+  "library-anchor-watch-square-480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-anchor-watch-landscape-800x480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-anchor-watch-landscape-1024x600": {
+    "ok": true,
+    "paths": []
+  },
+  "library-anchor-watch-round-360": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "library-electrical-square-480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-electrical-landscape-800x480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-electrical-landscape-1024x600": {
+    "ok": true,
+    "paths": []
+  },
+  "library-electrical-round-360": {
+    "ok": true,
+    "paths": []
+  },
+  "library-engine-systems-square-480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-engine-systems-landscape-800x480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-engine-systems-landscape-1024x600": {
+    "ok": true,
+    "paths": []
+  },
+  "library-engine-systems-round-360": {
+    "ok": true,
+    "paths": []
+  },
+  "library-navigation-square-480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-navigation-landscape-800x480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-navigation-landscape-1024x600": {
+    "ok": true,
+    "paths": []
+  },
+  "library-navigation-round-360": {
+    "ok": true,
+    "paths": []
+  },
+  "library-racing-vmg-square-480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-racing-vmg-landscape-800x480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-racing-vmg-landscape-1024x600": {
+    "ok": true,
+    "paths": []
+  },
+  "library-racing-vmg-round-360": {
+    "ok": true,
+    "paths": []
+  },
+  "library-wind-steering-square-480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-wind-steering-landscape-800x480": {
+    "ok": true,
+    "paths": []
+  },
+  "library-wind-steering-landscape-1024x600": {
+    "ok": true,
+    "paths": []
+  },
+  "library-wind-steering-round-360": {
+    "ok": false,
+    "paths": [
+      "/screens/0/layout"
+    ]
+  },
+  "fixture-valid-minimal": {
+    "ok": true,
+    "paths": []
+  },
+  "fixture-valid-hero-split": {
+    "ok": true,
+    "paths": []
+  },
+  "fixture-invalid-too-many-tiles": {
+    "ok": true,
+    "paths": []
+  },
+  "fixture-invalid-unknown-element": {
+    "ok": true,
+    "paths": []
   }
 }

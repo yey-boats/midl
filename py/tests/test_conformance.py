@@ -48,8 +48,12 @@ def _ordered_distinct(xs):
 
 
 def _run(case):
-    doc = parse_doc(case["doc"])
-    manifest = _load_manifest(case["targetClass"])
+    # `docFile` (repo-relative) points at a library/fixture document; else inline `doc`.
+    text = (_REPO_ROOT / case["docFile"]).read_text(encoding="utf-8") if "docFile" in case else case["doc"]
+    doc = parse_doc(text)
+    # `manifestOverrides` shallow-merges onto the generated class manifest (e.g. a
+    # device that advertises fewer action kinds).
+    manifest = {**_load_manifest(case["targetClass"]), **(case.get("manifestOverrides") or {})}
     issues = validate_document(doc, manifest, case["targetClass"])
     res = verdict(issues)
     return {"ok": res.ok, "paths": _ordered_distinct([i.path for i in res.issues])}
@@ -57,6 +61,11 @@ def _run(case):
 
 def test_case_set_matches_expected_keys():
     assert set(CASES.keys()) == set(EXPECTED.keys())
+
+
+# midl#16: the corpus is the parity contract; keep it from shrinking.
+def test_corpus_floor():
+    assert len(CASES) >= 60
 
 
 @pytest.mark.parametrize("name", sorted(EXPECTED.keys()))

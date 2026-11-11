@@ -241,3 +241,1008 @@ cases:
           elements:
             auto: { type: button, action: { kind: put, target: a.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, value: 1 } }
           layout: { element: auto }
+
+  # ---------------------------------------------------------------------------
+  # midl#16: corpus growth. Every element type, binding (source) kind, action
+  # kind, device class limit, version rule and semantic check. Optional case
+  # fields: `docFile` (repo-relative document instead of inline `doc`) and
+  # `manifestOverrides` (shallow-merged onto the generated class manifest).
+  # ---------------------------------------------------------------------------
+
+  # Element types (square-480): each with its required binding...
+  - name: valid-element-text
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            t: { type: text, bindings: { value: { kind: signalk, path: navigation.state } } }
+          layout: { element: t }
+
+  - name: valid-element-gauge-range-zones
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            rpm: { type: gauge, style: { range: [0, 4000], zones: [{ lt: 3000, color: fg }, { lt: 4001, color: alarm }] }, bindings: { value: { kind: signalk, path: propulsion.main.revolutions } } }
+          layout: { element: rpm }
+
+  - name: valid-element-bar
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            fuel: { type: bar, style: { range: [0, 100] }, bindings: { value: { kind: signalk, path: tanks.fuel.0.currentLevel } } }
+          layout: { element: fuel }
+
+  - name: valid-element-compass-value-only
+    targetClass: square-480
+    note: compass `dir` is optional (TS reference; the Python validator once required it)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            hdg: { type: compass, bindings: { value: { kind: signalk, path: navigation.headingTrue } } }
+          layout: { element: hdg }
+
+  - name: valid-element-windrose-with-dir
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            wind: { type: windrose, bindings: { value: { kind: signalk, path: environment.wind.speedApparent }, dir: { kind: signalk, path: environment.wind.angleApparent } } }
+          layout: { element: wind }
+
+  - name: valid-element-windrose-value-only
+    targetClass: square-480
+    note: windrose `dir` is optional, like compass
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            wind: { type: windrose, bindings: { value: { kind: signalk, path: environment.wind.speedApparent } } }
+          layout: { element: wind }
+
+  - name: valid-element-trend
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            d: { type: trend, bindings: { value: { kind: signalk, path: environment.depth.belowTransducer } } }
+          layout: { element: d }
+
+  - name: valid-element-autopilot
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            ap: { type: autopilot, bindings: { value: { kind: signalk, path: steering.autopilot.state } } }
+          layout: { element: ap }
+
+  - name: valid-element-button-no-bindings
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, name: MOB }
+          layout: { element: b }
+
+  - name: valid-element-clinometer-square-480
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            heel: { type: clinometer, style: { range: [-45, 45] }, bindings: { value: { kind: signalk, path: navigation.attitude } } }
+          layout: { element: heel }
+
+  # ...and without it.
+  - name: invalid-text-missing-value
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            t: { type: text }
+          layout: { element: t }
+
+  - name: invalid-bar-missing-value
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: bar }
+          layout: { element: b }
+
+  - name: invalid-trend-missing-value
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            t: { type: trend }
+          layout: { element: t }
+
+  - name: invalid-autopilot-missing-value
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            ap: { type: autopilot }
+          layout: { element: ap }
+
+  - name: invalid-compass-dir-only
+    targetClass: square-480
+    note: dir alone does not satisfy compass's required value binding
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            hdg: { type: compass, bindings: { dir: { kind: signalk, path: navigation.headingTrue } } }
+          layout: { element: hdg }
+
+  - name: invalid-windrose-missing-value
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            wind: { type: windrose }
+          layout: { element: wind }
+
+  - name: invalid-binding-field-unsupported
+    targetClass: square-480
+    note: single-value advertises only a `value` binding; `dir` is a capability error
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround }, dir: { kind: signalk, path: navigation.headingTrue } } }
+          layout: { element: sog }
+
+  - name: warning-unregistered-element-type
+    targetClass: square-480
+    note: an unregistered type is a semantic WARNING; the class still rejects it (warning path first)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            x: { type: future-widget }
+          layout: { element: x }
+
+  # Binding (source) kinds.
+  - name: valid-local-source
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            heap: { type: single-value, bindings: { value: { kind: local, id: sys.heap } } }
+          layout: { element: heap }
+
+  - name: valid-legacy-signalk-binding
+    targetClass: square-480
+    note: legacy binding shape — kind signalk with a path, mixed with a const on the same screen
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+            b: { type: single-value, bindings: { value: { kind: const, value: 42 } } }
+          layout: { flow: row, children: [ { element: a }, { element: b } ] }
+
+  - name: invalid-local-source-no-id
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            heap: { type: single-value, bindings: { value: { kind: local } } }
+          layout: { element: heap }
+
+  - name: invalid-const-source-no-value
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            lbl: { type: text, bindings: { value: { kind: const } } }
+          layout: { element: lbl }
+
+  - name: invalid-computed-source-unsupported
+    targetClass: square-480
+    note: computed is in the language but no class advertises it
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            vmg: { type: single-value, bindings: { value: { kind: computed, expr: "sog * cos(twa)" } } }
+          layout: { element: vmg }
+
+  - name: invalid-computed-source-no-expr
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            vmg: { type: single-value, bindings: { value: { kind: computed } } }
+          layout: { element: vmg }
+
+  - name: invalid-signalk-source-empty-path
+    targetClass: square-480
+    note: an empty path passes the schema but fails the semantic non-empty check
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: "" } } }
+          layout: { element: sog }
+
+  - name: invalid-source-unknown-kind
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: nmea2000, path: x.y } } }
+          layout: { element: sog }
+
+  - name: invalid-const-source-not-advertised
+    targetClass: square-480
+    note: a device that advertises only signalk rejects a const binding
+    manifestOverrides: { sources: [signalk] }
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            lbl: { type: text, bindings: { value: { kind: const, value: HELM } } }
+          layout: { element: lbl }
+
+  # Action kinds.
+  - name: valid-nav-action
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: main
+          elements:
+            next: { type: button, name: NEXT, action: { kind: nav, target: engine } }
+          layout: { element: next }
+        - id: engine
+          elements:
+            back: { type: button, name: BACK, action: { kind: nav, target: main } }
+          layout: { element: back }
+
+  - name: valid-command-action-freeform-target
+    targetClass: square-480
+    note: command targets are free-form (not held to the SignalK path rule)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            tack: { type: button, name: TACK, action: { kind: command, target: tack port } }
+          layout: { element: tack }
+
+  - name: valid-put-action-on-numeric
+    targetClass: landscape-800x480
+    note: an action on a non-button element, put value of any JSON type
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            light: { type: single-value, bindings: { value: { kind: signalk, path: electrical.switches.anchorLight.state } }, action: { kind: put, target: electrical.switches.anchorLight.state, value: true } }
+          layout: { element: light }
+
+  - name: invalid-put-action-no-value
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: put, target: steering.autopilot.state } }
+          layout: { element: b }
+
+  - name: invalid-nav-action-no-target
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: nav } }
+          layout: { element: b }
+
+  - name: invalid-command-action-no-target
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: command } }
+          layout: { element: b }
+
+  - name: invalid-action-unknown-kind
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: toggle, target: a.b } }
+          layout: { element: b }
+
+  - name: invalid-put-target-empty-segment
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: put, target: steering..state, value: 1 } }
+          layout: { element: b }
+
+  - name: invalid-put-not-advertised
+    targetClass: square-480
+    note: a device without put (the pre-#22 catalog) rejects a put action
+    manifestOverrides: { actionKinds: [nav, command] }
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: put, target: steering.autopilot.state, value: auto } }
+          layout: { element: b }
+
+  - name: invalid-command-not-advertised
+    targetClass: round-360
+    manifestOverrides: { actionKinds: [nav, put] }
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: command, target: tack } }
+          layout: { element: b }
+
+  - name: invalid-nav-not-advertised
+    targetClass: landscape-1024x600
+    manifestOverrides: { actionKinds: [command] }
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: nav, target: s } }
+          layout: { element: b }
+
+  - name: invalid-two-actions-not-advertised
+    targetClass: square-480
+    note: ORDERED multi-path at the capability stage — both unsupported actions, in layout order
+    manifestOverrides: { actionKinds: [nav] }
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            p: { type: button, action: { kind: put, target: steering.autopilot.state, value: auto } }
+            c: { type: button, action: { kind: command, target: tack } }
+          layout: { flow: row, children: [ { element: c }, { element: p } ] }
+
+  - name: valid-action-kinds-not-advertised
+    targetClass: square-480
+    note: a manifest with an empty actionKinds list does not restrict actions
+    manifestOverrides: { actionKinds: [] }
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: put, target: steering.autopilot.state, value: auto } }
+          layout: { element: b }
+
+  # Device classes: tile budget (maxTiles) per class, at and over the limit.
+  - name: valid-square-480-nine-tiles
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { rows: 3, cols: 3, cells: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: valid-landscape-800x480-six-tiles
+    targetClass: landscape-800x480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { rows: 2, cols: 3, cells: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: invalid-landscape-800x480-seven-tiles
+    targetClass: landscape-800x480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { flow: row, children: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: valid-landscape-1024x600-six-tiles
+    targetClass: landscape-1024x600
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { rows: 2, cols: 3, cells: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: invalid-landscape-1024x600-seven-tiles
+    targetClass: landscape-1024x600
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { flow: col, children: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: valid-round-360-four-tiles
+    targetClass: round-360
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { rows: 2, cols: 2, cells: [ { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: invalid-round-360-five-tiles
+    targetClass: round-360
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { flow: row, children: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  # Device classes: nesting depth (maxDepth: round 2, square/800x480 3, 1024x600 4).
+  - name: invalid-round-360-too-deep
+    targetClass: round-360
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { flow: row, children: [ { element: a }, { flow: col, children: [ { element: a }, { element: a } ] } ] }
+
+  - name: valid-square-480-depth-3
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { flow: row, children: [ { element: a }, { flow: col, children: [ { element: a }, { element: a } ] } ] }
+
+  - name: invalid-landscape-800x480-depth-4
+    targetClass: landscape-800x480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { flow: row, children: [ { element: a }, { flow: col, children: [ { element: a }, { flow: row, children: [ { element: a }, { element: a } ] } ] } ] }
+
+  - name: valid-landscape-1024x600-depth-4
+    targetClass: landscape-1024x600
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { flow: row, children: [ { element: a }, { flow: col, children: [ { element: a }, { flow: row, children: [ { element: a }, { element: a } ] } ] } ] }
+
+  - name: invalid-too-many-tiles-and-too-deep
+    targetClass: round-360
+    note: ORDERED capability issues on one screen — both land on the layout path (distinct-collapsed)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { flow: row, children: [ { element: a }, { element: a }, { element: a }, { flow: col, children: [ { element: a }, { element: a } ] } ] }
+
+  # Per-class variants.
+  - name: valid-variant-fits-round-360
+    targetClass: round-360
+    note: the base layout is too big for round-360 but its variant fits
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { rows: 2, cols: 3, cells: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+          variants:
+            - class: round-360
+              layout: { element: a }
+
+  - name: valid-variant-ignored-on-other-class
+    targetClass: landscape-800x480
+    note: a round-360 variant does not apply to landscape-800x480 (base layout used)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { rows: 2, cols: 3, cells: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+          variants:
+            - class: round-360
+              layout: { flow: row, children: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: invalid-variant-too-many-tiles
+    targetClass: round-360
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { element: a }
+          variants:
+            - class: round-360
+              layout: { flow: row, children: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: invalid-variant-ref-missing
+    targetClass: square-480
+    note: variant layout refs resolve against the same screen's elements
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value, bindings: { value: { kind: signalk, path: a.a } } }
+          layout: { element: a }
+          variants:
+            - class: round-360
+              layout: { element: ghost }
+
+  # Versions: same major and doc.minor <= device minor.
+  - name: valid-version-patch-newer
+    targetClass: square-480
+    note: only major/minor are compared; a newer patch is compatible
+    doc: |
+      midl: 1.0.9
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: sog }
+
+  - name: invalid-version-minor-newer
+    targetClass: round-360
+    doc: |
+      midl: 1.1.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: sog }
+
+  - name: invalid-version-major-older
+    targetClass: landscape-800x480
+    doc: |
+      midl: 0.9.0
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: sog }
+
+  - name: invalid-version-malformed
+    targetClass: square-480
+    doc: |
+      midl: "1.0"
+      screens:
+        - id: s
+          elements:
+            sog: { type: single-value, bindings: { value: { kind: signalk, path: navigation.speedOverGround } } }
+          layout: { element: sog }
+
+  - name: invalid-version-newer-and-unsupported
+    targetClass: square-480
+    note: the version gate runs before capability satisfaction (only /midl is reported)
+    doc: |
+      midl: 1.2.0
+      screens:
+        - id: s
+          elements:
+            x: { type: single-value, bindings: { value: { kind: computed, expr: a } } }
+          layout: { element: x }
+
+  # Limits arithmetic (style.range / style.zones).
+  - name: invalid-gauge-range-inverted
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            g: { type: gauge, style: { range: [100, 0] }, bindings: { value: { kind: signalk, path: a.b } } }
+          layout: { element: g }
+
+  - name: invalid-bar-range-zero-width
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: bar, style: { range: [5, 5] }, bindings: { value: { kind: signalk, path: a.b } } }
+          layout: { element: b }
+
+  - name: warning-zone-below-range-floor
+    targetClass: square-480
+    note: a zone threshold at/below the floor is a WARNING — admissible, but its path is reported
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            g: { type: gauge, style: { range: [0, 100], zones: [{ lt: 0, color: alarm }, { lt: 101, color: fg }] }, bindings: { value: { kind: signalk, path: a.b } } }
+          layout: { element: g }
+
+  - name: invalid-range-inverted-with-zones
+    targetClass: square-480
+    note: an inverted range suppresses zone checks (only the range error)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            g: { type: gauge, style: { range: [100, 0], zones: [{ lt: -5, color: alarm }] }, bindings: { value: { kind: signalk, path: a.b } } }
+          layout: { element: g }
+
+  # Semantic coherence.
+  - name: invalid-duplicate-screen-id
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { element: a }
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { element: a }
+
+  - name: invalid-duplicate-alarm-id
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { element: a }
+      alarms:
+        - { id: shallow, source: { kind: signalk, path: environment.depth.belowTransducer }, level: alarm, lt: 2, message: Shallow }
+        - { id: shallow, source: { kind: signalk, path: environment.depth.belowTransducer }, level: warn, lt: 4, message: Shoaling }
+
+  - name: valid-alarms
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { element: a }
+      alarms:
+        - { id: shallow, source: { kind: signalk, path: environment.depth.belowTransducer }, level: alarm, lt: 2, message: Shallow }
+        - { id: hot, source: { kind: local, id: sys.temp }, level: warn, gt: 80, message: Hot }
+
+  - name: invalid-alarm-no-threshold
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { element: a }
+      alarms:
+        - { id: shallow, source: { kind: signalk, path: environment.depth.belowTransducer }, level: alarm, message: Shallow }
+
+  - name: invalid-flow-weights-mismatch
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+            b: { type: button }
+          layout: { flow: row, weights: [1, 2, 3], children: [ { element: a }, { element: b } ] }
+
+  - name: valid-flow-weights
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+            b: { type: button }
+          layout: { flow: row, weights: [2, 1], children: [ { element: a }, { element: b } ] }
+
+  - name: invalid-grid-cells-mismatch
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { rows: 2, cols: 2, cells: [ { element: a }, { element: a }, { element: a } ] }
+
+  - name: valid-grid-span
+    targetClass: landscape-800x480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+            b: { type: button }
+          layout: { rows: 2, cols: 2, cells: [ { element: a, colSpan: 2 }, { element: b }, {} ] }
+
+  - name: valid-preset-hero-split
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+            b: { type: button }
+            c: { type: button }
+          layout: { preset: hero-split, slots: [a, b, c] }
+
+  - name: invalid-preset-unknown
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { preset: mosaic, slots: [a] }
+
+  - name: invalid-preset-slot-ref-missing
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { preset: full, slots: [ghost] }
+
+  - name: invalid-layout-node-shape
+    targetClass: square-480
+    note: a node mixing shapes fails the structural oneOf
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: button }
+          layout: { element: a, flow: row }
+
+  - name: invalid-semantic-halts-before-capability
+    targetClass: round-360
+    note: a semantic error halts the pipeline — the too-many-tiles capability issue is not reported
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            a: { type: single-value }
+          layout: { flow: row, children: [ { element: a }, { element: a }, { element: a }, { element: a }, { element: a } ] }
+
+  - name: invalid-multi-screen-ordered
+    targetClass: square-480
+    note: ORDERED capability issues across screens (screen 0 before screen 1)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: one
+          elements:
+            x: { type: single-value, bindings: { value: { kind: computed, expr: a } } }
+          layout: { element: x }
+        - id: two
+          elements:
+            y: { type: frobnicator }
+          layout: { element: y }
+
+  # Exact boundary of the firmware put-target limit (95 chars).
+  - name: valid-put-target-max-length
+    targetClass: square-480
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            b: { type: button, action: { kind: put, target: a.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, value: 1 } }
+          layout: { element: b }
+
+  # Library documents on every device class (library/*.midl.yaml).
+  - name: library-anchor-watch-square-480
+    targetClass: square-480
+    docFile: library/anchor-watch.midl.yaml
+
+  - name: library-anchor-watch-landscape-800x480
+    targetClass: landscape-800x480
+    docFile: library/anchor-watch.midl.yaml
+
+  - name: library-anchor-watch-landscape-1024x600
+    targetClass: landscape-1024x600
+    docFile: library/anchor-watch.midl.yaml
+
+  - name: library-anchor-watch-round-360
+    targetClass: round-360
+    docFile: library/anchor-watch.midl.yaml
+
+  - name: library-electrical-square-480
+    targetClass: square-480
+    docFile: library/electrical.midl.yaml
+
+  - name: library-electrical-landscape-800x480
+    targetClass: landscape-800x480
+    docFile: library/electrical.midl.yaml
+
+  - name: library-electrical-landscape-1024x600
+    targetClass: landscape-1024x600
+    docFile: library/electrical.midl.yaml
+
+  - name: library-electrical-round-360
+    targetClass: round-360
+    docFile: library/electrical.midl.yaml
+
+  - name: library-engine-systems-square-480
+    targetClass: square-480
+    docFile: library/engine-systems.midl.yaml
+
+  - name: library-engine-systems-landscape-800x480
+    targetClass: landscape-800x480
+    docFile: library/engine-systems.midl.yaml
+
+  - name: library-engine-systems-landscape-1024x600
+    targetClass: landscape-1024x600
+    docFile: library/engine-systems.midl.yaml
+
+  - name: library-engine-systems-round-360
+    targetClass: round-360
+    docFile: library/engine-systems.midl.yaml
+
+  - name: library-navigation-square-480
+    targetClass: square-480
+    docFile: library/navigation.midl.yaml
+
+  - name: library-navigation-landscape-800x480
+    targetClass: landscape-800x480
+    docFile: library/navigation.midl.yaml
+
+  - name: library-navigation-landscape-1024x600
+    targetClass: landscape-1024x600
+    docFile: library/navigation.midl.yaml
+
+  - name: library-navigation-round-360
+    targetClass: round-360
+    docFile: library/navigation.midl.yaml
+
+  - name: library-racing-vmg-square-480
+    targetClass: square-480
+    docFile: library/racing-vmg.midl.yaml
+
+  - name: library-racing-vmg-landscape-800x480
+    targetClass: landscape-800x480
+    docFile: library/racing-vmg.midl.yaml
+
+  - name: library-racing-vmg-landscape-1024x600
+    targetClass: landscape-1024x600
+    docFile: library/racing-vmg.midl.yaml
+
+  - name: library-racing-vmg-round-360
+    targetClass: round-360
+    docFile: library/racing-vmg.midl.yaml
+
+  - name: library-wind-steering-square-480
+    targetClass: square-480
+    docFile: library/wind-steering.midl.yaml
+
+  - name: library-wind-steering-landscape-800x480
+    targetClass: landscape-800x480
+    docFile: library/wind-steering.midl.yaml
+
+  - name: library-wind-steering-landscape-1024x600
+    targetClass: landscape-1024x600
+    docFile: library/wind-steering.midl.yaml
+
+  - name: library-wind-steering-round-360
+    targetClass: round-360
+    docFile: library/wind-steering.midl.yaml
+
+  # TS unit-test fixtures (ts/test/fixtures).
+  - name: fixture-valid-minimal
+    targetClass: square-480
+    docFile: ts/test/fixtures/valid/minimal.yaml
+
+  - name: fixture-valid-hero-split
+    targetClass: square-480
+    docFile: ts/test/fixtures/valid/hero-split.yaml
+
+  - name: fixture-invalid-too-many-tiles
+    targetClass: square-480
+    note: was over the old 4-tile sunton-480 budget (ts/test/fixtures/manifest.sunton-480.json); admissible on square-480 (9 tiles)
+    docFile: ts/test/fixtures/invalid/too-many-tiles.json
+
+  - name: fixture-invalid-unknown-element
+    targetClass: square-480
+    note: windrose was unknown to the old sunton-480 fixture manifest; admissible on square-480 (dir optional)
+    docFile: ts/test/fixtures/invalid/unknown-element.json
+
