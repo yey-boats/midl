@@ -28,6 +28,7 @@
     "meta": { "$ref": "#/$defs/meta" }
   },
   "$defs": {
+    "color": { "description": "A colour: a `#rgb`, `#rrggbb` or `#rrggbbaa` hex literal, or a named theme token (`panel`, `panel2`, `edge`, `fg`, `dim`, `accent`, `accent2`, `good`, `warn`, `bad`, `alarm`, `danger`, `port`, `starboard`, `tide`, `stale`, `bg`). Nothing else is accepted, so a colour value can never carry markup into a renderer.", "type": "string", "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|panel|panel2|edge|fg|dim|accent|accent2|good|warn|bad|alarm|danger|port|starboard|tide|stale|bg)$(?![\\s\\S])" },
     "screen": {
       "type": "object",
       "description": "One dashboard page: a named set of elements and a layout tree that arranges them. May carry per-device-class variant layouts.",
@@ -89,7 +90,7 @@
                 "required": ["lt", "color"],
                 "properties": {
                   "lt": { "description": "Upper bound (exclusive) of this colour band, in display units.", "type": "number" },
-                  "color": { "description": "Band colour (theme token or #rrggbb).", "type": "string" }
+                  "color": { "description": "Band colour (theme token or #rrggbb).", "$ref": "#/$defs/color" }
                 }
               }
             },
@@ -97,8 +98,8 @@
               "description": "Hero value font size: a role token (`S`, `M`, `L`, `XL`, `Fill`) which auto-fits, or a literal pixel number (legacy).",
               "type": ["string", "number"]
             },
-            "color": { "description": "Value/accent colour override: a theme token (`accent`, `warn`, `good`, `danger`, …) or a `#rrggbb` literal.", "type": "string" },
-            "colorRole": { "description": "Alias for `color` accepted by the renderer: a theme token mapped to the active palette.", "type": "string" },
+            "color": { "description": "Value/accent colour override: a theme token (`accent`, `warn`, `good`, `danger`, …) or a `#rrggbb` literal.", "$ref": "#/$defs/color" },
+            "colorRole": { "description": "Alias for `color` accepted by the renderer: a theme token mapped to the active palette.", "$ref": "#/$defs/color" },
             "scale": { "description": "Value scaling mode: `fixed` (use the raw value) or `metric` (apply metric prefixing).", "type": "string", "enum": ["fixed", "metric"] },
             "span": { "description": "Editor convenience for grid span as a `\"colsxrows\"` string (e.g. `\"2x1\"`); the authoritative span lives on the grid cell's colSpan/rowSpan.", "type": "string" },
             "sectors": {
@@ -110,7 +111,7 @@
                 "properties": {
                   "from": { "description": "Sector start angle in degrees (bow-relative).", "type": "number" },
                   "to": { "description": "Sector end angle in degrees (bow-relative).", "type": "number" },
-                  "color": { "description": "Sector fill color (theme token or #rrggbb).", "type": "string" }
+                  "color": { "description": "Sector fill color (theme token or #rrggbb).", "$ref": "#/$defs/color" }
                 }
               }
             },
@@ -136,7 +137,7 @@
             "type": "object",
             "properties": {
               "glyph": { "description": "Marker glyph/shape (e.g. triangle, diamond, chevron_out).", "type": "string" },
-              "color": { "description": "Marker color (theme token or #rrggbb).", "type": "string" },
+              "color": { "description": "Marker color (theme token or #rrggbb).", "$ref": "#/$defs/color" },
               "dir": { "description": "Data source whose value gives the marker's bow-relative angle.", "$ref": "#/$defs/source" },
               "kind": { "description": "Marker kind: `rim` (default, orbits the dial rim) or `vector` (center vector, e.g. tide/current).", "type": "string", "enum": ["rim", "vector"] }
             }
