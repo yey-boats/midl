@@ -5,6 +5,7 @@
 // (cx, cy) and fits within a box of side `size`, drawn in `color`. Unknown
 // glyphs fall back to a small filled circle. Mirrors device-hud.js marker shapes.
 import { f } from "./geometry";
+import { isSafeColor } from "./color";
 
 type Builder = (cx: number, cy: number, s: number, color: string) => string;
 
@@ -60,7 +61,11 @@ const BUILDERS: Record<string, Builder> = {
 };
 
 export function glyphPath(glyph: string, cx: number, cy: number, size: number, color: string): string {
-  const b = BUILDERS[glyph];
+  // Callers pass resolveColor() output; re-check anyway, since the result is
+  // written raw into an attribute.
+  if (!isSafeColor(color)) color = "#000";
+  // Own keys only: `constructor`, `__proto__`, `toString` are not glyphs.
+  const b = Object.prototype.hasOwnProperty.call(BUILDERS, glyph) ? BUILDERS[glyph] : undefined;
   if (b) return b(cx, cy, size, color);
   // Unknown glyph -> small filled circle.
   return `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(size * 0.3)}" fill="${color}"/>`;
