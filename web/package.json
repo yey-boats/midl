@@ -2,11 +2,13 @@
   "name": "@yey-boats/midl-web",
   "version": "0.1.0",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "private": true,
   "type": "module",
   "main": "./dist/midl-web.umd.cjs",
   "module": "./dist/midl-web.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "import": "./dist/midl-web.js",

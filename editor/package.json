@@ -2,11 +2,13 @@
   "name": "@yey-boats/midl-editor",
   "version": "0.1.0",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "private": true,
   "type": "module",
   "main": "./dist/midl-editor.umd.cjs",
   "module": "./dist/midl-editor.js",
   "types": "./dist/types/editor/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "import": "./dist/midl-editor.js",
