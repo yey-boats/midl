@@ -45,3 +45,38 @@ def test_missing_case_is_a_diff():
     partial = {k: v for k, v in _EXPECTED.items() if k != name}
     assert any(name in d for d in parity.compare(_EXPECTED, partial))
     assert any(name in d for d in parity.compare(partial, _EXPECTED))
+
+
+# midl#16: an empty corpus must FAIL parity, not pass vacuously (0 == 0 == 0).
+def test_empty_corpus_fails(tmp_path, monkeypatch):
+    empty_cases = tmp_path / "cases.yaml"
+    empty_cases.write_text("cases: []\n", encoding="utf-8")
+    empty_expected = tmp_path / "expected.json"
+    empty_expected.write_text("{}\n", encoding="utf-8")
+    ts = tmp_path / "ts.json"
+    ts.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(parity, "CASES", empty_cases)
+    monkeypatch.setattr(parity, "EXPECTED", empty_expected)
+    assert parity.main(["--ts", str(ts)]) != 0
+
+
+def test_empty_ts_verdicts_fail(tmp_path):
+    ts = tmp_path / "ts.json"
+    ts.write_text("{}\n", encoding="utf-8")
+    assert parity.main(["--ts", str(ts)]) != 0
+
+
+# midl#16: action-kind satisfaction must be exercised by the corpus (a mutated
+# Python action-kind path once went undetected): flipping the Python action
+# check must change at least one verdict.
+def test_corpus_detects_action_kind_mutation(monkeypatch):
+    from yey_boats_midl import satisfy
+
+    baseline = parity.python_verdicts()
+    original = satisfy._check_element
+
+    def no_action_check(el, path, types, caps, sources, actions, issues):
+        return original(el, path, types, caps, sources, set(), issues)
+
+    monkeypatch.setattr(satisfy, "_check_element", no_action_check)
+    assert parity.python_verdicts() != baseline

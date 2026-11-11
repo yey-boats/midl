@@ -14,7 +14,13 @@ import type { Manifest } from "../src";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const cases = (parseYaml(readFileSync(join(root, "conformance", "cases.yaml"), "utf8")) as {
-  cases: Array<{ name: string; targetClass: string; doc: string }>;
+  cases: Array<{
+    name: string;
+    targetClass: string;
+    doc?: string;
+    docFile?: string; // repo-relative library/fixture document instead of inline `doc`
+    manifestOverrides?: Partial<Manifest>; // shallow-merged onto the generated class manifest
+  }>;
 }).cases;
 const expected = JSON.parse(readFileSync(join(root, "conformance", "expected.json"), "utf8")) as Record<
   string,
@@ -26,13 +32,19 @@ const manifest = (cls: string): Manifest =>
   JSON.parse(readFileSync(join(root, "schemas", "gen", `yb-midl-capabilities.${cls}.json`), "utf8"));
 
 describe("validation conformance corpus (TS)", () => {
+  // midl#16: the corpus is the parity contract; keep it from shrinking.
+  it("has at least 60 cases", () => {
+    expect(cases.length).toBeGreaterThanOrEqual(60);
+  });
+
   it("every case has a frozen expected verdict", () => {
     expect(cases.map((c) => c.name).sort()).toEqual(Object.keys(expected).sort());
   });
 
   for (const c of cases) {
     it(`${c.name}`, () => {
-      const res = validateDocument(c.doc, manifest(c.targetClass), c.targetClass);
+      const doc = c.docFile ? readFileSync(join(root, c.docFile), "utf8") : c.doc!;
+      const res = validateDocument(doc, { ...manifest(c.targetClass), ...c.manifestOverrides }, c.targetClass);
       const paths = orderedDistinct(res.issues.map((i) => i.path));
       expect({ ok: res.ok, paths }).toEqual(expected[c.name]);
     });

@@ -16,8 +16,10 @@ from .presets import PRESETS
 from .types import Issue
 
 # Known element types and the bindings they require. `button` binds nothing;
-# compass/windrose require value + dir; clinometer (heel/pitch attitude dial)
-# requires value. Types absent here are allowed but warned.
+# compass/windrose require value and accept an optional `dir` (heading
+# reference) — the TS reference never required `dir`; requiring it here was a
+# parity bug the grown conformance corpus caught (midl#16). clinometer
+# (heel/pitch attitude dial) requires value. Types absent here are allowed but warned.
 ELEMENT_REQUIRED_BINDINGS: Dict[str, List[str]] = {
     "single-value": ["value"],
     "text": ["value"],
@@ -25,8 +27,8 @@ ELEMENT_REQUIRED_BINDINGS: Dict[str, List[str]] = {
     "bar": ["value"],
     "trend": ["value"],
     "autopilot": ["value"],
-    "compass": ["value", "dir"],
-    "windrose": ["value", "dir"],
+    "compass": ["value"],
+    "windrose": ["value"],
     "button": [],
     "clinometer": ["value"],
 }

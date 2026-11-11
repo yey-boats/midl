@@ -37,8 +37,13 @@ const orderedDistinct = (xs) => xs.filter((x, i) => xs.indexOf(x) === i);
 
 const cases = YAML.parse(readFileSync(join(HERE, "cases.yaml"), "utf8")).cases;
 const out = {};
+// `docFile` (repo-relative) points at a library/fixture document; else inline `doc`.
+// `manifestOverrides` shallow-merges onto the generated class manifest.
+const caseDoc = (c) => (c.docFile ? readFileSync(join(ROOT, c.docFile), "utf8") : c.doc);
+const caseManifest = (c) => ({ ...manifest(c.targetClass), ...(c.manifestOverrides ?? {}) });
+if (cases.length === 0) throw new Error("conformance/cases.yaml has zero cases"); // midl#16
 for (const c of cases) {
-  const res = validateDocument(c.doc, manifest(c.targetClass), c.targetClass);
+  const res = validateDocument(caseDoc(c), caseManifest(c), c.targetClass);
   out[c.name] = { ok: res.ok, paths: orderedDistinct((res.issues ?? []).map((i) => i.path)) };
 }
 const outIdx = process.argv.indexOf("--out");

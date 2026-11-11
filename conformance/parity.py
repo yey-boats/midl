@@ -34,6 +34,16 @@ def _manifest(cls: str):
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+def case_doc(c) -> str:
+    """A case's document text: inline `doc`, or `docFile` (repo-relative)."""
+    return (ROOT / c["docFile"]).read_text(encoding="utf-8") if "docFile" in c else c["doc"]
+
+
+def case_manifest(c):
+    """The class's generated manifest with the case's `manifestOverrides` shallow-merged on top."""
+    return {**_manifest(c["targetClass"]), **(c.get("manifestOverrides") or {})}
+
+
 def _ordered_distinct(xs):
     return list(dict.fromkeys(xs))
 
@@ -45,7 +55,7 @@ def python_verdicts():
     cases = yaml.safe_load(CASES.read_text(encoding="utf-8"))["cases"]
     out = {}
     for c in cases:
-        issues = validate_document(parse_doc(c["doc"]), _manifest(c["targetClass"]), c["targetClass"])
+        issues = validate_document(parse_doc(case_doc(c)), case_manifest(c), c["targetClass"])
         res = verdict(issues)
         out[c["name"]] = {"ok": res.ok, "paths": _ordered_distinct([i.path for i in res.issues])}
     return out
@@ -78,6 +88,12 @@ def main(argv=None):
     expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
 
     failures = []
+    # midl#16: an empty corpus (or verdict set) would make every comparison
+    # vacuously equal; parity over zero cases proves nothing, so fail.
+    for label, v in (("cases.yaml", py), ("TS verdicts", ts), ("expected.json", expected)):
+        if not v:
+            failures.append(label)
+            print(f"::error::{label}: zero conformance cases")
     for label, a, b, an, bn in (
         ("TS vs Python", ts, py, "ts", "py"),
         ("TS vs expected.json", ts, expected, "ts", "expected"),

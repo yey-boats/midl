@@ -15,6 +15,14 @@ documents + their `targetClass`; [`expected.json`](expected.json) holds each cas
   python3 conformance/parity.py --ts /tmp/ts.json   # fails on any TS/Python/expected.json difference
   ```
 
+Each case has a `name`, a `targetClass` (one of the generated `schemas/gen` classes) and either an
+inline `doc` or a `docFile` (repo-relative, e.g. `library/navigation.midl.yaml`, so library documents
+are checked on every class). An optional `manifestOverrides` map is shallow-merged onto the class
+manifest to model a device that advertises less (e.g. `{ actionKinds: [nav, command] }`). All four
+runners (`gen-expected.mjs`, `parity.py`, `ts/test/conformance.test.ts`,
+`py/tests/test_conformance.py`) honour both fields. An empty corpus fails `parity.py`, and both test
+suites require at least 60 cases (midl#16).
+
 Severities/messages are advisory; per-pointer multiplicity is normalized out — only `ok` + the
 ordered distinct issue-path list are contractual (see
 [`../docs/validation-conformance.md`](../docs/validation-conformance.md)).
