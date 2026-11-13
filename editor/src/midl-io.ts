@@ -33,6 +33,16 @@ function sourceToBinding(src: Source): BindingSource {
   }
 }
 
+// Legacy editor builds wrote style.colorRole: "default", which is not a theme
+// token (the validator refuses it); "default" means "no colorRole". Strip it on
+// load and on save so such documents heal without the author touching the
+// Color select. Returns undefined for a style left empty.
+function normalizeStyle(style: Record<string, unknown>): Record<string, unknown> | undefined {
+  const out = { ...style };
+  if (out["colorRole"] === "default") delete out["colorRole"];
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function elementToEditorElement(id: string, el: Element): EditorElement {
   const out: EditorElement = { id, type: el.type };
   if (el.name !== undefined) out.name = el.name;
@@ -43,7 +53,10 @@ function elementToEditorElement(id: string, el: Element): EditorElement {
     }
   }
   if (el.format !== undefined) out.format = { ...el.format };
-  if (el.style !== undefined) out.style = { ...el.style };
+  if (el.style !== undefined) {
+    const style = normalizeStyle(el.style as Record<string, unknown>);
+    if (style) out.style = style;
+  }
   if (el.markers !== undefined) out.markers = el.markers;
   if (el.action !== undefined) out.action = el.action;
   if (el.zoom !== undefined) out.zoom = el.zoom;
@@ -232,7 +245,10 @@ function editorElementToElement(el: EditorElement): Element {
     if (Object.keys(converted).length > 0) out.bindings = converted;
   }
   if (el.format !== undefined && Object.keys(el.format).length > 0) out.format = { ...el.format };
-  if (el.style !== undefined && Object.keys(el.style).length > 0) out.style = { ...el.style };
+  if (el.style !== undefined) {
+    const style = normalizeStyle(el.style);
+    if (style) out.style = style as Element["style"];
+  }
   if (el.markers !== undefined) out.markers = el.markers as import("@yey-boats/midl").Marker[];
   if (el.action !== undefined) out.action = el.action as import("@yey-boats/midl").Action;
   if (el.zoom !== undefined) out.zoom = el.zoom;

@@ -913,6 +913,76 @@ test("choosing Color 'default' removes style.colorRole (it is not a theme token)
   expect(captured.elements["sog"]?.style).toEqual({ size: "M" });
 });
 
+test("the legacy '<n> px' entry is disabled (informational) and 'unset' clears it", () => {
+  const model = sizedModel({ size: 28 });
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+  const { getByTestId } = render(
+    <Inspector model={model} selectedCell={0} manifest={MANIFEST} provider={new MockDataProvider({})} onChange={onChange} />,
+  );
+  const select = getByTestId("size-select") as HTMLSelectElement;
+  expect(select.selectedOptions[0].disabled).toBe(true);
+
+  fireEvent.change(select, { target: { value: "" } });
+  expect(captured.elements["sog"]?.style).toBeUndefined();
+});
+
+test.each(["fill", "28", "XXL"])("an unknown string size %j is shown as its own entry, not 'unset', and 'unset' clears it", (raw) => {
+  const model = sizedModel({ size: raw, scale: "metric" });
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+  const { getByTestId } = render(
+    <Inspector model={model} selectedCell={0} manifest={MANIFEST} provider={new MockDataProvider({})} onChange={onChange} />,
+  );
+  const select = getByTestId("size-select") as HTMLSelectElement;
+  expect(select.value).toBe("__unknown");
+  expect(select.selectedOptions[0].textContent).toBe(`"${raw}" (unknown)`);
+  expect(select.selectedOptions[0].disabled).toBe(true);
+
+  // Re-selecting the informational entry is a no-op...
+  fireEvent.change(select, { target: { value: "__unknown" } });
+  expect(onChange).not.toHaveBeenCalled();
+
+  // ...and "unset" removes the unknown value.
+  fireEvent.change(select, { target: { value: "" } });
+  expect(onChange).toHaveBeenCalledOnce();
+  expect(captured.elements["sog"]?.style).toEqual({ scale: "metric" });
+});
+
+test("choosing Scale 'fixed' (the default) removes style.scale instead of writing it", () => {
+  const model = sizedModel({ scale: "metric", size: "M" });
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+  const { getByTestId } = render(
+    <Inspector model={model} selectedCell={0} manifest={MANIFEST} provider={new MockDataProvider({})} onChange={onChange} />,
+  );
+
+  fireEvent.change(getByTestId("scale-select"), { target: { value: "fixed" } });
+
+  expect(captured.elements["sog"]?.style).toEqual({ size: "M" });
+});
+
+test("a legacy doc with colorRole 'default' is healed on load and save, without touching Color", () => {
+  // What older editor builds wrote: "default" is not a theme token.
+  const legacy = serializeMidl(sizedModel({ size: "M" }), "yaml")
+    .replace("size: M", "size: M\n        colorRole: default");
+  expect(legacy).toContain("colorRole: default");
+
+  const parsed = parseMidl(legacy);
+  expect(parsed.elements["sog"]?.style).toEqual({ size: "M" });
+
+  // A model that still carries it (e.g. built by a host) is stripped on save.
+  const out = serializeMidl(sizedModel({ colorRole: "default" }), "yaml");
+  expect(out).not.toContain("colorRole");
+  expect(parseMidl(out).elements["sog"]?.style).toBeUndefined();
+
+  // The Inspector shows the healed element as "default".
+  const { getByTestId } = render(
+    <Inspector model={parsed} selectedCell={0} manifest={MANIFEST} provider={new MockDataProvider({})} onChange={vi.fn()} />,
+  );
+  expect((getByTestId("color-role-select") as HTMLSelectElement).value).toBe("default");
+});
+
 // ── Part 4: live-readout ────────────────────────────────────────────────────────
 
 test("inspector renders live-readout container in the binding section", () => {
