@@ -86,6 +86,10 @@ export function formatValue(
   const toUnit = format?.unit as string | undefined;
   const decimals = typeof format?.decimals === "number" ? (format.decimals as number) : undefined;
   const n = convert(value, sourceUnit, toUnit);
-  const body = decimals != null ? n.toFixed(decimals) : String(n);
+  // No format.decimals: whole numbers print as they are; anything else gets one
+  // decimal, the firmware's default for path bindings (ui_layouts.cpp "%.1f").
+  // String(n) printed the raw float of a unit conversion, e.g. VMG 3.3 m/s as
+  // "6.414686823599999 kn" and coolant 350 K as "76.85000000000002 °C".
+  const body = decimals != null ? n.toFixed(decimals) : Number.isInteger(n) ? String(n) : n.toFixed(1);
   return { text: toUnit ? `${body} ${unitLabel(toUnit)}` : body, numeric: n };
 }
