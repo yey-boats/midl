@@ -19,14 +19,19 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "COMMERCIAL.md"
   ],
   "scripts": {
     "test": "vitest run",
     "build": "tsup",
     "gen:validators": "node scripts/gen-validators.mjs",
     "prebuild": "node scripts/gen-validators.mjs",
-    "pretest": "node scripts/gen-validators.mjs"
+    "pretest": "node scripts/gen-validators.mjs",
+    "prepack": "cp ../LICENSE ../NOTICE ../COMMERCIAL.md .",
+    "postpack": "rm -f LICENSE NOTICE COMMERCIAL.md"
   },
   "dependencies": {
     "ajv": "^8.17.1",

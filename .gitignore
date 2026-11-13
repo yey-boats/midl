@@ -12,3 +12,14 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 build/
+
+# Legal files copied into each package by its prepack script (midl#17)
+/ts/LICENSE
+/ts/NOTICE
+/ts/COMMERCIAL.md
+/web/LICENSE
+/web/NOTICE
+/web/COMMERCIAL.md
+/editor/LICENSE
+/editor/NOTICE
+/editor/COMMERCIAL.md

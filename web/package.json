@@ -12,13 +12,16 @@
   "module": "./dist/midl-web.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "COMMERCIAL.md"
   ],
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/midl-web.js",
-      "require": "./dist/midl-web.umd.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/midl-web.umd.cjs"
     }
   },
   "scripts": {
@@ -26,7 +29,9 @@
     "build": "vite build",
     "build:lib": "vite build --config vite.lib.config.ts && tsc --project tsconfig.lib.json",
     "build:device": "vite build --config vite.device.config.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "cp ../LICENSE ../NOTICE ../COMMERCIAL.md .",
+    "postpack": "rm -f LICENSE NOTICE COMMERCIAL.md"
   },
   "dependencies": {
     "@yey-boats/midl": "^0.1.0"
