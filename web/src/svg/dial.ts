@@ -85,66 +85,74 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R - 2)}" fill="${dialColor}" fill-opacity="0.06"/>`);
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R)}" fill="none" stroke="${dialColor}" stroke-width="2"/>`);
 
-  // 4 static cardinals around the ring (N white, others dim)
   const fCard = Math.max(9, D * 0.07);
   const rCard = R - fCard * 0.9;
-  const cards: Array<[string, number]> = [["N", 0], ["E", 90], ["S", 180], ["W", 270]];
-  for (const [lab, b] of cards) {
-    const [tx, ty] = polar(cx, cy, b, rCard);
-    // E4: unit/cardinal labels use stale color when stale
-    out.push(txt(tx, ty + fCard * 0.34, fCard, stale ? th.stale : (lab === "N" ? th.fg : th.dim), lab, 700));
-  }
 
   // Hero layout (#35, firmware paint_compass_body / paint_wind_rose_standin):
   // the number fits between the W and E cardinals, a word unit (kn, m) rides
-  // under it in dim, and a panel-coloured vignette sits behind it so the
-  // needle and dir pointer read on the rim instead of through the digits.
+  // under it in dim, and a panel-coloured vignette sits behind it; the needle
+  // and dir pointer run from the vignette edge to the rim, never through the
+  // digits.
   const unit = unitLabel(opts.unit);
   let heroText = m.text + (m.side ?? "");
   let unitText = "";
-  if (unit && !/^[°%]/.test(unit) && m.text.endsWith(unit) && m.text.length > unit.length) {
+  // Split only formatValue's "<number> <unit>" output, never a string value
+  // that merely ends in the unit's letters.
+  if (unit && !/^[°%]/.test(unit) && m.numeric != null && m.text.endsWith(" " + unit)) {
     heroText = m.text.slice(0, -unit.length).trimEnd() + (m.side ?? "");
     unitText = unit;
   }
   const gap = Math.max(2, D * 0.02);
-  const span = 2 * (rCard - fCard * 0.6 - gap);        // clear width between W and E
+  const span = Math.max(0, 2 * (rCard - fCard * 0.6 - gap)); // clear width between W and E
   const ems = dialTextEms(heroText);
   const fitByW = span / ems;
   const fitByH = R * (unitText ? 0.42 : 0.5);
+  const MIN_HERO = 8;
   const hero = typeof opts.size === "number"
     ? opts.size
     : typeof opts.size === "string"
-      ? Math.min(heroFontSize({ w: span / 0.88, h: fitByH / 0.9 }, heroText, opts.size), fitByW)
-      : Math.max(10, Math.min(fitByW, fitByH));
+      ? Math.max(MIN_HERO, Math.min(heroFontSize({ w: span / 0.88, h: fitByH / 0.9 }, heroText, opts.size), fitByW))
+      : Math.max(MIN_HERO, Math.min(fitByW, fitByH));
   const unitFs = Math.max(9, Math.min(14, hero * 0.38));
   const heroY = cy + hero * 0.34 - (unitText ? unitFs * 0.55 : 0);
+  // vignette: covers the hero box, never reaches the cardinals
+  const heroHalfW = (ems * hero) / 2 + gap;
+  const vigR = Math.max(0, Math.min(Math.max(R * 0.56, heroHalfW), rCard - fCard * 0.6));
 
-  // heading needle, tail-to-rim at the current angleDeg (drawn under the
-  // vignette, so only the rim end shows). Visible only with a heading value.
+  // heading needle: vignette edge to the rim at the current angleDeg.
   if (m.angleDeg != null) {
     const [nx, ny] = polar(cx, cy, m.angleDeg, R - 3);
-    const [tx, ty] = polar(cx, cy, m.angleDeg + 180, R * 0.20);
+    const [tx, ty] = polar(cx, cy, m.angleDeg, vigR);
     // E4: needle dims when stale
     out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${dialColor}" stroke-width="2" stroke-linecap="round"/>`);
   }
-  // wind-direction pointer (dirDeg): dashed line in warn colour, out to the rim
+  // wind-direction pointer (dirDeg): dashed, warn colour, vignette edge to rim
   if (m.dirDeg != null) {
     const [dx, dy] = polar(cx, cy, m.dirDeg, R * 0.9);
+    const [sx, sy] = polar(cx, cy, m.dirDeg, vigR);
     // E4: direction arrow dims when stale
     const arrowColor = stale ? th.stale : th.warn;
-    out.push(`<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${arrowColor}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
+    out.push(`<line x1="${f(sx)}" y1="${f(sy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${arrowColor}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
   }
 
-  // vignette: covers the hero box, never reaches the cardinals
-  const heroHalfW = (ems * hero) / 2 + gap;
-  const vigR = Math.min(Math.max(R * 0.56, heroHalfW), rCard - fCard * 0.6);
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(vigR)}" fill="${th.panel}" fill-opacity="0.8"/>`);
 
-  // markers as glyphs on the rim (firmware build_authored_ring at the bezel),
-  // outside the vignette so they never sit under the hero
+  // 4 static cardinals (N white, others dim), drawn over the lines with a
+  // panel halo so a needle at N/E/S/W never strikes through the letter.
+  const cards: Array<[string, number]> = [["N", 0], ["E", 90], ["S", 180], ["W", 270]];
+  const halo = ` paint-order="stroke" stroke="${th.panel}" stroke-width="3" stroke-linejoin="round"`;
+  for (const [lab, b] of cards) {
+    const [tx, ty] = polar(cx, cy, b, rCard);
+    // E4: unit/cardinal labels use stale color when stale
+    out.push(txt(tx, ty + fCard * 0.34, fCard, stale ? th.stale : (lab === "N" ? th.fg : th.dim), lab, 700, "middle", halo));
+  }
+
+  // markers (firmware build_authored_ring): rim markers on the bezel, vector
+  // markers (tide/current) on an inner ring just outside the vignette.
   for (const mk of m.markers ?? []) {
     if (mk.angleDeg == null) continue;
-    const [mx, my] = polar(cx, cy, mk.angleDeg, R);
+    const r = mk.kind === "vector" ? Math.min(R, Math.max(R * 0.62, vigR + D * 0.035)) : R;
+    const [mx, my] = polar(cx, cy, mk.angleDeg, r);
     out.push(glyphPath(mk.glyph, mx, my, D * 0.07, stale ? th.stale : markerColor(mk.color, th)));
   }
 
