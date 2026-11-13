@@ -48,6 +48,7 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
     unit: str(el.format?.unit),
     // style.color (token or #hex) takes precedence over legacy style.colorRole
     colorRole: str((style as Record<string, unknown>).color as string | undefined) ?? str(style.colorRole),
+    zoned: Array.isArray(style.zones) && style.zones.length > 0,
   };
   const dialOpts = {
     title: str(style.title), size: sizev(style.size),

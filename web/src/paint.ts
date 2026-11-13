@@ -72,18 +72,25 @@ function dial(ctx: Ctx, p: Placement, m: ElementModel, ringColor: string, th: Th
 }
 
 // Bar, as the firmware and the SVG backend: the number takes style.color
-// (default accent), the fill stays theme good; an active zone colours both.
-function bar(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, zone?: string, styleColor?: string): void {
+// (default accent) and the fill theme good. Once the element declares zones
+// the firmware zone block owns both: active zone colour, else theme good.
+// style.center draws the deviation needle from the middle (XTE).
+function bar(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, zoned: boolean, zone?: string, styleColor?: string, center?: boolean): void {
   const { x, y, w, h } = p.rect;
   const bx = x + 14, bw = w - 28, by = y + h / 2, bh = 14;
-  ctx.fillStyle = fg(m, th, zone ?? styleColor ?? th.accent);
+  ctx.fillStyle = fg(m, th, zoned ? zone ?? th.good : styleColor ?? th.accent);
   ctx.font = "24px system-ui";
   ctx.textAlign = "center";
-  ctx.fillText(m.text, x + w / 2, by - 12);
+  ctx.fillText(m.text + (m.side ?? ""), x + w / 2, by - 12);
   ctx.strokeStyle = th.edge;
   ctx.strokeRect(bx, by, bw, bh);
   ctx.fillStyle = m.state === "stale" ? th.stale : zone ?? th.good;
-  ctx.fillRect(bx, by, Math.max(0, Math.min(1, m.fraction ?? 0)) * bw, bh);
+  if (center) {
+    const nx = bx + bw / 2 + ((m.fraction ?? 0.5) - 0.5) * bw;
+    ctx.fillRect(nx - 2, by - 2, 4, bh + 4);
+  } else {
+    ctx.fillRect(bx, by, (m.fraction ?? 0) * bw, bh);
+  }
 }
 
 function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, custom?: string): void {
@@ -115,7 +122,7 @@ function trend(ctx: Ctx, p: Placement, m: ElementModel, series: number[], th: Th
     });
     ctx.stroke();
   }
-  ctx.fillStyle = fg(m, th, custom);
+  ctx.fillStyle = fg(m, th, custom ?? th.accent);
   ctx.font = "14px system-ui";
   ctx.textAlign = "right";
   ctx.fillText(m.text, x + w - 10, y + h - 10);
@@ -156,10 +163,11 @@ export function paintScreen(
       case "compass": dial(ctx, p, m, custom ?? th.accent, th, custom); break;
       case "windrose": dial(ctx, p, m, custom ?? th.warn, th, custom); break;
       case "gauge": gauge(ctx, p, m, th, custom); break;
-      case "bar": bar(ctx, p, m, th, zone, styleColor); break;
+      case "bar": bar(ctx, p, m, th, Array.isArray(style.zones) && style.zones.length > 0, zone, styleColor, typeof style.center === "number"); break;
       case "trend": {
         if (trends && m.numeric != null) trends.push(p.elementId, m.numeric);
-        trend(ctx, p, m, trends?.series(p.elementId) ?? [], th, custom);
+        // trend has no zones in the firmware: line and number follow style.color only
+        trend(ctx, p, m, trends?.series(p.elementId) ?? [], th, styleColor);
         break;
       }
       case "autopilot": pill(ctx, p, m.text || "STBY", custom ?? th.accent, th); break;
