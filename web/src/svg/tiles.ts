@@ -27,7 +27,11 @@ function txt(x: number, y: number, s: number, fill: string, str: string, weight 
   return `<text x="${f(x)}" y="${f(y)}" font-family="${FN}" font-weight="${weight}" font-size="${f(s)}" fill="${fill}" text-anchor="${anchor}"${extra}>${esc(str)}</text>`;
 }
 
-export interface TileOpts { title?: string; size?: number | string; center?: number; unit?: string; colorRole?: string; }
+export interface TileOpts {
+  title?: string; size?: number | string; center?: number; unit?: string; colorRole?: string;
+  /** The rect already starts below the chrome caption (round-safe body, #36). */
+  belowCaption?: boolean;
+}
 
 /**
  * Resolve a style.colorRole token to a theme accent colour.
@@ -188,7 +192,7 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
   // An explicit numeric style.size is honoured as-is (heroFontSize contract).
   const hero = typeof opts.size === "number"
     ? heroFit
-    : Math.max(12, Math.min(heroFit, (by - 14 - (y + captionBand(rect))) / 0.72));
+    : Math.max(12, Math.min(heroFit, (by - 14 - (y + (opts.belowCaption ? 0 : captionBand(rect)))) / 0.72));
   out.push(txt(cx, by - 14, hero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   // track

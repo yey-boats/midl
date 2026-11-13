@@ -12,7 +12,8 @@ import { resolveElement, type ElementModel } from "../model";
 import { prepareDashboard, type RenderResult } from "../render";
 import { TrendBuffers } from "../paint";
 import { esc, f } from "./geometry";
-import { frameSvg, captionBand } from "./frame";
+import { frameSvg, captionBand, captionFontSize } from "./frame";
+import { safeRect, fitCircle, viewportDisc, type Disc } from "./round-safe";
 import { dialSvg } from "./dial";
 import { resolveOptionalColor } from "./color";
 import {
@@ -22,6 +23,8 @@ import {
 export { TrendBuffers } from "../paint";
 
 const ROUND_TYPES = new Set(["compass", "windrose"]);
+/** Smallest round-safe content width worth drawing into (#36). */
+const MIN_SAFE = 24;
 // Control elements that handle their own no-data state (they must never be
 // shortcut to the generic "--" placeholder because they carry idle/standby UI).
 const SELF_NO_DATA_TYPES = new Set(["autopilot"]);
@@ -50,31 +53,24 @@ function ownsCentreCaption(el: Element, rect: Rect): boolean {
   return el.type === "windrose" && !isTileDial(el, rect) && rect.w >= 400 && rect.h >= 300;
 }
 
-function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends?: TrendBuffers): string {
+function widgetSvg(el: Element, p: Placement, rect: Rect, m: ElementModel, th: Theme, trends?: TrendBuffers): string {
   const style = el.style ?? {};
-  // Minimal ring dials sit below the chrome caption band (firmware
-  // paint_compass_body reserves the caption row above the ring). The band
-  // shape already sits low in its tile, and HUD faces leave the corner free.
-  const shrink = isTileDial(el, p.rect) && style.shape !== "band";
-  const band = shrink ? captionBand(p.rect) : 0;
-  const rect = shrink ? { x: p.rect.x, y: p.rect.y + band, w: p.rect.w, h: p.rect.h - band } : p.rect;
   // A dial with a chrome caption must not repeat it in the centre.
   const centreTitle = ownsCentreCaption(el, p.rect) ? str(style.title) : undefined;
-  // Widget tiles render value/secondary only — the frame owns the top-left
-  // caption. So we do NOT pass `title` into the tile builders. Dials are the
-  // exception: they draw their own centre caption from the title.
   const opts = {
     size: sizev(style.size),
     center: numv(style.center),
     unit: str(el.format?.unit),
     // style.color (token or #hex) takes precedence over legacy style.colorRole
     colorRole: str((style as Record<string, unknown>).color as string | undefined) ?? str(style.colorRole),
+    belowCaption: rect.y > p.rect.y + 2,
   };
   const dialOpts = {
     title: centreTitle, size: sizev(style.size),
     shape: style.shape === "band" ? "band" as const : "round" as const, hull: boolv(style.hull),
     color: resolveOptionalColor(opts.colorRole, th),
     unit: opts.unit,
+    variant: isTileDial(el, p.rect) ? "minimal" as const : "hud" as const,
   };
   switch (el.type) {
     case "compass":
@@ -120,6 +116,8 @@ export function paintScreenSvg(
   provider: DataProvider,
   th: Theme,
   trends?: TrendBuffers,
+  /** Visible disc of a round panel (#36); content is kept inside it. */
+  disc?: Disc,
 ): string {
   const out: string[] = [];
   for (const p of placements) {
@@ -142,14 +140,43 @@ export function paintScreenSvg(
     const style = el.style ?? {};
     const tileTitle = str(style.title) ?? el.name ?? "";
     const isNoData = m.state === "no-data";
+    const tileDial = isTileDial(el, p.rect);
     const hud = round && !isNoData && ownsCentreCaption(el, p.rect);
     const frameTitle = hud || isButton ? "" : tileTitle;
     // E3: for round tiles in no-data, pass round:false so frameSvg renders the
     // title caption (the dial itself won't render — the no-data branch fires next).
     const frameRound = hud;
-    out.push(frameSvg(p.rect, frameTitle, th, { noData: isNoData && !isButton && !isSelfNoData, stale: m.state === "stale", round: frameRound }));
-    if (isNoData && !isButton && !isSelfNoData) { out.push(noDataSvg(p.rect, th)); continue; }
-    out.push(widgetSvg(el, p, m, th, trends));
+    // #36: on a round panel the caption and content move into the part of the
+    // cell inside the visible circle; the panel background keeps the cell.
+    const cap = disc ? safeRect(p.rect, disc) : p.rect;
+    // A cell (almost) entirely under the bezel keeps its panel and nothing else.
+    if (disc && (cap.w < MIN_SAFE || cap.h < captionBand(p.rect) + 12)) {
+      out.push(frameSvg(p.rect, "", th, { noData: false, stale: m.state === "stale", round: true }));
+      continue;
+    }
+    out.push(frameSvg(p.rect, frameTitle, th, { noData: isNoData && !isButton && !isSelfNoData, stale: m.state === "stale", round: frameRound, captionRect: cap }));
+    if (isNoData && !isButton && !isSelfNoData) { out.push(noDataSvg(cap, th)); continue; }
+    let body: Rect = cap;
+    if (disc && !round && frameTitle) {
+      // the safe area is tight: keep the content below the caption row
+      const band = captionBand(p.rect);
+      body = { x: cap.x, y: cap.y + band, w: cap.w, h: Math.max(0, cap.h - band) };
+    } else if (round && disc) {
+      // round dials fit as circles (a full-screen dial keeps its size), clear
+      // of the chrome caption when the tile has one
+      const fs = captionFontSize(p.rect, frameTitle);
+      const capBox = frameTitle
+        ? { x: cap.x, y: cap.y, w: 12 + frameTitle.length * fs * 0.72, h: captionBand(p.rect) + 2 }
+        : undefined;
+      body = fitCircle({ x: p.rect.x + 2, y: p.rect.y + 2, w: Math.max(0, p.rect.w - 4), h: Math.max(0, p.rect.h - 4) }, disc, capBox);
+    } else if (tileDial && style.shape !== "band") {
+      // Minimal ring dials sit below the chrome caption band (firmware
+      // paint_compass_body reserves the caption row above the ring). The band
+      // shape already sits low in its tile, and HUD faces leave the corner free.
+      const band = captionBand(p.rect);
+      body = { x: p.rect.x, y: p.rect.y + band, w: p.rect.w, h: p.rect.h - band };
+    }
+    out.push(widgetSvg(el, p, body, m, th, trends));
   }
   return out.join("");
 }
@@ -174,9 +201,11 @@ export function renderDashboardSvg(
       + `<text x="${f(cx)}" y="${f(cy)}" font-family="${FONT_FAMILY}" font-size="18" fill="${th.bad}" text-anchor="middle">${esc(msg)}</text></svg>`;
     return { ok: false, issues: prep.issues, paths: [], svg };
   }
+  // Round device classes (round-360, round-240, …) get round-safe content.
+  const disc = className.startsWith("round") ? viewportDisc(viewport) : undefined;
   const body: string[] = [`<rect width="${f(viewport.w)}" height="${f(viewport.h)}" fill="${th.bg}"/>`];
   for (const sp of prep.screens) {
-    body.push(`<g data-screen="${esc(sp.screenId)}">${paintScreenSvg(sp.placements, prep.elements[sp.screenId], provider, th, opts.trends)}</g>`);
+    body.push(`<g data-screen="${esc(sp.screenId)}">${paintScreenSvg(sp.placements, prep.elements[sp.screenId], provider, th, opts.trends, disc)}</g>`);
   }
   const svg = `${head}${body.join("")}</svg>`;
   return { ok: true, issues: [] as Issue[], paths: prep.paths, svg };
