@@ -216,7 +216,8 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
   // gauge hue; the centre text follows the arc.
   const frac = Math.max(0, Math.min(1, m.fraction ?? 0));
   const baseFill = resolveColor(opts.colorRole, th, th.widgets.gaugeFill);
-  const arcColor = m.zoneColor ? resolveColor(m.zoneColor, th, baseFill) : baseFill;
+  const arcColor = m.state === "stale" ? th.stale
+    : m.zoneColor ? resolveColor(m.zoneColor, th, baseFill) : baseFill;
   if (frac > 0) {
     out.push(`<path d="${arc(cx, cy, -135, -135 + frac * 270, r)}" fill="none" stroke="${arcColor}" stroke-width="${sw}" stroke-linecap="round"/>`);
   }

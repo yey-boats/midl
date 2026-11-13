@@ -140,8 +140,11 @@ export function paintScreen(
     frame(ctx, p, title, th, m.state === "no-data");
     if (m.state === "no-data") { centerText(ctx, p, "—", 30, th.dim); continue; }
     // style.color (or legacy colorRole), allowlisted like the SVG backend.
+    // Zone colour wins over style.color, as in the SVG backend.
     const style = (el.style ?? {}) as Record<string, unknown>;
-    const custom = resolveOptionalColor(style.color ?? style.colorRole, th);
+    const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+    const custom = resolveOptionalColor(m.zoneColor, th)
+      ?? resolveOptionalColor(str(style.color) ?? str(style.colorRole), th);
     switch (el.type) {
       case "compass": dial(ctx, p, m, custom ?? th.accent, th, custom); break;
       case "windrose": dial(ctx, p, m, custom ?? th.warn, th, custom); break;

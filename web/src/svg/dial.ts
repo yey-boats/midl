@@ -134,7 +134,6 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
   const out: string[] = [];
   // E4: when stale, dim the dial geometry (ring, needle, arrow) to th.stale.
   const stale = m.state === "stale";
-  const dialColor = stale ? th.stale : ringColor;
 
   // full-circle face
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(rFace)}" fill="${th.panel}" stroke="${th.edge}"/>`);

@@ -61,14 +61,22 @@ describe("SVG: style.color applies to gauge, compass, windrose, text, autopilot"
     expect(svg).not.toContain(HEX);
   });
 
-  test("gauge: stale value still draws stale, not the override", () => {
+  test("gauge: stale value draws the arc and centre text stale, not the override", () => {
     const stale = {
       now: () => 0, subscribe: () => () => {},
       getValue: () => ({ value: 40, stale: true, present: true, updatedAt: 0 }),
     };
     const p: Placement = { elementId: "t", rect: { x: 0, y: 0, w: 240, h: 240 } };
     const svg = paintScreenSvg([p], { t: el("gauge", "load", { color: HEX }) }, stale, TH);
-    expect(svg).toContain(TH.stale);
+    expect(svg).not.toContain(HEX);
+    expect(svg).toMatch(new RegExp(`<path [^>]*stroke="${TH.stale}"`));
+    expect(svg).toMatch(new RegExp(`<text [^>]*fill="${TH.stale}"[^>]*>40`));
+  });
+
+  test("alias token 'alarm' and legacy colorRole resolve on the newly covered tiles", () => {
+    expect(svgFor("gauge", { color: "alarm" })).toContain(TH.bad);
+    expect(svgFor("text", { colorRole: "tide" })).toContain(TH.tide);
+    expect(svgFor("compass", { colorRole: HEX })).toContain(HEX);
   });
 });
 
@@ -96,7 +104,17 @@ describe("Canvas: style.color applies on every tile kind", () => {
       expect(styled.sets.some(([, v]) => v === HEX)).toBe(true);
       const hostile = recorder();
       paintScreen(hostile.ctx, [p], { t: el(type, path, { color: "#fff;x", range: [0, 100] }) }, provider, TH);
-      expect(hostile.sets.some(([, v]) => v === "#fff;x")).toBe(false);
+      const plain = recorder();
+      paintScreen(plain.ctx, [p], { t: el(type, path, { range: [0, 100] }) }, provider, TH);
+      expect(hostile.sets).toEqual(plain.sets);
     });
   }
+
+  test("a zone colour wins over style.color, as in SVG", () => {
+    const p: Placement = { elementId: "t", rect: { x: 0, y: 0, w: 160, h: 160 } };
+    const r = recorder();
+    paintScreen(r.ctx, [p], { t: el("gauge", "load", { color: HEX, zones: [{ lt: 50, color: "bad" }] }) }, provider, TH);
+    expect(r.sets.some(([, v]) => v === TH.bad)).toBe(true);
+    expect(r.sets.some(([, v]) => v === HEX)).toBe(false);
+  });
 });
