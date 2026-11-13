@@ -4,6 +4,8 @@ import type { Element, Placement } from "@yey-boats/midl";
 import type { DataProvider } from "./data";
 import type { Theme } from "./theme";
 import { resolveElement, type ElementModel } from "./model";
+import { resolveOptionalColor } from "./svg/color";
+import { captionFontSize } from "./svg/frame";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -19,10 +21,11 @@ export class TrendBuffers {
   series(id: string): number[] { return this.map.get(id) ?? []; }
 }
 
-function fg(m: ElementModel, th: Theme): string {
+// `custom` is the element's resolved style.color (allowlisted hex) or undefined.
+function fg(m: ElementModel, th: Theme, custom?: string): string {
   if (m.state === "stale") return th.stale;
   if (m.state === "bad") return th.danger;
-  return th.fg;
+  return custom ?? th.fg;
 }
 
 function frame(ctx: Ctx, p: Placement, title: string, th: Theme, noData: boolean): void {
@@ -34,9 +37,10 @@ function frame(ctx: Ctx, p: Placement, title: string, th: Theme, noData: boolean
   ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
   ctx.setLineDash([]);
   ctx.fillStyle = th.dim;
-  ctx.font = "12px system-ui";
+  const fs = captionFontSize(p.rect, title); // firmware caption size, as the SVG frame (#37)
+  ctx.font = `${fs}px system-ui`;
   ctx.textAlign = "left";
-  ctx.fillText(title.toUpperCase(), x + 10, y + 18);
+  ctx.fillText(title.toUpperCase(), x + 12, y + 6 + fs * 0.9);
 }
 
 function centerText(ctx: Ctx, p: Placement, text: string, size: number, color: string): void {
@@ -49,7 +53,7 @@ function centerText(ctx: Ctx, p: Placement, text: string, size: number, color: s
   ctx.textBaseline = "alphabetic";
 }
 
-function dial(ctx: Ctx, p: Placement, m: ElementModel, ringColor: string, th: Theme): void {
+function dial(ctx: Ctx, p: Placement, m: ElementModel, ringColor: string, th: Theme, custom?: string): void {
   const { x, y, w, h } = p.rect;
   const cx = x + w / 2, cy = y + h / 2 + 6, r = Math.min(w, h) * 0.32;
   ctx.strokeStyle = th.edge;
@@ -66,19 +70,32 @@ function dial(ctx: Ctx, p: Placement, m: ElementModel, ringColor: string, th: Th
     ctx.stroke();
   }
   ctx.lineWidth = 1;
-  centerText(ctx, p, m.text, 22, fg(m, th));
+  centerText(ctx, p, m.text, 22, fg(m, th, custom));
 }
 
-function bar(ctx: Ctx, p: Placement, m: ElementModel, th: Theme): void {
+// Bar, as the firmware and the SVG backend: the number takes style.color
+// (default accent) and the fill theme good. Once the element declares zones
+// the firmware zone block owns both: active zone colour, else theme good.
+// style.center draws the deviation needle from the middle (XTE).
+function bar(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, zoned: boolean, zone?: string, styleColor?: string, center?: boolean): void {
   const { x, y, w, h } = p.rect;
   const bx = x + 14, bw = w - 28, by = y + h / 2, bh = 14;
+  ctx.fillStyle = fg(m, th, zoned ? zone ?? th.good : styleColor ?? th.accent);
+  ctx.font = "24px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText(m.text + (m.side ?? ""), x + w / 2, by - 12);
   ctx.strokeStyle = th.edge;
   ctx.strokeRect(bx, by, bw, bh);
-  ctx.fillStyle = m.state === "stale" ? th.stale : th.accent;
-  ctx.fillRect(bx, by, (m.fraction ?? 0) * bw, bh);
+  ctx.fillStyle = m.state === "stale" ? th.stale : zone ?? th.good;
+  if (center) {
+    const nx = bx + bw / 2 + ((m.fraction ?? 0.5) - 0.5) * bw;
+    ctx.fillRect(nx - 2, by - 2, 4, bh + 4);
+  } else {
+    ctx.fillRect(bx, by, (m.fraction ?? 0) * bw, bh);
+  }
 }
 
-function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme): void {
+function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, custom?: string): void {
   const { x, y, w, h } = p.rect;
   const cx = x + w / 2, cy = y + h * 0.62, r = Math.min(w, h) * 0.32;
   ctx.strokeStyle = th.edge;
@@ -86,19 +103,19 @@ function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme): void {
   ctx.beginPath();
   ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI);
   ctx.stroke();
-  ctx.strokeStyle = m.state === "stale" ? th.stale : th.accent;
+  ctx.strokeStyle = m.state === "stale" ? th.stale : custom ?? th.accent;
   ctx.beginPath();
   ctx.arc(cx, cy, r, Math.PI, Math.PI + (m.fraction ?? 0) * Math.PI);
   ctx.stroke();
   ctx.lineWidth = 1;
-  centerText(ctx, p, m.text, 20, fg(m, th));
+  centerText(ctx, p, m.text, 20, fg(m, th, custom));
 }
 
-function trend(ctx: Ctx, p: Placement, m: ElementModel, series: number[], th: Theme): void {
+function trend(ctx: Ctx, p: Placement, m: ElementModel, series: number[], th: Theme, custom?: string): void {
   const { x, y, w, h } = p.rect;
   if (series.length >= 2) {
     const lo = Math.min(...series), hi = Math.max(...series), span = hi - lo || 1;
-    ctx.strokeStyle = m.state === "stale" ? th.stale : th.accent;
+    ctx.strokeStyle = m.state === "stale" ? th.stale : custom ?? th.accent;
     ctx.beginPath();
     series.forEach((v, i) => {
       const px = x + 10 + (i / (series.length - 1)) * (w - 20);
@@ -107,7 +124,7 @@ function trend(ctx: Ctx, p: Placement, m: ElementModel, series: number[], th: Th
     });
     ctx.stroke();
   }
-  ctx.fillStyle = fg(m, th);
+  ctx.fillStyle = fg(m, th, custom ?? th.accent);
   ctx.font = "14px system-ui";
   ctx.textAlign = "right";
   ctx.fillText(m.text, x + w - 10, y + h - 10);
@@ -137,25 +154,33 @@ export function paintScreen(
     const title = el.name ?? p.elementId;
     frame(ctx, p, title, th, m.state === "no-data");
     if (m.state === "no-data") { centerText(ctx, p, "—", 30, th.dim); continue; }
+    // style.color (or legacy colorRole), allowlisted like the SVG backend.
+    // Zone colour wins over style.color, as in the SVG backend.
+    const style = (el.style ?? {}) as Record<string, unknown>;
+    const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+    const zone = resolveOptionalColor(m.zoneColor, th);
+    const styleColor = resolveOptionalColor(str(style.color) ?? str(style.colorRole), th);
+    const custom = zone ?? styleColor;
     switch (el.type) {
-      case "compass": dial(ctx, p, m, th.accent, th); break;
-      case "windrose": dial(ctx, p, m, th.warn, th); break;
-      case "gauge": gauge(ctx, p, m, th); break;
-      case "bar": bar(ctx, p, m, th); break;
+      case "compass": dial(ctx, p, m, custom ?? th.accent, th, custom); break;
+      case "windrose": dial(ctx, p, m, custom ?? th.warn, th, custom); break;
+      case "gauge": gauge(ctx, p, m, th, custom); break;
+      case "bar": bar(ctx, p, m, th, Array.isArray(style.zones) && style.zones.length > 0, zone, styleColor, typeof style.center === "number"); break;
       case "trend": {
         if (trends && m.numeric != null) trends.push(p.elementId, m.numeric);
-        trend(ctx, p, m, trends?.series(p.elementId) ?? [], th);
+        // trend has no zones in the firmware: line and number follow style.color only
+        trend(ctx, p, m, trends?.series(p.elementId) ?? [], th, styleColor);
         break;
       }
-      case "autopilot": pill(ctx, p, m.text || "STBY", th.accent, th); break;
-      case "button": centerText(ctx, p, title, 16, th.accent); break;
-      case "text": centerText(ctx, p, m.text, 20, fg(m, th)); break;
+      case "autopilot": pill(ctx, p, m.text || "STBY", custom ?? th.accent, th); break;
+      case "button": centerText(ctx, p, title, 16, custom ?? th.accent); break;
+      case "text": centerText(ctx, p, m.text, 20, fg(m, th, custom)); break;
       // TODO(firmware-parity-wave5): `clinometer` (heel/pitch attitude dial,
       // catalog wave5) has no dedicated Canvas painter yet — it falls through
       // to the generic numeric readout below. Model an arc widget on `dial()`
       // (heel arc + port/stbd bands + pitch secondary) when a Canvas preview
       // of it is needed; the SVG backend has the matching TODO in render-svg.ts.
-      default: centerText(ctx, p, m.text, 32, fg(m, th)); break; // single-value, clinometer
+      default: centerText(ctx, p, m.text, 32, fg(m, th, custom)); break; // single-value, clinometer
     }
   }
 }

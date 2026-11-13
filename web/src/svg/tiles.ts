@@ -12,6 +12,7 @@ import { FONT_FAMILY } from "../theme";
 import { polar, arc, esc, f } from "./geometry";
 import { resolveColor } from "./color";
 import { unitLabel } from "../format";
+import { captionBand } from "./frame";
 
 const FN = FONT_FAMILY;
 
@@ -26,7 +27,13 @@ function txt(x: number, y: number, s: number, fill: string, str: string, weight 
   return `<text x="${f(x)}" y="${f(y)}" font-family="${FN}" font-weight="${weight}" font-size="${f(s)}" fill="${fill}" text-anchor="${anchor}"${extra}>${esc(str)}</text>`;
 }
 
-export interface TileOpts { title?: string; size?: number | string; center?: number; unit?: string; colorRole?: string; }
+export interface TileOpts {
+  title?: string; size?: number | string; center?: number; unit?: string; colorRole?: string;
+  /** The element declares style.zones (firmware then drives the bar number from the zone block). */
+  zoned?: boolean;
+  /** The rect already starts below the chrome caption (round-safe body, #36). */
+  belowCaption?: boolean;
+}
 
 /**
  * Resolve a style.colorRole token to a theme accent colour.
@@ -165,7 +172,7 @@ export function textSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts =
   // For multi-line text, divide available height equally across lines.
   const lineH = h / Math.max(1, lines.length);
   const size = heroFontSize({ w, h: lineH }, longestLine, opts.size ?? "M");
-  const color = valColor(m, th, th.accent);
+  const color = valColor(m, th, resolveColor(opts.colorRole, th, th.accent));
   const out: string[] = [];
   const top = y + h / 2 - ((lines.length - 1) * size * 0.7) / 2;
   lines.forEach((ln, i) => out.push(txt(cx, top + i * size * 1.2 + size * 0.34, size, color, ln, 600)));
@@ -180,9 +187,21 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
   const bx = x + 16, bw = w - 32, bh = 22;
   const by = y + h * 0.62;
 
-  // hero percent above the track (accent, optionally overridden by style.color/colorRole)
-  const hero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
-  out.push(txt(cx, by - 14, hero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  // hero percent above the track: style.color (default accent); with zones the
+  // number follows the fill (firmware value_color + zone block).
+  // Cap the hero so its cap height fits between the chrome caption band and
+  // the track (cap height ~0.72em), as the firmware's fixed 28-48px ladder does.
+  const heroFit = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
+  // An explicit numeric style.size is honoured as-is (heroFontSize contract).
+  const hero = typeof opts.size === "number"
+    ? heroFit
+    : Math.max(12, Math.min(heroFit, (by - 14 - (y + (opts.belowCaption ? 0 : captionBand(rect)))) / 0.72));
+  // Firmware: once a bar declares zones, the zone block owns the number —
+  // active zone colour, else theme good (style.color is not used).
+  const numColor = opts.zoned
+    ? resolveColor(m.zoneColor, th, th.good)
+    : resolveColor(opts.colorRole, th, th.accent);
+  out.push(txt(cx, by - 14, hero, valColor(m, th, numColor), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   // track
   out.push(`<rect x="${f(bx)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" rx="3" fill="${th.widgets.barTrack}" stroke="${th.edge}" stroke-width="1"/>`);
@@ -212,9 +231,12 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
   // track
   out.push(`<path d="${arc(cx, cy, -135, 135, r)}" fill="none" stroke="${th.widgets.gaugeTrack}" stroke-width="${sw}" stroke-linecap="round"/>`);
 
-  // fill — use zone colour when available so the arc reflects threshold state
+  // fill — zone colour wins (threshold state), then style.color, then the theme
+  // gauge hue; the centre text follows the arc.
   const frac = Math.max(0, Math.min(1, m.fraction ?? 0));
-  const arcColor = m.zoneColor ? resolveColor(m.zoneColor, th, th.widgets.gaugeFill) : th.widgets.gaugeFill;
+  const baseFill = resolveColor(opts.colorRole, th, th.widgets.gaugeFill);
+  const arcColor = m.state === "stale" ? th.stale
+    : m.zoneColor ? resolveColor(m.zoneColor, th, baseFill) : baseFill;
   if (frac > 0) {
     out.push(`<path d="${arc(cx, cy, -135, -135 + frac * 270, r)}" fill="none" stroke="${arcColor}" stroke-width="${sw}" stroke-linecap="round"/>`);
   }
@@ -253,8 +275,13 @@ export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Them
     const poly = pts.map(([px, py]) => `${f(px)},${f(py)}`).join(" ");
     // filled area
     const area = `${f(pts[0][0])},${f(bottom)} ${poly} ${f(pts[pts.length - 1][0])},${f(bottom)}`;
-    out.push(`<polygon points="${area}" fill="rgba(87,199,216,0.06)"/>`);
-    out.push(`<polyline points="${poly}" fill="none" stroke="${th.widgets.gaugeFill}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
+    // style.color tints the sparkline and its wash as well as the number
+    // (firmware paint_trend_body: the chart series uses m.accent). The SVG
+    // keeps its faint watermark look (gauge hue at 0.22) by design; the
+    // firmware and Canvas draw a full-strength accent line.
+    const lineColor = m.state === "stale" ? th.stale : resolveColor(opts.colorRole, th, th.widgets.gaugeFill);
+    out.push(`<polygon points="${area}" fill="${lineColor}" fill-opacity="0.06"/>`);
+    out.push(`<polyline points="${poly}" fill="none" stroke="${lineColor}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
   }
   // numeric hero overlaid (accent, optionally overridden by colorRole)
   const trendValue = m.text + (m.side ?? "");
@@ -287,11 +314,17 @@ export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileO
   const fsBase = typeof opts.size === "number"
     ? opts.size
     : heroFontSize({ w: w - 24, h: ph }, label, opts.size ?? "M");
-  const fs = Math.min(fsBase, ph * 0.6);
-  // Size the pill so the label fits: estimate character width at 0.65em each
-  // (Montserrat 700 uppercase + 0.04em letter-spacing ≈ 0.69em but 0.65 is safe).
-  const textW = label.length * fs * 0.65 + fs * 0.5; // +½em padding per side
-  const pw = Math.min(w - 24, Math.max(70, textW));
+  // Size the pill so the label fits with ½em of air per side (#38). Bold
+  // uppercase + 0.04em tracking averages ~0.78em per glyph (Montserrat/Arial
+  // "AUTO" ≈ 3.0em); the old 0.65em estimate left the label touching the border.
+  // AP_EM is mirrored (minus a small margin) in test/autopilot-pill.test.ts.
+  // The width fit stops at AP_MIN_FS: below that the label stays legible and
+  // may overflow a pathologically narrow pill rather than shrink to nothing.
+  const AP_EM = 0.78;
+  const AP_MIN_FS = 8;
+  const maxPw = Math.max(0, w - 24);
+  const fs = Math.max(Math.min(AP_MIN_FS, fsBase), Math.min(fsBase, ph * 0.6, maxPw / (label.length * AP_EM + 1)));
+  const pw = Math.min(maxPw, Math.max(70, label.length * AP_EM * fs + fs));
   out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${pillFill}" stroke="${pillStroke}" stroke-width="1"/>`);
   out.push(txt(cx, cy + fs * 0.34, fs, labelColor, label, 700, "middle", ` letter-spacing="0.04em"`));
   return `<g>${out.join("")}</g>`;

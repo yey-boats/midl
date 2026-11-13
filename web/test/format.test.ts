@@ -102,12 +102,20 @@ test("unitLabel maps deg/degC/degF tokens to glyphs and leaves other units uncha
 test("formatValue renders the deg unit as the ° glyph, not the literal 'deg'", () => {
   // PI rad -> 180 deg; the display unit must be the ° glyph.
   const r = formatValue(Math.PI, { unit: "deg", decimals: 0 }, "rad");
-  expect(r.text).toBe("180 °");
+  expect(r.text).toBe("180°");
   expect(r.numeric).toBeCloseTo(180, 6);
 });
 
 test("formatValue renders the degC token as the °C glyph", () => {
   const r = formatValue(293.15, { unit: "degC", decimals: 1 }, "K");
-  expect(r.text).toBe("20.0 °C");
+  expect(r.text).toBe("20.0°C");
   expect(r.numeric).toBeCloseTo(20, 4);
+});
+
+test("without format.decimals a converted value is not printed as a raw float", () => {
+  expect(formatValue(3.3, { unit: "kn" }, "m/s").text).toBe("6.4 kn");      // was 6.414686823599999 kn
+  expect(formatValue(350, { unit: "degC" }, "K").text).toBe("76.9°C");    // was 76.85000000000002
+  expect(formatValue(30, { unit: "rpm" }, "Hz").text).toBe("1800 rpm");    // whole numbers unchanged
+  expect(formatValue(78, undefined).text).toBe("78");
+  expect(formatValue(3.3, { unit: "kn", decimals: 3 }, "m/s").text).toBe("6.415 kn"); // explicit wins
 });

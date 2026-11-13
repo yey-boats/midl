@@ -107,3 +107,11 @@ test("classic is a cream/brass analog look: warm light ground, dark ink, brass a
   expect(ar).toBeGreaterThan(ab);
   expect(ag).toBeGreaterThan(ab);
 });
+
+test("FONT_FAMILY falls back to a sans-serif stack, never the serif default", async () => {
+  const { FONT_FAMILY } = await import("../src/theme");
+  expect(FONT_FAMILY.startsWith("Montserrat")).toBe(true);
+  expect(FONT_FAMILY.trim().endsWith("sans-serif")).toBe(true);
+  // Interpolated into font-family="..." attributes: no double quotes allowed.
+  expect(FONT_FAMILY).not.toContain('"');
+});

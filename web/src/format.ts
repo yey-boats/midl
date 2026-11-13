@@ -52,6 +52,14 @@ export function unitLabel(u: string | undefined): string {
   return UNIT_SYMBOL[u] ?? u;
 }
 
+/** Separator between number and unit, following the firmware's ranged
+ *  bar/gauge printf (ui_layouts.cpp, "%" or a 0xC2-led unit glued): "%" and
+ *  degree-led units are glued ("241°", "82%", "21°C"), word units get a
+ *  space ("6.2 kn"). */
+export function unitSep(label: string): string {
+  return /^[%°˚]/.test(label) ? "" : " ";
+}
+
 export function convert(value: number, fromUnit: string | undefined, toUnit: string | undefined): number {
   if (!fromUnit || !toUnit || fromUnit === toUnit) return value;
   // Normalize temperature units before building the lookup key so that
@@ -86,6 +94,10 @@ export function formatValue(
   const toUnit = format?.unit as string | undefined;
   const decimals = typeof format?.decimals === "number" ? (format.decimals as number) : undefined;
   const n = convert(value, sourceUnit, toUnit);
-  const body = decimals != null ? n.toFixed(decimals) : String(n);
-  return { text: toUnit ? `${body} ${unitLabel(toUnit)}` : body, numeric: n };
+  // No format.decimals: whole numbers print as they are; anything else gets one
+  // decimal, the firmware's default for path bindings (ui_layouts.cpp "%.1f").
+  // String(n) printed the raw float of a unit conversion, e.g. VMG 3.3 m/s as
+  // "6.414686823599999 kn" and coolant 350 K as "76.85000000000002 °C".
+  const body = decimals != null ? n.toFixed(decimals) : Number.isInteger(n) ? String(n) : n.toFixed(1);
+  return { text: toUnit ? `${body}${unitSep(unitLabel(toUnit))}${unitLabel(toUnit)}` : body, numeric: n };
 }

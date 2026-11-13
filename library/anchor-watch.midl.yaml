@@ -46,3 +46,12 @@ screens:
               children:
                 - element: heading
                 - element: status
+      # round-360 allows nesting depth 2: hero tile across the top, two below.
+      - class: round-360
+        layout:
+          rows: 2
+          cols: 2
+          cells:
+            - { element: depth, colSpan: 2 }
+            - element: heading
+            - element: status

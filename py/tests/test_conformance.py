@@ -73,3 +73,13 @@ def test_conformance(name):
     actual = _run(CASES[name])
     expected = {"ok": EXPECTED[name]["ok"], "paths": EXPECTED[name]["paths"]}
     assert actual == expected
+
+
+# midl#25: a case's name states its verdict. `invalid` cases must be rejected;
+# `valid-*` and `library-*` cases must be admissible.
+def test_case_names_agree_with_verdicts():
+    wrong = [
+        n for n, v in EXPECTED.items()
+        if (v["ok"] if "invalid" in n.split("-") else (n.startswith(("valid-", "library-")) and not v["ok"]))
+    ]
+    assert wrong == []
