@@ -10,7 +10,11 @@ import type { Theme } from "../theme";
 import { FONT_FAMILY } from "../theme";
 import { esc, f } from "./geometry";
 
-export interface FrameOpts { noData: boolean; stale: boolean; round?: boolean; }
+export interface FrameOpts {
+  noData: boolean; stale: boolean; round?: boolean;
+  /** Where the caption goes when it differs from the cell (round-safe area, #36). */
+  captionRect?: Rect;
+}
 
 /** Chrome caption size. The firmware draws every tile caption in
  *  lv_font_montserrat_20 (build_tile, ui_layouts.cpp); small tiles scale down
@@ -37,7 +41,8 @@ export function frameSvg(rect: Rect, title: string, th: Theme, opts: FrameOpts):
   if (title && !opts.round) {
     const fill = opts.stale ? th.stale : th.dim;
     const fs = captionFontSize(rect);
-    out.push(`<text x="${f(x0 + 10)}" y="${f(y0 + 4 + fs * 0.9)}" font-family="${FONT_FAMILY}" font-size="${f(fs)}" font-weight="500" letter-spacing="0.04em" fill="${fill}">${esc(title.toUpperCase())}</text>`);
+    const c = opts.captionRect ?? rect;
+    out.push(`<text x="${f(c.x + 12)}" y="${f(c.y + 6 + fs * 0.9)}" font-family="${FONT_FAMILY}" font-size="${f(fs)}" font-weight="500" letter-spacing="0.04em" fill="${fill}">${esc(title.toUpperCase())}</text>`);
   }
   return out.join("");
 }
