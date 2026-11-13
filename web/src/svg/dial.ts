@@ -17,6 +17,7 @@ import { polar, arc, esc, f } from "./geometry";
 import { glyphPath } from "./glyphs";
 import { resolveColor } from "./color";
 import { heroFontSize } from "./tiles";
+import { unitLabel } from "../format";
 
 export interface DialOpts {
   title?: string;
@@ -25,6 +26,8 @@ export interface DialOpts {
   hull?: boolean;
   /** Resolved `style.color` (allowlisted hex) for ring, needle and hero; undefined keeps the type default. */
   color?: string;
+  /** `format.unit` token; a word unit (kn, m) is drawn under the minimal-tile hero. */
+  unit?: string;
 }
 
 const FN = FONT_FAMILY;
@@ -46,6 +49,14 @@ function heroColor(m: ElementModel, th: Theme, base: string): string {
   if (m.state === "stale") return th.stale;
   if (m.state === "bad") return th.bad;
   return base;
+}
+
+// Width of `s` in em at the dial hero weight: Montserrat 700 digits/letters
+// ~0.62em, narrow punctuation and spaces ~0.3em, the degree sign ~0.4em.
+function dialTextEms(s: string): number {
+  let e = 0;
+  for (const ch of s) e += /[.,:\s]/.test(ch) ? 0.3 : ch === "°" ? 0.4 : 0.62;
+  return Math.max(0.62, e);
 }
 
 export function dialSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, opts: DialOpts = {}): string {
@@ -74,48 +85,80 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R - 2)}" fill="${dialColor}" fill-opacity="0.06"/>`);
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R)}" fill="none" stroke="${dialColor}" stroke-width="2"/>`);
 
-  // 4 static cardinals around the ring (N white, others dim)
   const fCard = Math.max(9, D * 0.07);
   const rCard = R - fCard * 0.9;
-  const cards: Array<[string, number]> = [["N", 0], ["E", 90], ["S", 180], ["W", 270]];
-  for (const [lab, b] of cards) {
-    const [tx, ty] = polar(cx, cy, b, rCard);
-    // E4: unit/cardinal labels use stale color when stale
-    out.push(txt(tx, ty + fCard * 0.34, fCard, stale ? th.stale : (lab === "N" ? th.fg : th.dim), lab, 700));
-  }
 
-  // markers as glyphs on the rim
-  for (const mk of m.markers ?? []) {
-    if (mk.angleDeg == null) continue;
-    const [mx, my] = polar(cx, cy, mk.angleDeg, R * 0.62);
-    out.push(glyphPath(mk.glyph, mx, my, D * 0.07, stale ? th.stale : markerColor(mk.color, th)));
+  // Hero layout (#35, firmware paint_compass_body / paint_wind_rose_standin):
+  // the number fits between the W and E cardinals, a word unit (kn, m) rides
+  // under it in dim, and a panel-coloured vignette sits behind it; the needle
+  // and dir pointer run from the vignette edge to the rim, never through the
+  // digits.
+  const unit = unitLabel(opts.unit);
+  let heroText = m.text + (m.side ?? "");
+  let unitText = "";
+  // Split only formatValue's "<number> <unit>" output, never a string value
+  // that merely ends in the unit's letters.
+  if (unit && !/^[°%]/.test(unit) && m.numeric != null && m.text.endsWith(" " + unit)) {
+    heroText = m.text.slice(0, -unit.length).trimEnd() + (m.side ?? "");
+    unitText = unit;
   }
+  const gap = Math.max(2, D * 0.02);
+  const span = Math.max(0, 2 * (rCard - fCard * 0.6 - gap)); // clear width between W and E
+  const ems = dialTextEms(heroText);
+  const fitByW = span / ems;
+  const fitByH = R * (unitText ? 0.42 : 0.5);
+  const MIN_HERO = 8;
+  const hero = typeof opts.size === "number"
+    ? opts.size
+    : typeof opts.size === "string"
+      ? Math.max(MIN_HERO, Math.min(heroFontSize({ w: span / 0.88, h: fitByH / 0.9 }, heroText, opts.size), fitByW))
+      : Math.max(MIN_HERO, Math.min(fitByW, fitByH));
+  const unitFs = Math.max(9, Math.min(14, hero * 0.38));
+  const heroY = cy + hero * 0.34 - (unitText ? unitFs * 0.55 : 0);
+  // vignette: covers the hero box, never reaches the cardinals
+  const heroHalfW = (ems * hero) / 2 + gap;
+  const vigR = Math.max(0, Math.min(Math.max(R * 0.56, heroHalfW), rCard - fCard * 0.6));
 
-  // heading needle: a line from the tail (20% back) to the tip (55% forward)
-  // drawn at the current angleDeg. Visible only when a heading value is present.
+  // heading needle: vignette edge to the rim at the current angleDeg.
   if (m.angleDeg != null) {
-    const [nx, ny] = polar(cx, cy, m.angleDeg, R * 0.55);
-    const [tx, ty] = polar(cx, cy, m.angleDeg + 180, R * 0.20);
+    const [nx, ny] = polar(cx, cy, m.angleDeg, R - 3);
+    const [tx, ty] = polar(cx, cy, m.angleDeg, vigR);
     // E4: needle dims when stale
     out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${dialColor}" stroke-width="2" stroke-linecap="round"/>`);
   }
-  // wind-direction pointer (dirDeg): dashed short line in warn colour
+  // wind-direction pointer (dirDeg): dashed, warn colour, vignette edge to rim
   if (m.dirDeg != null) {
-    const [dx, dy] = polar(cx, cy, m.dirDeg, R * 0.45);
+    const [dx, dy] = polar(cx, cy, m.dirDeg, R * 0.9);
+    const [sx, sy] = polar(cx, cy, m.dirDeg, vigR);
     // E4: direction arrow dims when stale
     const arrowColor = stale ? th.stale : th.warn;
-    out.push(`<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${arrowColor}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
+    out.push(`<line x1="${f(sx)}" y1="${f(sy)}" x2="${f(dx)}" y2="${f(dy)}" stroke="${arrowColor}" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,2"/>`);
   }
 
-  // small caption above + centre hero.
-  // Resolve string size roles (S/M/L/XL/Fill) via heroFontSize using the inner
-  // face as the available rect. Legacy numeric sizes are returned as-is.
-  const innerDim = R * 2 * 0.76; // approximate inner face diameter for sizing
-  const hero = typeof opts.size === "string"
-    ? heroFontSize({ w: innerDim, h: innerDim }, m.text + (m.side ?? ""), opts.size)
-    : (opts.size ?? 38);
-  if (opts.title) out.push(txt(cx, cy - hero * 0.5, 12, th.dim, opts.title.toUpperCase(), 500));
-  out.push(txt(cx, cy + hero * 0.34, hero, heroColor(m, th, base), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(vigR)}" fill="${th.panel}" fill-opacity="0.8"/>`);
+
+  // 4 static cardinals (N white, others dim), drawn over the lines with a
+  // panel halo so a needle at N/E/S/W never strikes through the letter.
+  const cards: Array<[string, number]> = [["N", 0], ["E", 90], ["S", 180], ["W", 270]];
+  const halo = ` paint-order="stroke" stroke="${th.panel}" stroke-width="3" stroke-linejoin="round"`;
+  for (const [lab, b] of cards) {
+    const [tx, ty] = polar(cx, cy, b, rCard);
+    // E4: unit/cardinal labels use stale color when stale
+    out.push(txt(tx, ty + fCard * 0.34, fCard, stale ? th.stale : (lab === "N" ? th.fg : th.dim), lab, 700, "middle", halo));
+  }
+
+  // markers (firmware build_authored_ring): rim markers on the bezel, vector
+  // markers (tide/current) on an inner ring just outside the vignette.
+  for (const mk of m.markers ?? []) {
+    if (mk.angleDeg == null) continue;
+    const r = mk.kind === "vector" ? Math.min(R, Math.max(R * 0.62, vigR + D * 0.035)) : R;
+    const [mx, my] = polar(cx, cy, mk.angleDeg, r);
+    out.push(glyphPath(mk.glyph, mx, my, D * 0.07, stale ? th.stale : markerColor(mk.color, th)));
+  }
+
+  if (opts.title) out.push(txt(cx, heroY - hero * 0.84, 12, th.dim, opts.title.toUpperCase(), 500));
+  out.push(txt(cx, heroY, hero, heroColor(m, th, base), heroText, 700, "middle", ` letter-spacing="-0.02em"`));
+  if (unitText) out.push(txt(cx, heroY + unitFs * 1.25, unitFs, stale ? th.stale : th.dim, unitText, 400));
 
   return `<g>${out.join("")}</g>`;
 }

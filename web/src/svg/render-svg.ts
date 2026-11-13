@@ -53,6 +53,7 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
     title: str(style.title), size: sizev(style.size),
     shape: style.shape === "band" ? "band" as const : "round" as const, hull: boolv(style.hull),
     color: resolveOptionalColor(opts.colorRole, th),
+    unit: opts.unit,
   };
   switch (el.type) {
     case "compass":
