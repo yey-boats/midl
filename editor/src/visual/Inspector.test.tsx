@@ -702,7 +702,7 @@ test("Inspector renders a size-select in the APPEARANCE section", () => {
   expect(getByTestId("size-select")).toBeTruthy();
 });
 
-test("size-select options are the role tokens S / M / L / XL / Fill", () => {
+test("size-select options are unset and the role tokens S / M / L / XL / Fill", () => {
   const model = makeGridModel();
   const provider = new MockDataProvider({});
 
@@ -718,10 +718,11 @@ test("size-select options are the role tokens S / M / L / XL / Fill", () => {
 
   const select = getByTestId("size-select") as HTMLSelectElement;
   const values = Array.from(select.options).map((o) => o.value);
-  expect(values).toEqual(["S", "M", "L", "XL", "Fill"]);
+  expect(values).toEqual(["", "S", "M", "L", "XL", "Fill"]);
+  expect(select.options[0].textContent).toBe("unset");
 });
 
-test("size-select defaults to 'L' when element has no explicit size", () => {
+test("size-select shows 'unset' when element has no explicit size", () => {
   const model = makeGridModel(); // no style.size set
   const provider = new MockDataProvider({});
 
@@ -736,7 +737,7 @@ test("size-select defaults to 'L' when element has no explicit size", () => {
   );
 
   const select = getByTestId("size-select") as HTMLSelectElement;
-  expect(select.value).toBe("L");
+  expect(select.value).toBe("");
 });
 
 test("changing size-select writes the role string to element.style.size", () => {
@@ -813,8 +814,7 @@ test("size-select shows element's current style.size role as selected value", ()
   expect(select.value).toBe("XL");
 });
 
-test("size-select shows 'L' (default) when element has a legacy numeric style.size", () => {
-  // Legacy numeric sizes fall back to 'L' in the role select.
+test("size-select shows a legacy numeric style.size as its own '<n> px' entry", () => {
   const model = makeGridModel({
     elements: {
       sog: {
@@ -840,8 +840,77 @@ test("size-select shows 'L' (default) when element has a legacy numeric style.si
   );
 
   const select = getByTestId("size-select") as HTMLSelectElement;
-  // Legacy number 28 has no matching role — Inspector shows 'L' as default.
-  expect(select.value).toBe("L");
+  expect(select.value).toBe("__px");
+  expect(select.selectedOptions[0].textContent).toBe("28 px");
+});
+
+function sizedModel(style: Record<string, unknown>) {
+  return makeGridModel({
+    elements: {
+      sog: {
+        id: "sog",
+        type: "single-value",
+        name: "SOG",
+        bindings: { value: { kind: "signalk", path: "navigation.speedOverGround" } },
+        format: { unit: "kn", decimals: 1 },
+        style,
+      },
+    },
+  });
+}
+
+test("choosing 'unset' in size-select removes style.size and keeps the other style keys", () => {
+  const model = sizedModel({ size: "XL", scale: "metric" });
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+  const { getByTestId } = render(
+    <Inspector model={model} selectedCell={0} manifest={MANIFEST} provider={new MockDataProvider({})} onChange={onChange} />,
+  );
+
+  fireEvent.change(getByTestId("size-select"), { target: { value: "" } });
+
+  expect(onChange).toHaveBeenCalledOnce();
+  expect(captured.elements["sog"]?.style).toEqual({ scale: "metric" });
+  expect("size" in (parseMidl(serializeMidl(captured, "yaml")).elements["sog"]?.style ?? {})).toBe(false);
+});
+
+test("choosing 'unset' on the only style key drops the empty style object", () => {
+  const model = sizedModel({ size: "L" });
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+  const { getByTestId } = render(
+    <Inspector model={model} selectedCell={0} manifest={MANIFEST} provider={new MockDataProvider({})} onChange={onChange} />,
+  );
+
+  fireEvent.change(getByTestId("size-select"), { target: { value: "" } });
+
+  expect(captured.elements["sog"]?.style).toBeUndefined();
+});
+
+test("the legacy pixel entry is display-only: selecting it changes nothing", () => {
+  const model = sizedModel({ size: 28 });
+  const onChange = vi.fn();
+  const { getByTestId } = render(
+    <Inspector model={model} selectedCell={0} manifest={MANIFEST} provider={new MockDataProvider({})} onChange={onChange} />,
+  );
+
+  fireEvent.change(getByTestId("size-select"), { target: { value: "__px" } });
+
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("choosing Color 'default' removes style.colorRole (it is not a theme token)", () => {
+  const model = sizedModel({ colorRole: "warn", size: "M" });
+  let captured: EditorModel = model;
+  const onChange = vi.fn((m: EditorModel) => { captured = m; });
+  const { getByTestId } = render(
+    <Inspector model={model} selectedCell={0} manifest={MANIFEST} provider={new MockDataProvider({})} onChange={onChange} />,
+  );
+
+  expect((getByTestId("color-role-select") as HTMLSelectElement).value).toBe("warn");
+  fireEvent.change(getByTestId("color-role-select"), { target: { value: "default" } });
+
+  expect(captured.elements["sog"]?.style).toEqual({ size: "M" });
 });
 
 // ── Part 4: live-readout ────────────────────────────────────────────────────────
