@@ -173,3 +173,31 @@ test("A1: unknown path with no sourceUnit → no conversion (value unchanged)", 
   // No sourceUnit → convert("kn", undefined, ...) returns value unchanged
   expect(m.numeric).toBeCloseTo(42.5, 1);
 });
+
+// midl#27: navigation.course* paths are not all angles — the leaf decides.
+test("midl#27: DTW 3704 m, no sourceUnit, format.unit 'nm' → '2.0 nm'", () => {
+  const path = "navigation.courseGreatCircle.nextPoint.distance";
+  const p = new MockDataProvider({ [path]: { value: 3704 } });
+  const m = resolveElement(sv(path, { unit: "nm", decimals: 1 }), p);
+  expect(m.state).toBe("ok");
+  expect(m.numeric).toBeCloseTo(2.0, 3);
+  expect(m.text).toBe("2.0 nm");
+});
+
+test("midl#27: VMG 5.144 m/s, no sourceUnit, format.unit 'kn' → '10.0 kn'", () => {
+  const path = "navigation.courseRhumbline.velocityMadeGood";
+  const p = new MockDataProvider({ [path]: { value: 5.144 } });
+  const m = resolveElement(sv(path, { unit: "kn", decimals: 1 }), p);
+  expect(m.state).toBe("ok");
+  expect(m.numeric).toBeCloseTo(10.0, 1);
+  expect(m.text).toBe("10.0 kn");
+});
+
+test("midl#27: XTE -12 m on a course path, no sourceUnit, format.unit 'ft' → '-39.4 ft'", () => {
+  const path = "navigation.courseGreatCircle.crossTrackError";
+  const p = new MockDataProvider({ [path]: { value: -12 } });
+  const m = resolveElement(sv(path, { unit: "ft", decimals: 1 }), p);
+  expect(m.state).toBe("ok");
+  expect(m.numeric).toBeCloseTo(-39.37, 1);
+  expect(m.text).toBe("-39.4 ft");
+});
