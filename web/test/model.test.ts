@@ -193,9 +193,11 @@ test("midl#27: VMG 5.144 m/s, no sourceUnit, format.unit 'kn' → '10.0 kn'", ()
   expect(m.text).toBe("10.0 kn");
 });
 
-test("midl#27: XTE -12 m on a course path, no sourceUnit, format.unit 'm' → '-12 m'", () => {
+test("midl#27: XTE -12 m on a course path, no sourceUnit, format.unit 'ft' → '-39.4 ft'", () => {
   const path = "navigation.courseGreatCircle.crossTrackError";
   const p = new MockDataProvider({ [path]: { value: -12 } });
-  const m = resolveElement(sv(path, { unit: "m", decimals: 0 }), p);
-  expect(m.numeric).toBeCloseTo(-12, 3);
+  const m = resolveElement(sv(path, { unit: "ft", decimals: 1 }), p);
+  expect(m.state).toBe("ok");
+  expect(m.numeric).toBeCloseTo(-39.37, 1);
+  expect(m.text).toBe("-39.4 ft");
 });

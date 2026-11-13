@@ -17,63 +17,77 @@ export function inferSourceUnit(path: string): string | undefined {
   // and times.  Matching the whole path read every course* child as an angle.
   const leaf = p.slice(p.lastIndexOf(".") + 1);
 
+  // ── Dimensionless ratio (ratio) ───────────────────────────────────────────
+  // Checked first so *SpeedRatio / *VelocityMadeGoodRatio leaves stay ratios.
+  // Leaves: *ratio, stateOfCharge, currentLevel; tanks.*.level
+  if (
+    /ratio$/.test(leaf) ||
+    leaf === "stateofcharge" ||
+    leaf === "currentlevel" ||
+    /^tanks\..*\.level$/.test(p)
+  ) {
+    return "ratio";
+  }
+
   // ── Distance / depth (m) ──────────────────────────────────────────────────
-  // Leaves: distance*, crossTrackError, belowKeel, belowTransducer,
-  //         belowSurface; anything under environment.depth.*
+  // Leaves: distance*, crossTrackError, below(Keel|Transducer|Surface),
+  //         arrivalCircle, *radius; anything under environment.depth.
   if (
     /^distance/.test(leaf) ||
     leaf === "crosstrackerror" ||
     /^below(keel|transducer|surface)$/.test(leaf) ||
-    /(?:^|\.)depth\./.test(p)
+    leaf === "arrivalcircle" ||
+    /radius$/.test(leaf) ||
+    /^environment\.depth\./.test(p)
   ) {
     return "m";
   }
 
   // ── Speed (m/s) ───────────────────────────────────────────────────────────
-  // Leaves: speed* (speedOverGround, speedThroughWater, wind speedApparent…),
-  //         *velocity* (velocityMadeGood), vmg*, polarSpeed;
-  //         path current.drift
+  // Leaves: speed*, *speed (targetSpeed, beatAngleTargetSpeed), *velocity*
+  //         (velocityMadeGood, beatAngleVelocityMadeGood), vmg*;
+  //         path current.drift.  Checked before angles: a leaf such as
+  //         beatAngleTargetSpeed is a speed, not an angle.
   if (
     /^speed/.test(leaf) ||
+    /speed$/.test(leaf) ||
     /velocity/.test(leaf) ||
     /^vmg/.test(leaf) ||
-    leaf === "polarspeed" ||
     /(?:^|\.)current\.drift$/.test(p)
   ) {
     return "m/s";
   }
 
   // ── Angle / heading (rad) ─────────────────────────────────────────────────
-  // Leaves: heading*, bearing*, courseOverGround*, direction*, and any leaf
-  //         containing "angle" (angleApparent, rudderAngle, targetAngle,
-  //         windAngleApparent); path attitude.(roll|pitch|yaw)
+  // Leaves: heading*, bearing*, courseOverGround*, direction*, magnetic
+  //         (variation|deviation), any leaf containing "angle" (angleApparent,
+  //         rudderAngle, beatAngle, leewayAngle, windAngleApparent);
+  //         paths attitude.(roll|pitch|yaw), current.set(True|Magnetic)
   if (
     /^(heading|bearing|courseoverground|direction)/.test(leaf) ||
+    /^magnetic(variation|deviation)/.test(leaf) ||
     /angle/.test(leaf) ||
-    /(?:^|\.)attitude\.(roll|pitch|yaw)$/.test(p)
+    /(?:^|\.)attitude\.(roll|pitch|yaw)$/.test(p) ||
+    /(?:^|\.)current\.set(true|magnetic)$/.test(p)
   ) {
     return "rad";
   }
 
+  // ── Duration (s) ──────────────────────────────────────────────────────────
+  // Leaves: timeTo* (timeToGo, timeToStart)
+  if (/^timeto/.test(leaf)) {
+    return "s";
+  }
+
   // ── Temperature (K) ───────────────────────────────────────────────────────
-  if (/\.temperature/.test(p)) {
+  // Leaves: temperature, *Temperature (oilTemperature, dewPointTemperature…)
+  if (/temperature$/.test(leaf)) {
     return "K";
   }
 
   // ── Pressure (Pa) ─────────────────────────────────────────────────────────
   if (/pressure/.test(p)) {
     return "Pa";
-  }
-
-  // ── Dimensionless ratio (ratio) ───────────────────────────────────────────
-  // Matches: *.stateOfCharge, *.currentLevel, tanks.*.level, *ratio*
-  if (
-    /\.stateofcharge/.test(p) ||
-    /\.currentlevel/.test(p) ||
-    /tanks\..*\.level/.test(p) ||
-    /ratio/.test(p)
-  ) {
-    return "ratio";
   }
 
   // ── Revolutions (Hz) ─────────────────────────────────────────────────────
