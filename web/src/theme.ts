@@ -52,7 +52,12 @@ export interface Theme {
 }
 
 /** Default web/UI font family, matching the manager and firmware typography. */
-export const FONT_FAMILY = "Montserrat";
+// Montserrat first (the manager and the editor load it), then the platform UI
+// fonts. With Montserrat alone, any page that does not load the webfont (the
+// navigator Mini App, a box offline) fell back to the browser default SERIF
+// face for every label and value. Single-quoted: it is interpolated into SVG
+// font-family="..." attributes.
+export const FONT_FAMILY = "Montserrat, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
 // Per-theme widget palettes. Night keeps the original Claude-Design literals
 // (already legible on dark surfaces). Day uses a DARK band with light in-band
