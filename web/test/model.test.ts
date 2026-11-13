@@ -138,7 +138,7 @@ test("A1: headingTrue 2.0 rad, no sourceUnit, format.unit 'deg' → '115'", () =
   expect(m.numeric).toBeCloseTo(114.59, 0);
 });
 
-test("A1: stateOfCharge 0.78, no sourceUnit, format.unit '%' → '78 %'", () => {
+test("A1: stateOfCharge 0.78, no sourceUnit, format.unit '%' → '78%'", () => {
   // Provider gives NO sourceUnit — path inference must kick in (ratio → %).
   const p = new MockDataProvider({ "electrical.batteries.0.capacity.stateOfCharge": { value: 0.78 } });
   const m = resolveElement(sv("electrical.batteries.0.capacity.stateOfCharge", { unit: "%", decimals: 0 }), p);

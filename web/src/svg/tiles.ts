@@ -185,7 +185,10 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
   // Cap the hero so its cap height fits between the chrome caption band and
   // the track (cap height ~0.72em), as the firmware's fixed 28-48px ladder does.
   const heroFit = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
-  const hero = Math.max(12, Math.min(heroFit, (by - 14 - (y + captionBand(rect))) / 0.72));
+  // An explicit numeric style.size is honoured as-is (heroFontSize contract).
+  const hero = typeof opts.size === "number"
+    ? heroFit
+    : Math.max(12, Math.min(heroFit, (by - 14 - (y + captionBand(rect))) / 0.72));
   out.push(txt(cx, by - 14, hero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   // track

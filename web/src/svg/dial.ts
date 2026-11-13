@@ -17,7 +17,7 @@ import { polar, arc, esc, f } from "./geometry";
 import { glyphPath } from "./glyphs";
 import { resolveColor } from "./color";
 import { heroFontSize } from "./tiles";
-import { unitLabel } from "../format";
+import { unitLabel, unitSep } from "../format";
 
 export interface DialOpts {
   title?: string;
@@ -98,7 +98,7 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
   let unitText = "";
   // Split only formatValue's "<number> <unit>" output, never a string value
   // that merely ends in the unit's letters.
-  if (unit && !/^[°%]/.test(unit) && m.numeric != null && m.text.endsWith(" " + unit)) {
+  if (unit && unitSep(unit) === " " && m.numeric != null && m.text.endsWith(" " + unit)) {
     heroText = m.text.slice(0, -unit.length).trimEnd() + (m.side ?? "");
     unitText = unit;
   }
