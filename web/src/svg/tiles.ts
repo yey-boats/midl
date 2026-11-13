@@ -12,6 +12,7 @@ import { FONT_FAMILY } from "../theme";
 import { polar, arc, esc, f } from "./geometry";
 import { resolveColor } from "./color";
 import { unitLabel } from "../format";
+import { captionBand } from "./frame";
 
 const FN = FONT_FAMILY;
 
@@ -30,6 +31,8 @@ export interface TileOpts {
   title?: string; size?: number | string; center?: number; unit?: string; colorRole?: string;
   /** The element declares style.zones (firmware then drives the bar number from the zone block). */
   zoned?: boolean;
+  /** The rect already starts below the chrome caption (round-safe body, #36). */
+  belowCaption?: boolean;
 }
 
 /**
@@ -186,7 +189,13 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
 
   // hero percent above the track: style.color (default accent); with zones the
   // number follows the fill (firmware value_color + zone block).
-  const hero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
+  // Cap the hero so its cap height fits between the chrome caption band and
+  // the track (cap height ~0.72em), as the firmware's fixed 28-48px ladder does.
+  const heroFit = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
+  // An explicit numeric style.size is honoured as-is (heroFontSize contract).
+  const hero = typeof opts.size === "number"
+    ? heroFit
+    : Math.max(12, Math.min(heroFit, (by - 14 - (y + (opts.belowCaption ? 0 : captionBand(rect)))) / 0.72));
   // Firmware: once a bar declares zones, the zone block owns the number —
   // active zone colour, else theme good (style.color is not used).
   const numColor = opts.zoned
@@ -305,11 +314,17 @@ export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileO
   const fsBase = typeof opts.size === "number"
     ? opts.size
     : heroFontSize({ w: w - 24, h: ph }, label, opts.size ?? "M");
-  const fs = Math.min(fsBase, ph * 0.6);
-  // Size the pill so the label fits: estimate character width at 0.65em each
-  // (Montserrat 700 uppercase + 0.04em letter-spacing ≈ 0.69em but 0.65 is safe).
-  const textW = label.length * fs * 0.65 + fs * 0.5; // +½em padding per side
-  const pw = Math.min(w - 24, Math.max(70, textW));
+  // Size the pill so the label fits with ½em of air per side (#38). Bold
+  // uppercase + 0.04em tracking averages ~0.78em per glyph (Montserrat/Arial
+  // "AUTO" ≈ 3.0em); the old 0.65em estimate left the label touching the border.
+  // AP_EM is mirrored (minus a small margin) in test/autopilot-pill.test.ts.
+  // The width fit stops at AP_MIN_FS: below that the label stays legible and
+  // may overflow a pathologically narrow pill rather than shrink to nothing.
+  const AP_EM = 0.78;
+  const AP_MIN_FS = 8;
+  const maxPw = Math.max(0, w - 24);
+  const fs = Math.max(Math.min(AP_MIN_FS, fsBase), Math.min(fsBase, ph * 0.6, maxPw / (label.length * AP_EM + 1)));
+  const pw = Math.min(maxPw, Math.max(70, label.length * AP_EM * fs + fs));
   out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${pillFill}" stroke="${pillStroke}" stroke-width="1"/>`);
   out.push(txt(cx, cy + fs * 0.34, fs, labelColor, label, 700, "middle", ` letter-spacing="0.04em"`));
   return `<g>${out.join("")}</g>`;

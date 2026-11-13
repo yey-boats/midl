@@ -10,7 +10,27 @@ import type { Theme } from "../theme";
 import { FONT_FAMILY } from "../theme";
 import { esc, f } from "./geometry";
 
-export interface FrameOpts { noData: boolean; stale: boolean; round?: boolean; }
+export interface FrameOpts {
+  noData: boolean; stale: boolean; round?: boolean;
+  /** Where the caption goes when it differs from the cell (round-safe area, #36). */
+  captionRect?: Rect;
+}
+
+/** Chrome caption size. The firmware draws every tile caption in
+ *  lv_font_montserrat_20 (build_tile, ui_layouts.cpp); small tiles scale down
+ *  to a 12px floor so the caption never crowds the value (#37). */
+export function captionFontSize(rect: Rect, title = ""): number {
+  const bySize = Math.max(12, Math.min(20, Math.min(rect.w, rect.h) / 9));
+  // shrink a long caption to the tile width (~0.68em per uppercase glyph with
+  // tracking), down to the 12px floor; firmware clips labels to the tile
+  const byWidth = title ? (rect.w - 24) / (title.length * 0.68) : Infinity;
+  return Math.max(12, Math.min(bySize, byWidth));
+}
+
+/** Vertical band the chrome caption occupies from the top of the tile. */
+export function captionBand(rect: Rect): number {
+  return Math.round(captionFontSize(rect) * 1.45);
+}
 
 export function frameSvg(rect: Rect, title: string, th: Theme, opts: FrameOpts): string {
   const { x, y, w, h } = rect;
@@ -24,7 +44,9 @@ export function frameSvg(rect: Rect, title: string, th: Theme, opts: FrameOpts):
   // top-left chrome caption (round instruments draw their own centre caption)
   if (title && !opts.round) {
     const fill = opts.stale ? th.stale : th.dim;
-    out.push(`<text x="${f(x0 + 10)}" y="${f(y0 + 16)}" font-family="${FONT_FAMILY}" font-size="12" font-weight="500" letter-spacing="0.04em" fill="${fill}">${esc(title.toUpperCase())}</text>`);
+    const fs = captionFontSize(rect, title);
+    const c = opts.captionRect ?? rect;
+    out.push(`<text x="${f(c.x + 12)}" y="${f(c.y + 6 + fs * 0.9)}" font-family="${FONT_FAMILY}" font-size="${f(fs)}" font-weight="500" letter-spacing="0.04em" fill="${fill}">${esc(title.toUpperCase())}</text>`);
   }
   return out.join("");
 }
