@@ -11,34 +11,48 @@
  */
 export function inferSourceUnit(path: string): string | undefined {
   const p = path.toLowerCase();
+  // midl#27: key the physical-quantity rules on the LEAF segment.  A parent
+  // segment such as `navigation.courseGreatCircle.` says nothing about the
+  // quantity — its children are distances (m), speeds (m/s), bearings (rad)
+  // and times.  Matching the whole path read every course* child as an angle.
+  const leaf = p.slice(p.lastIndexOf(".") + 1);
 
-  // ── Angle / heading (rad) ──────────────────────────────────────────────────
-  // Matches: *.angle*, heading*, course*, bearing*, direction*,
-  //          *.rudderAngle, attitude.(roll|pitch|yaw)
+  // ── Distance / depth (m) ──────────────────────────────────────────────────
+  // Leaves: distance*, crossTrackError, belowKeel, belowTransducer,
+  //         belowSurface; anything under environment.depth.*
   if (
-    /\.angle/.test(p) ||
-    /(?:^|\.)heading/.test(p) ||
-    /(?:^|\.)course/.test(p) ||
-    /(?:^|\.)bearing/.test(p) ||
-    /(?:^|\.)direction/.test(p) ||
-    /\.rudderangle/.test(p) ||
-    /attitude\.(roll|pitch|yaw)/.test(p) ||
-    /targetangle/.test(p)
+    /^distance/.test(leaf) ||
+    leaf === "crosstrackerror" ||
+    /^below(keel|transducer|surface)$/.test(leaf) ||
+    /(?:^|\.)depth\./.test(p)
   ) {
-    return "rad";
+    return "m";
   }
 
   // ── Speed (m/s) ───────────────────────────────────────────────────────────
-  // Matches: speed*, *.speedOverGround, *.speedThroughWater,
-  //          *.velocityMadeGood, wind.speed*, current.drift, polarSpeed
+  // Leaves: speed* (speedOverGround, speedThroughWater, wind speedApparent…),
+  //         *velocity* (velocityMadeGood), vmg*, polarSpeed;
+  //         path current.drift
   if (
-    /(?:^|\.)speed/.test(p) ||
-    /(?:^|\.)velocity/.test(p) ||
-    /wind\.speed/.test(p) ||
-    /current\.drift/.test(p) ||
-    /polarspeed/.test(p)
+    /^speed/.test(leaf) ||
+    /velocity/.test(leaf) ||
+    /^vmg/.test(leaf) ||
+    leaf === "polarspeed" ||
+    /(?:^|\.)current\.drift$/.test(p)
   ) {
     return "m/s";
+  }
+
+  // ── Angle / heading (rad) ─────────────────────────────────────────────────
+  // Leaves: heading*, bearing*, courseOverGround*, direction*, and any leaf
+  //         containing "angle" (angleApparent, rudderAngle, targetAngle,
+  //         windAngleApparent); path attitude.(roll|pitch|yaw)
+  if (
+    /^(heading|bearing|courseoverground|direction)/.test(leaf) ||
+    /angle/.test(leaf) ||
+    /(?:^|\.)attitude\.(roll|pitch|yaw)$/.test(p)
+  ) {
+    return "rad";
   }
 
   // ── Temperature (K) ───────────────────────────────────────────────────────
@@ -49,20 +63,6 @@ export function inferSourceUnit(path: string): string | undefined {
   // ── Pressure (Pa) ─────────────────────────────────────────────────────────
   if (/pressure/.test(p)) {
     return "Pa";
-  }
-
-  // ── Distance / depth (m) ─────────────────────────────────────────────────
-  // Matches: depth.*, *.distance, *.crossTrackError, *.belowKeel,
-  //          *.belowTransducer
-  if (
-    /(?:^|\.)depth/.test(p) ||
-    /\.distance/.test(p) ||
-    /\.crossTrackerror/.test(p) ||
-    /\.crosstrackerror/.test(p) ||
-    /\.belowkeel/.test(p) ||
-    /\.belowtransducer/.test(p)
-  ) {
-    return "m";
   }
 
   // ── Dimensionless ratio (ratio) ───────────────────────────────────────────
