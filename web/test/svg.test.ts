@@ -573,7 +573,6 @@ describe("RC1: K→°C/°F degree-symbol normalization", () => {
 
 // ── B1: style.color token / #hex resolves correctly ──────────────────────────
 
-import { barSvg, trendSvg } from "../src/svg/tiles";
 
 describe("B1: style.color token and #hex color resolution", () => {
   const rect: Rect = { x: 0, y: 0, w: 240, h: 240 };
