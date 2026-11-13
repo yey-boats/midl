@@ -17,7 +17,7 @@ import { polar, arc, esc, f } from "./geometry";
 import { glyphPath } from "./glyphs";
 import { resolveColor } from "./color";
 import { heroFontSize } from "./tiles";
-import { unitLabel } from "../format";
+import { unitLabel, unitSep } from "../format";
 
 export interface DialOpts {
   title?: string;
@@ -28,6 +28,10 @@ export interface DialOpts {
   color?: string;
   /** `format.unit` token; a word unit (kn, m) is drawn under the minimal-tile hero. */
   unit?: string;
+  /** Force the face; by default it follows the rect size (< 300 → minimal).
+   *  The renderer passes the decision it made from the cell, so a dial fitted
+   *  into a smaller round-safe circle keeps the same face (#36). */
+  variant?: "minimal" | "hud";
 }
 
 const FN = FONT_FAMILY;
@@ -62,7 +66,7 @@ function dialTextEms(s: string): number {
 export function dialSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, opts: DialOpts = {}): string {
   if (opts.shape === "band") return bandSvg(rect, m, ringColor, th, opts);
   const D = Math.min(rect.w, rect.h);
-  if (D < 300) return minimalSvg(rect, m, ringColor, th, opts);
+  if (opts.variant === "minimal" || (opts.variant == null && D < 300)) return minimalSvg(rect, m, ringColor, th, opts);
   return roundHudSvg(rect, m, ringColor, th, opts);
 }
 
@@ -98,7 +102,7 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
   let unitText = "";
   // Split only formatValue's "<number> <unit>" output, never a string value
   // that merely ends in the unit's letters.
-  if (unit && !/^[°%]/.test(unit) && m.numeric != null && m.text.endsWith(" " + unit)) {
+  if (unit && unitSep(unit) === " " && m.numeric != null && m.text.endsWith(" " + unit)) {
     heroText = m.text.slice(0, -unit.length).trimEnd() + (m.side ?? "");
     unitText = unit;
   }

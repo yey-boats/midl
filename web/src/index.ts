@@ -9,3 +9,4 @@ export { formatValue, convert } from "./format";
 export { THEMES, theme, type Theme } from "./theme";
 export { previewConfig, type PreviewResult, type ScreenPlan } from "./preview";
 export { renderDashboardSvg, paintScreenSvg } from "./svg/render-svg";
+export { viewportDisc, safeRect, fitCircle, type Disc } from "./svg/round-safe";

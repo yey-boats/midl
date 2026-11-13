@@ -23,6 +23,8 @@ import {
 export { TrendBuffers } from "../paint";
 
 const ROUND_TYPES = new Set(["compass", "windrose"]);
+/** Smallest round-safe content width worth drawing into (#36). */
+const MIN_SAFE = 24;
 // Control elements that handle their own no-data state (they must never be
 // shortcut to the generic "--" placeholder because they carry idle/standby UI).
 const SELF_NO_DATA_TYPES = new Set(["autopilot"]);
@@ -38,28 +40,37 @@ function sizev(v: unknown): number | string | undefined {
 }
 
 /** Compass/windrose drawn as a grid-tile dial (minimal ring or band) rather
- *  than a full HUD face. These carry the frame's top-left caption like every
- *  firmware tile (build_tile); only the HUD owns a centre caption. */
+ *  than a full HUD face. */
 function isTileDial(el: Element, rect: Rect): boolean {
   if (!ROUND_TYPES.has(el.type)) return false;
   return el.style?.shape === "band" || Math.min(rect.w, rect.h) < 300;
 }
 
+/** Firmware build_tile drops the chrome caption only for a full-screen wind
+ *  dial (windrose_is_fullscreen: w >= 400 && h >= 300). Every compass and
+ *  every smaller windrose keeps its top-left caption. */
+function ownsCentreCaption(el: Element, rect: Rect): boolean {
+  return el.type === "windrose" && !isTileDial(el, rect) && rect.w >= 400 && rect.h >= 300;
+}
+
 function widgetSvg(el: Element, p: Placement, rect: Rect, m: ElementModel, th: Theme, trends?: TrendBuffers): string {
   const style = el.style ?? {};
-  const tileDial = isTileDial(el, p.rect);
+  // A dial with a chrome caption must not repeat it in the centre.
+  const centreTitle = ownsCentreCaption(el, p.rect) ? str(style.title) : undefined;
   const opts = {
     size: sizev(style.size),
     center: numv(style.center),
     unit: str(el.format?.unit),
     // style.color (token or #hex) takes precedence over legacy style.colorRole
     colorRole: str((style as Record<string, unknown>).color as string | undefined) ?? str(style.colorRole),
+    belowCaption: rect.y > p.rect.y + 2,
   };
   const dialOpts = {
-    title: tileDial ? undefined : str(style.title), size: sizev(style.size),
+    title: centreTitle, size: sizev(style.size),
     shape: style.shape === "band" ? "band" as const : "round" as const, hull: boolv(style.hull),
     color: resolveOptionalColor(opts.colorRole, th),
     unit: opts.unit,
+    variant: isTileDial(el, p.rect) ? "minimal" as const : "hud" as const,
   };
   switch (el.type) {
     case "compass":
@@ -130,7 +141,7 @@ export function paintScreenSvg(
     const tileTitle = str(style.title) ?? el.name ?? "";
     const isNoData = m.state === "no-data";
     const tileDial = isTileDial(el, p.rect);
-    const hud = round && !isNoData && !tileDial;
+    const hud = round && !isNoData && ownsCentreCaption(el, p.rect);
     const frameTitle = hud || isButton ? "" : tileTitle;
     // E3: for round tiles in no-data, pass round:false so frameSvg renders the
     // title caption (the dial itself won't render — the no-data branch fires next).
@@ -138,6 +149,11 @@ export function paintScreenSvg(
     // #36: on a round panel the caption and content move into the part of the
     // cell inside the visible circle; the panel background keeps the cell.
     const cap = disc ? safeRect(p.rect, disc) : p.rect;
+    // A cell (almost) entirely under the bezel keeps its panel and nothing else.
+    if (disc && (cap.w < MIN_SAFE || cap.h < captionBand(p.rect) + 12)) {
+      out.push(frameSvg(p.rect, "", th, { noData: false, stale: m.state === "stale", round: true }));
+      continue;
+    }
     out.push(frameSvg(p.rect, frameTitle, th, { noData: isNoData && !isButton && !isSelfNoData, stale: m.state === "stale", round: frameRound, captionRect: cap }));
     if (isNoData && !isButton && !isSelfNoData) { out.push(noDataSvg(cap, th)); continue; }
     let body: Rect = cap;
@@ -148,14 +164,15 @@ export function paintScreenSvg(
     } else if (round && disc) {
       // round dials fit as circles (a full-screen dial keeps its size), clear
       // of the chrome caption when the tile has one
-      const fs = captionFontSize(p.rect);
+      const fs = captionFontSize(p.rect, frameTitle);
       const capBox = frameTitle
-        ? { x: cap.x, y: cap.y, w: 14 + frameTitle.length * fs * 0.66, h: captionBand(p.rect) + 2 }
+        ? { x: cap.x, y: cap.y, w: 12 + frameTitle.length * fs * 0.72, h: captionBand(p.rect) + 2 }
         : undefined;
-      body = fitCircle({ x: p.rect.x + 2, y: p.rect.y + 2, w: p.rect.w - 4, h: p.rect.h - 4 }, disc, capBox);
-    } else if (tileDial) {
-      // Tile dials sit below the chrome caption band (firmware
-      // paint_compass_body reserves the caption row above the ring).
+      body = fitCircle({ x: p.rect.x + 2, y: p.rect.y + 2, w: Math.max(0, p.rect.w - 4), h: Math.max(0, p.rect.h - 4) }, disc, capBox);
+    } else if (tileDial && style.shape !== "band") {
+      // Minimal ring dials sit below the chrome caption band (firmware
+      // paint_compass_body reserves the caption row above the ring). The band
+      // shape already sits low in its tile, and HUD faces leave the corner free.
       const band = captionBand(p.rect);
       body = { x: p.rect.x, y: p.rect.y + band, w: p.rect.w, h: p.rect.h - band };
     }

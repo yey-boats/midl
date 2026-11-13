@@ -53,19 +53,69 @@ function clipped(svg: string): string[] {
 
 describe("#36 round-360 library dashboards keep content inside the bezel", () => {
   const lib = new URL("library/", ROOT);
-  for (const f of readdirSync(lib).filter((n) => n.endsWith(".midl.yaml"))) {
+  const files = readdirSync(lib).filter((n) => n.endsWith(".midl.yaml"));
+  let rendered = 0;
+  for (const f of files) {
     test(f, () => {
       const text = readFileSync(new URL(f, lib), "utf8");
       const prep = prepareDashboard(text, man, "round-360", VP);
-      if (!prep.ok) return; // not offered on round-360
+      expect(prep.ok, `${f} must be offered on round-360`).toBe(true);
       const vals = Object.fromEntries(prep.paths.map((p) => [p, { value: value(p) }]));
       for (const th of ["night", "day"]) {
-        const r = renderDashboardSvg(text, man, "round-360", VP, new MockDataProvider(vals), { theme: th });
-        expect(r.ok).toBe(true);
-        expect(clipped(r.svg)).toEqual([]);
+        for (const provider of [new MockDataProvider(vals), new MockDataProvider({})]) {
+          const r = renderDashboardSvg(text, man, "round-360", VP, provider, { theme: th });
+          expect(r.ok).toBe(true);
+          expect(clipped(r.svg)).toEqual([]);
+        }
       }
+      rendered++;
     });
   }
+  test("all library documents were rendered", () => expect(rendered).toBe(files.length));
+
+  const one = (body: string) => `
+midl: "1.0.0"
+screens:
+  - id: s
+    elements:
+      d: ${body}
+    layout: { rows: 1, cols: 1, cells: [ { element: d } ] }
+`;
+  test("full-screen compass HUD and band compass stay inside", () => {
+    const vals = new MockDataProvider({ hdg: { value: 4.2, sourceUnit: "rad" } });
+    for (const body of [
+      "{ type: compass, name: HDG, bindings: { value: { kind: signalk, path: hdg } } }",
+      "{ type: compass, name: HDG, style: { shape: band }, bindings: { value: { kind: signalk, path: hdg } } }",
+      "{ type: windrose, name: AWA, bindings: { value: { kind: signalk, path: hdg } } }",
+    ]) {
+      const r = renderDashboardSvg(one(body), man, "round-360", VP, vals);
+      expect(r.ok).toBe(true);
+      expect(clipped(r.svg)).toEqual([]);
+    }
+  });
+});
+
+describe("round-safe degenerate cells", () => {
+  test("a cell entirely under the bezel draws only its panel, never negative sizes", async () => {
+    const { paintScreenSvg } = await import("../src/svg/render-svg");
+    const { theme } = await import("../src/theme");
+    const disc = viewportDisc(VP);
+    const els = {
+      b: { type: "button", name: "TACK", action: { kind: "command", target: "x" } },
+      c: { type: "compass", name: "HDG", bindings: { value: { kind: "signalk", path: "hdg" } } },
+      v: { type: "single-value", name: "SOG", bindings: { value: { kind: "signalk", path: "sog" } } },
+    } as never;
+    for (const id of ["b", "c", "v"]) {
+      for (const rect of [{ x: 0, y: 0, w: 40, h: 40 }, { x: 0, y: 0, w: 60, h: 60 }]) {
+        const svg = paintScreenSvg([{ elementId: id, rect }], els, new MockDataProvider({ hdg: { value: 1 }, sog: { value: 3 } }), theme("night"), undefined, disc);
+        expect(svg).not.toMatch(/(width|height|r|font-size)="-|font-size="0"/);
+        expect(svg).not.toContain("<text");
+      }
+    }
+  });
+  test("viewportDisc never has a negative radius", () => {
+    expect(viewportDisc({ x: 0, y: 0, w: 4, h: 4 }).r).toBe(0);
+  });
 });
 
 describe("round-safe geometry", () => {

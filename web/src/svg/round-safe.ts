@@ -9,14 +9,15 @@
 //                values, bars, pills);
 //   - fitCircle: the largest circle inside cell ∩ disc that avoids a box
 //                (round dials, which need a circle, not a rect).
-// Pure geometry; no element knowledge.
+// Pure geometry; no element knowledge. Not yet in the firmware
+// (yey-boats/instruments#50) or the Canvas painter (midl#45).
 import type { Rect } from "@yey-boats/midl";
 
 export interface Disc { cx: number; cy: number; r: number; }
 
 /** Visible disc of a round viewport, inset by `margin` px from the bezel. */
 export function viewportDisc(vp: Rect, margin = 4): Disc {
-  return { cx: vp.x + vp.w / 2, cy: vp.y + vp.h / 2, r: Math.min(vp.w, vp.h) / 2 - margin };
+  return { cx: vp.x + vp.w / 2, cy: vp.y + vp.h / 2, r: Math.max(0, Math.min(vp.w, vp.h) / 2 - margin) };
 }
 
 function inside(d: Disc, x: number, y: number): boolean {

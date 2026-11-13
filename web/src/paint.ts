@@ -37,7 +37,7 @@ function frame(ctx: Ctx, p: Placement, title: string, th: Theme, noData: boolean
   ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
   ctx.setLineDash([]);
   ctx.fillStyle = th.dim;
-  const fs = captionFontSize(p.rect); // firmware caption size, as the SVG frame (#37)
+  const fs = captionFontSize(p.rect, title); // firmware caption size, as the SVG frame (#37)
   ctx.font = `${fs}px system-ui`;
   ctx.textAlign = "left";
   ctx.fillText(title.toUpperCase(), x + 12, y + 6 + fs * 0.9);

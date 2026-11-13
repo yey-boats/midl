@@ -52,11 +52,12 @@ export function unitLabel(u: string | undefined): string {
   return UNIT_SYMBOL[u] ?? u;
 }
 
-/** Separator between number and unit, as the firmware prints it
- *  (ui_layouts.cpp): "%" and "°"-led units are glued ("241°", "82%", "21°C"),
- *  word units get a space ("6.2 kn"). */
+/** Separator between number and unit, following the firmware's ranged
+ *  bar/gauge printf (ui_layouts.cpp, "%" or a 0xC2-led unit glued): "%" and
+ *  degree-led units are glued ("241°", "82%", "21°C"), word units get a
+ *  space ("6.2 kn"). */
 export function unitSep(label: string): string {
-  return /^[%°]/.test(label) ? "" : " ";
+  return /^[%°˚]/.test(label) ? "" : " ";
 }
 
 export function convert(value: number, fromUnit: string | undefined, toUnit: string | undefined): number {
