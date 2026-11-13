@@ -290,11 +290,13 @@ export function autopilotSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileO
   const fsBase = typeof opts.size === "number"
     ? opts.size
     : heroFontSize({ w: w - 24, h: ph }, label, opts.size ?? "M");
-  const fs = Math.min(fsBase, ph * 0.6);
-  // Size the pill so the label fits: estimate character width at 0.65em each
-  // (Montserrat 700 uppercase + 0.04em letter-spacing ≈ 0.69em but 0.65 is safe).
-  const textW = label.length * fs * 0.65 + fs * 0.5; // +½em padding per side
-  const pw = Math.min(w - 24, Math.max(70, textW));
+  // Size the pill so the label fits with ½em of air per side (#38). Bold
+  // uppercase + 0.04em tracking averages ~0.78em per glyph (Montserrat/Arial
+  // "AUTO" ≈ 3.0em); the old 0.65em estimate left the label touching the border.
+  const AP_EM = 0.78;
+  const maxPw = w - 24;
+  const fs = Math.min(fsBase, ph * 0.6, maxPw / (label.length * AP_EM + 1));
+  const pw = Math.min(maxPw, Math.max(70, label.length * AP_EM * fs + fs));
   out.push(`<rect x="${f(cx - pw / 2)}" y="${f(cy - ph / 2)}" width="${f(pw)}" height="${f(ph)}" rx="4" fill="${pillFill}" stroke="${pillStroke}" stroke-width="1"/>`);
   out.push(txt(cx, cy + fs * 0.34, fs, labelColor, label, 700, "middle", ` letter-spacing="0.04em"`));
   return `<g>${out.join("")}</g>`;
