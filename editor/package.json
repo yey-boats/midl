@@ -2,26 +2,38 @@
   "name": "@yey-boats/midl-editor",
   "version": "0.1.0",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yey-boats/midl.git",
+    "directory": "editor"
+  },
   "type": "module",
   "main": "./dist/midl-editor.umd.cjs",
   "module": "./dist/midl-editor.js",
   "types": "./dist/types/editor/src/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "COMMERCIAL.md"
+  ],
   "exports": {
     ".": {
+      "types": "./dist/types/editor/src/index.d.ts",
       "import": "./dist/midl-editor.js",
-      "require": "./dist/midl-editor.umd.cjs",
-      "types": "./dist/types/editor/src/index.d.ts"
+      "require": "./dist/midl-editor.umd.cjs"
     }
   },
   "scripts": {
     "build:lib": "vite build --config vite.lib.config.ts && tsc --project tsconfig.build.json",
     "build:global": "vite build --config vite.global.config.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "cp ../LICENSE ../NOTICE ../COMMERCIAL.md .",
+    "postpack": "rm -f LICENSE NOTICE COMMERCIAL.md"
   },
   "dependencies": {
-    "@yey-boats/midl": "*",
-    "@yey-boats/midl-web": "*"
+    "@yey-boats/midl": "^0.1.0",
+    "@yey-boats/midl-web": "^0.1.0"
   },
   "peerDependencies": {
     "react": "^18.3.1",
@@ -39,5 +51,9 @@
     "typescript": "^5.4.5",
     "vite": "^5.3.1",
     "vitest": "^1.6.0"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   }
 }

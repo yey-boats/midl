@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 //
 // Build the editor library: ESM + CJS outputs with TypeScript declarations.
-// @yey-boats/midl and @yey-boats/midl-web are treated as externals (peers).
+// @yey-boats/midl, @yey-boats/midl-web, react, react-dom and react/jsx-runtime
+// are externals: resolved by the consumer (dependencies / peers).
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 
@@ -24,11 +25,12 @@ export default defineConfig({
       fileName: (format) => format === "es" ? "midl-editor.js" : "midl-editor.umd.cjs",
     },
     rollupOptions: {
-      external: ["react", "react-dom", "@yey-boats/midl", "@yey-boats/midl-web"],
+      external: ["react", "react-dom", "react/jsx-runtime", "@yey-boats/midl", "@yey-boats/midl-web"],
       output: {
         globals: {
           react: "React",
           "react-dom": "ReactDOM",
+          "react/jsx-runtime": "jsxRuntime",
           "@yey-boats/midl": "MidlTs",
           "@yey-boats/midl-web": "MidlWeb",
         },
