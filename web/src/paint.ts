@@ -4,6 +4,7 @@ import type { Element, Placement } from "@yey-boats/midl";
 import type { DataProvider } from "./data";
 import type { Theme } from "./theme";
 import { resolveElement, type ElementModel } from "./model";
+import { resolveOptionalColor } from "./svg/color";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -19,10 +20,11 @@ export class TrendBuffers {
   series(id: string): number[] { return this.map.get(id) ?? []; }
 }
 
-function fg(m: ElementModel, th: Theme): string {
+// `custom` is the element's resolved style.color (allowlisted hex) or undefined.
+function fg(m: ElementModel, th: Theme, custom?: string): string {
   if (m.state === "stale") return th.stale;
   if (m.state === "bad") return th.danger;
-  return th.fg;
+  return custom ?? th.fg;
 }
 
 function frame(ctx: Ctx, p: Placement, title: string, th: Theme, noData: boolean): void {
@@ -49,7 +51,7 @@ function centerText(ctx: Ctx, p: Placement, text: string, size: number, color: s
   ctx.textBaseline = "alphabetic";
 }
 
-function dial(ctx: Ctx, p: Placement, m: ElementModel, ringColor: string, th: Theme): void {
+function dial(ctx: Ctx, p: Placement, m: ElementModel, ringColor: string, th: Theme, custom?: string): void {
   const { x, y, w, h } = p.rect;
   const cx = x + w / 2, cy = y + h / 2 + 6, r = Math.min(w, h) * 0.32;
   ctx.strokeStyle = th.edge;
@@ -66,19 +68,19 @@ function dial(ctx: Ctx, p: Placement, m: ElementModel, ringColor: string, th: Th
     ctx.stroke();
   }
   ctx.lineWidth = 1;
-  centerText(ctx, p, m.text, 22, fg(m, th));
+  centerText(ctx, p, m.text, 22, fg(m, th, custom));
 }
 
-function bar(ctx: Ctx, p: Placement, m: ElementModel, th: Theme): void {
+function bar(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, custom?: string): void {
   const { x, y, w, h } = p.rect;
   const bx = x + 14, bw = w - 28, by = y + h / 2, bh = 14;
   ctx.strokeStyle = th.edge;
   ctx.strokeRect(bx, by, bw, bh);
-  ctx.fillStyle = m.state === "stale" ? th.stale : th.accent;
+  ctx.fillStyle = m.state === "stale" ? th.stale : custom ?? th.accent;
   ctx.fillRect(bx, by, (m.fraction ?? 0) * bw, bh);
 }
 
-function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme): void {
+function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, custom?: string): void {
   const { x, y, w, h } = p.rect;
   const cx = x + w / 2, cy = y + h * 0.62, r = Math.min(w, h) * 0.32;
   ctx.strokeStyle = th.edge;
@@ -86,19 +88,19 @@ function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme): void {
   ctx.beginPath();
   ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI);
   ctx.stroke();
-  ctx.strokeStyle = m.state === "stale" ? th.stale : th.accent;
+  ctx.strokeStyle = m.state === "stale" ? th.stale : custom ?? th.accent;
   ctx.beginPath();
   ctx.arc(cx, cy, r, Math.PI, Math.PI + (m.fraction ?? 0) * Math.PI);
   ctx.stroke();
   ctx.lineWidth = 1;
-  centerText(ctx, p, m.text, 20, fg(m, th));
+  centerText(ctx, p, m.text, 20, fg(m, th, custom));
 }
 
-function trend(ctx: Ctx, p: Placement, m: ElementModel, series: number[], th: Theme): void {
+function trend(ctx: Ctx, p: Placement, m: ElementModel, series: number[], th: Theme, custom?: string): void {
   const { x, y, w, h } = p.rect;
   if (series.length >= 2) {
     const lo = Math.min(...series), hi = Math.max(...series), span = hi - lo || 1;
-    ctx.strokeStyle = m.state === "stale" ? th.stale : th.accent;
+    ctx.strokeStyle = m.state === "stale" ? th.stale : custom ?? th.accent;
     ctx.beginPath();
     series.forEach((v, i) => {
       const px = x + 10 + (i / (series.length - 1)) * (w - 20);
@@ -107,7 +109,7 @@ function trend(ctx: Ctx, p: Placement, m: ElementModel, series: number[], th: Th
     });
     ctx.stroke();
   }
-  ctx.fillStyle = fg(m, th);
+  ctx.fillStyle = fg(m, th, custom);
   ctx.font = "14px system-ui";
   ctx.textAlign = "right";
   ctx.fillText(m.text, x + w - 10, y + h - 10);
@@ -137,25 +139,31 @@ export function paintScreen(
     const title = el.name ?? p.elementId;
     frame(ctx, p, title, th, m.state === "no-data");
     if (m.state === "no-data") { centerText(ctx, p, "—", 30, th.dim); continue; }
+    // style.color (or legacy colorRole), allowlisted like the SVG backend.
+    // Zone colour wins over style.color, as in the SVG backend.
+    const style = (el.style ?? {}) as Record<string, unknown>;
+    const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+    const custom = resolveOptionalColor(m.zoneColor, th)
+      ?? resolveOptionalColor(str(style.color) ?? str(style.colorRole), th);
     switch (el.type) {
-      case "compass": dial(ctx, p, m, th.accent, th); break;
-      case "windrose": dial(ctx, p, m, th.warn, th); break;
-      case "gauge": gauge(ctx, p, m, th); break;
-      case "bar": bar(ctx, p, m, th); break;
+      case "compass": dial(ctx, p, m, custom ?? th.accent, th, custom); break;
+      case "windrose": dial(ctx, p, m, custom ?? th.warn, th, custom); break;
+      case "gauge": gauge(ctx, p, m, th, custom); break;
+      case "bar": bar(ctx, p, m, th, custom); break;
       case "trend": {
         if (trends && m.numeric != null) trends.push(p.elementId, m.numeric);
-        trend(ctx, p, m, trends?.series(p.elementId) ?? [], th);
+        trend(ctx, p, m, trends?.series(p.elementId) ?? [], th, custom);
         break;
       }
-      case "autopilot": pill(ctx, p, m.text || "STBY", th.accent, th); break;
-      case "button": centerText(ctx, p, title, 16, th.accent); break;
-      case "text": centerText(ctx, p, m.text, 20, fg(m, th)); break;
+      case "autopilot": pill(ctx, p, m.text || "STBY", custom ?? th.accent, th); break;
+      case "button": centerText(ctx, p, title, 16, custom ?? th.accent); break;
+      case "text": centerText(ctx, p, m.text, 20, fg(m, th, custom)); break;
       // TODO(firmware-parity-wave5): `clinometer` (heel/pitch attitude dial,
       // catalog wave5) has no dedicated Canvas painter yet — it falls through
       // to the generic numeric readout below. Model an arc widget on `dial()`
       // (heel arc + port/stbd bands + pitch secondary) when a Canvas preview
       // of it is needed; the SVG backend has the matching TODO in render-svg.ts.
-      default: centerText(ctx, p, m.text, 32, fg(m, th)); break; // single-value, clinometer
+      default: centerText(ctx, p, m.text, 32, fg(m, th, custom)); break; // single-value, clinometer
     }
   }
 }
