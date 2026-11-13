@@ -23,6 +23,8 @@ export interface DialOpts {
   size?: number | string;  // hero value font size: numeric (px) or a SIZE_ROLES key (S/M/L/XL/Fill)
   shape?: "round" | "band";
   hull?: boolean;
+  /** Resolved `style.color` (allowlisted hex) for ring, needle and hero; undefined keeps the type default. */
+  color?: string;
 }
 
 const FN = FONT_FAMILY;
@@ -65,7 +67,8 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
   const out: string[] = [];
   // E4: when stale, dim the dial geometry (ring, needle, arrow) to th.stale.
   const stale = m.state === "stale";
-  const dialColor = stale ? th.stale : ringColor;
+  const base = opts.color ?? ringColor;
+  const dialColor = stale ? th.stale : base;
 
   // faint inner wash + solid 2px bezel ring
   out.push(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(R - 2)}" fill="${dialColor}" fill-opacity="0.06"/>`);
@@ -112,7 +115,7 @@ function minimalSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, o
     ? heroFontSize({ w: innerDim, h: innerDim }, m.text + (m.side ?? ""), opts.size)
     : (opts.size ?? 38);
   if (opts.title) out.push(txt(cx, cy - hero * 0.5, 12, th.dim, opts.title.toUpperCase(), 500));
-  out.push(txt(cx, cy + hero * 0.34, hero, heroColor(m, th, ringColor), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  out.push(txt(cx, cy + hero * 0.34, hero, heroColor(m, th, base), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   return `<g>${out.join("")}</g>`;
 }
@@ -194,7 +197,7 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
     const [nx, ny] = polar(cx, cy, m.angleDeg, rFace * 0.70);
     const [tx, ty] = polar(cx, cy, m.angleDeg + 180, rFace * 0.25);
     // E4: needle dims when stale; otherwise uses ringColor-derived base
-    const needleBase = stale ? th.stale : (ringColor === th.warn ? th.warn : th.accent);
+    const needleBase = stale ? th.stale : (opts.color ?? (ringColor === th.warn ? th.warn : th.accent));
     out.push(`<line x1="${f(tx)}" y1="${f(ty)}" x2="${f(nx)}" y2="${f(ny)}" stroke="${needleBase}" stroke-width="3" stroke-linecap="round"/>`);
   }
   // wind-direction pointer (dirDeg): dashed line in warn colour
@@ -213,7 +216,7 @@ function roundHudSvg(rect: Rect, m: ElementModel, ringColor: string, th: Theme, 
     ? heroFontSize({ w: innerFaceDim, h: innerFaceDim }, m.text + (m.side ?? ""), opts.size)
     : (opts.size ?? 38);
   // E4: base color for the hero text follows heroColor (which maps stale→th.stale)
-  const base = ringColor === th.warn ? th.warn : th.accent;
+  const base = opts.color ?? (ringColor === th.warn ? th.warn : th.accent);
   if (opts.title) out.push(txt(cx, cy - hero * 0.5, 12, th.dim, opts.title.toUpperCase(), 500));
   out.push(txt(cx, cy + hero * 0.34, hero, heroColor(m, th, base), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
@@ -298,7 +301,7 @@ function bandSvg(rect: Rect, m: ElementModel, _ringColor: string, th: Theme, opt
     ? heroFontSize({ w: rect.w, h: rect.h * 0.38 }, m.text + (m.side ?? ""), opts.size)
     : (opts.size ?? 64);
   if (opts.title) out.push(txt(cx, cy - 6 * k, 12, th.dim, opts.title.toUpperCase(), 500));
-  out.push(txt(cx, cy + hero * 0.7, hero, heroColor(m, th, th.fg), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  out.push(txt(cx, cy + hero * 0.7, hero, heroColor(m, th, opts.color ?? th.fg), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   return `<g>${out.join("")}</g>`;
 }

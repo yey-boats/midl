@@ -14,6 +14,7 @@ import { TrendBuffers } from "../paint";
 import { esc, f } from "./geometry";
 import { frameSvg } from "./frame";
 import { dialSvg } from "./dial";
+import { resolveOptionalColor } from "./color";
 import {
   singleValueSvg, textSvg, barSvg, gaugeSvg, trendSvg, autopilotSvg, buttonSvg,
 } from "./tiles";
@@ -48,11 +49,16 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
     // style.color (token or #hex) takes precedence over legacy style.colorRole
     colorRole: str((style as Record<string, unknown>).color as string | undefined) ?? str(style.colorRole),
   };
+  const dialOpts = {
+    title: str(style.title), size: sizev(style.size),
+    shape: style.shape === "band" ? "band" as const : "round" as const, hull: boolv(style.hull),
+    color: resolveOptionalColor(opts.colorRole, th),
+  };
   switch (el.type) {
     case "compass":
-      return dialSvg(rect, m, th.accent, th, { title: str(style.title), size: sizev(style.size), shape: style.shape === "band" ? "band" : "round", hull: boolv(style.hull) });
+      return dialSvg(rect, m, th.accent, th, dialOpts);
     case "windrose":
-      return dialSvg(rect, m, th.warn, th, { title: str(style.title), size: sizev(style.size), shape: style.shape === "band" ? "band" : "round", hull: boolv(style.hull) });
+      return dialSvg(rect, m, th.warn, th, dialOpts);
     case "gauge":
       return gaugeSvg(rect, m, th, opts);
     case "bar":

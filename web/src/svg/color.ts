@@ -30,14 +30,23 @@ export function isSafeColor(c: unknown): c is string {
   return typeof c === "string" && HEX.test(c);
 }
 
-export function resolveColor(token: string | undefined, th: Theme, fallback: string): string {
-  const safeFallback = isSafeColor(fallback) ? fallback : "#000";
-  if (typeof token !== "string" || !token) return safeFallback;
+/**
+ * Resolve an optional authored colour (e.g. `style.color`) to a concrete hex
+ * colour, or `undefined` when it is absent or not on the allowlist, so the
+ * caller keeps its own default. Never returns anything but a hex literal.
+ */
+export function resolveOptionalColor(token: unknown, th: Theme): string | undefined {
+  if (typeof token !== "string" || !token) return undefined;
   if (isSafeColor(token)) return token;
   const key = Object.prototype.hasOwnProperty.call(ALIASES, token) ? ALIASES[token]! : token;
   if (TOKENS.has(key)) {
     const v = th[key as ColorToken];
     if (isSafeColor(v)) return v;
   }
-  return safeFallback;
+  return undefined;
+}
+
+export function resolveColor(token: string | undefined, th: Theme, fallback: string): string {
+  const safeFallback = isSafeColor(fallback) ? fallback : "#000";
+  return resolveOptionalColor(token, th) ?? safeFallback;
 }

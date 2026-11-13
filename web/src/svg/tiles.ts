@@ -165,7 +165,7 @@ export function textSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts =
   // For multi-line text, divide available height equally across lines.
   const lineH = h / Math.max(1, lines.length);
   const size = heroFontSize({ w, h: lineH }, longestLine, opts.size ?? "M");
-  const color = valColor(m, th, th.accent);
+  const color = valColor(m, th, resolveColor(opts.colorRole, th, th.accent));
   const out: string[] = [];
   const top = y + h / 2 - ((lines.length - 1) * size * 0.7) / 2;
   lines.forEach((ln, i) => out.push(txt(cx, top + i * size * 1.2 + size * 0.34, size, color, ln, 600)));
@@ -212,9 +212,11 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
   // track
   out.push(`<path d="${arc(cx, cy, -135, 135, r)}" fill="none" stroke="${th.widgets.gaugeTrack}" stroke-width="${sw}" stroke-linecap="round"/>`);
 
-  // fill — use zone colour when available so the arc reflects threshold state
+  // fill — zone colour wins (threshold state), then style.color, then the theme
+  // gauge hue; the centre text follows the arc.
   const frac = Math.max(0, Math.min(1, m.fraction ?? 0));
-  const arcColor = m.zoneColor ? resolveColor(m.zoneColor, th, th.widgets.gaugeFill) : th.widgets.gaugeFill;
+  const baseFill = resolveColor(opts.colorRole, th, th.widgets.gaugeFill);
+  const arcColor = m.zoneColor ? resolveColor(m.zoneColor, th, baseFill) : baseFill;
   if (frac > 0) {
     out.push(`<path d="${arc(cx, cy, -135, -135 + frac * 270, r)}" fill="none" stroke="${arcColor}" stroke-width="${sw}" stroke-linecap="round"/>`);
   }
