@@ -1,0 +1,87 @@
+# midl#17: publish @yey-boats/midl, -web and -editor to GitHub Packages
+# (owner decision 2026-11-13: GitHub Packages, restricted access).
+#
+# Triggered ONLY by pushing a `v*` tag (never on branch pushes or PRs) so this
+# can't fire by accident. The tag must equal the version of all three
+# packages (e.g. tag v0.2.0 <-> "version": "0.2.0"), otherwise the job fails
+# before publishing anything. Builds each workspace in dependency order —
+# ts, then web, then editor — and publishes in the same order so each
+# package's @yey-boats/* dependencies already exist on the registry.
+#
+# Auth: the job's GITHUB_TOKEN (packages: write). Each package.json carries
+# publishConfig.registry = https://npm.pkg.github.com and access = restricted.
+# Consumers install with an .npmrc containing
+#   @yey-boats:registry=https://npm.pkg.github.com
+#   //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+# and a token with read:packages.
+name: Publish packages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          registry-url: https://npm.pkg.github.com
+          scope: "@yey-boats"
+
+      - name: Check tag matches package versions
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          for p in ts web editor; do
+            have=$(node -p "require('./$p/package.json').version")
+            if [ "$have" != "$want" ]; then
+              echo "::error::$p/package.json version $have does not match tag $GITHUB_REF_NAME"
+              exit 1
+            fi
+          done
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Dependency order: ts -> web -> editor. web's declaration emit resolves
+      # @yey-boats/midl through the workspace link to ts/dist, so ts must be
+      # built first; editor bundles against web/ts sources.
+      - name: Build (ts dist)
+        run: npm run build -w @yey-boats/midl
+
+      - name: Build (web dist)
+        run: npm run build:lib -w @yey-boats/midl-web
+
+      - name: Build (editor dist)
+        run: npm run build:lib -w @yey-boats/midl-editor
+
+      - name: Test
+        run: |
+          npm test -w @yey-boats/midl
+          npm test -w @yey-boats/midl-web
+          npm test -w @yey-boats/midl-editor
+
+      - name: Publish @yey-boats/midl
+        run: npm publish -w @yey-boats/midl
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish @yey-boats/midl-web
+        run: npm publish -w @yey-boats/midl-web
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish @yey-boats/midl-editor
+        run: npm publish -w @yey-boats/midl-editor
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
