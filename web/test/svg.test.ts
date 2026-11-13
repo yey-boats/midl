@@ -553,15 +553,15 @@ describe("RC1: K→°C/°F degree-symbol normalization", () => {
     expect(n).toBeCloseTo(68, 4);
   });
 
-  test("formatValue 293.15 K with unit '°C' decimals 1 gives '20.0 °C'", () => {
+  test("formatValue 293.15 K with unit '°C' decimals 1 gives '20.0°C'", () => {
     const r = formatValue(293.15, { unit: "°C", decimals: 1 }, "K");
-    expect(r.text).toBe("20.0 °C");
+    expect(r.text).toBe("20.0°C");
     expect(r.numeric).toBeCloseTo(20, 4);
   });
 
-  test("formatValue 293.15 K with unit '°F' decimals 1 gives '68.0 °F'", () => {
+  test("formatValue 293.15 K with unit '°F' decimals 1 gives '68.0°F'", () => {
     const r = formatValue(293.15, { unit: "°F", decimals: 1 }, "K");
-    expect(r.text).toBe("68.0 °F");
+    expect(r.text).toBe("68.0°F");
     expect(r.numeric).toBeCloseTo(68, 4);
   });
 
