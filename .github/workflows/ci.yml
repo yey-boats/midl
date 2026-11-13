@@ -43,6 +43,13 @@ jobs:
       - name: Build (ts dist)
         run: npm run build -w @yey-boats/midl
 
+      # midl#17: the publishable library builds, in dependency order, so a
+      # broken build:lib is caught on PRs rather than on the release tag.
+      - name: Build (web + editor lib)
+        run: |
+          npm run build:lib -w @yey-boats/midl-web
+          npm run build:lib -w @yey-boats/midl-editor
+
       # Type-check the publishable sources of each workspace. The `.build`
       # configs cover src/; ts/tsconfig.json also covers test/ (which is why
       # the dist build above must come first). Full type-checking of the
