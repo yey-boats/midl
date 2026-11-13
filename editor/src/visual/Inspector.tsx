@@ -24,7 +24,13 @@ const SPAN_OPTIONS = ["1x1", "1x2", "2x1", "2x2"] as const;
 const COLOR_ROLE_OPTIONS = ["default", "accent", "warn"] as const;
 const SCALE_OPTIONS = ["fixed", "metric"] as const;
 const SIZE_ROLE_OPTIONS = ["S", "M", "L", "XL", "Fill"] as const;
-type SizeRole = typeof SIZE_ROLE_OPTIONS[number];
+// Size select values besides the role tokens: no style.size at all, a legacy
+// numeric (pixel) size, and any other unrecognised value ("fill", "28",
+// "XXL", ...). The last two are shown as disabled, informational entries so
+// the current value is visible and "unset" can still clear it.
+const SIZE_UNSET = "";
+const SIZE_PIXEL = "__px";
+const SIZE_UNKNOWN = "__unknown";
 
 // Zone color palette: theme tokens + common hex colors
 const ZONE_COLOR_OPTIONS = [
@@ -194,19 +200,35 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
     updateElement({ ...selectedElement, format: newFormat, style: newStyle });
   }
 
+  // Write `key` into element.style, or remove it when `value` is undefined
+  // (dropping an emptied style object so the document stays minimal).
+  function setStyleKey(key: string, value: unknown) {
+    if (!selectedElement) return;
+    const style: Record<string, unknown> = { ...selectedElement.style };
+    if (value === undefined) delete style[key];
+    else style[key] = value;
+    const next: EditorElement = { ...selectedElement, style };
+    if (Object.keys(style).length === 0) delete next.style;
+    updateElement(next);
+  }
+
+  // "default" is not a theme token (the validator refuses it): choosing it
+  // removes style.colorRole, which renders the default colour.
   function handleColorRoleChange(colorRole: string) {
-    if (!selectedElement) return;
-    updateElement({ ...selectedElement, style: { ...selectedElement.style, colorRole } });
+    setStyleKey("colorRole", colorRole === "default" ? undefined : colorRole);
   }
 
+  // "fixed" is the default scale: choosing it removes style.scale.
   function handleScaleChange(scale: string) {
-    if (!selectedElement) return;
-    updateElement({ ...selectedElement, style: { ...selectedElement.style, scale } });
+    setStyleKey("scale", scale === "fixed" ? undefined : scale);
   }
 
+  // SIZE_UNSET removes style.size (the renderer's auto-fit default);
+  // SIZE_PIXEL / SIZE_UNKNOWN are placeholders for the current non-role value
+  // and keep it.
   function handleSizeChange(sizeRole: string) {
-    if (!selectedElement) return;
-    updateElement({ ...selectedElement, style: { ...selectedElement.style, size: sizeRole } });
+    if (sizeRole === SIZE_PIXEL || sizeRole === SIZE_UNKNOWN) return;
+    setStyleKey("size", sizeRole === SIZE_UNSET ? undefined : sizeRole);
   }
 
   function handleRemoveElement() {
@@ -437,15 +459,22 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
   const currentSided = Boolean(selectedElement.format?.side);
   const currentColorRole = String(selectedElement.style?.colorRole ?? "default");
   const currentScale = String(selectedElement.style?.scale ?? "fixed");
-  // Derive current size role. String roles (S/M/L/XL/Fill) are used as-is.
-  // Legacy numeric sizes are mapped to the nearest role for display.
+  // Current size: a role token (S/M/L/XL/Fill) as-is, a legacy numeric size
+  // as its own "<n> px" entry, any other value as its own "<value> (unknown)"
+  // entry, and no style.size as "unset".
   const rawSize = selectedElement?.style?.size;
-  let currentSizeRole: SizeRole;
+  const pixelSize = typeof rawSize === "number" && Number.isFinite(rawSize) ? rawSize : null;
+  let unknownSize: string | null = null;
+  let currentSizeRole: string;
   if (typeof rawSize === "string" && (SIZE_ROLE_OPTIONS as readonly string[]).includes(rawSize)) {
-    currentSizeRole = rawSize as SizeRole;
+    currentSizeRole = rawSize;
+  } else if (pixelSize !== null) {
+    currentSizeRole = SIZE_PIXEL;
+  } else if (rawSize === undefined || rawSize === null) {
+    currentSizeRole = SIZE_UNSET;
   } else {
-    // Default: show L (whether rawSize is a legacy number or undefined).
-    currentSizeRole = "L";
+    currentSizeRole = SIZE_UNKNOWN;
+    unknownSize = typeof rawSize === "string" ? `"${rawSize}"` : JSON.stringify(rawSize) ?? String(rawSize);
   }
 
   // ── LIMITS section values ─────────────────────────────────────────────────
@@ -716,6 +745,9 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
               onChange={(e) => handleSizeChange(e.target.value)}
               style={{ flex: 1 }}
             >
+              <option value={SIZE_UNSET}>unset</option>
+              {pixelSize !== null && (<option value={SIZE_PIXEL} disabled>{`${pixelSize} px`}</option>)}
+              {unknownSize !== null && (<option value={SIZE_UNKNOWN} disabled>{`${unknownSize} (unknown)`}</option>)}
               {SIZE_ROLE_OPTIONS.map((r) => (<option key={r} value={r}>{r}</option>))}
             </select>
           </div>
