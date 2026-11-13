@@ -63,6 +63,7 @@ function widgetSvg(el: Element, p: Placement, rect: Rect, m: ElementModel, th: T
     unit: str(el.format?.unit),
     // style.color (token or #hex) takes precedence over legacy style.colorRole
     colorRole: str((style as Record<string, unknown>).color as string | undefined) ?? str(style.colorRole),
+    zoned: Array.isArray(style.zones) && style.zones.length > 0,
     belowCaption: rect.y > p.rect.y + 2,
   };
   const dialOpts = {
