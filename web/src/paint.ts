@@ -71,13 +71,19 @@ function dial(ctx: Ctx, p: Placement, m: ElementModel, ringColor: string, th: Th
   centerText(ctx, p, m.text, 22, fg(m, th, custom));
 }
 
-function bar(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, custom?: string): void {
+// Bar, as the firmware and the SVG backend: the number takes style.color
+// (default accent), the fill stays theme good; an active zone colours both.
+function bar(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, zone?: string, styleColor?: string): void {
   const { x, y, w, h } = p.rect;
   const bx = x + 14, bw = w - 28, by = y + h / 2, bh = 14;
+  ctx.fillStyle = fg(m, th, zone ?? styleColor ?? th.accent);
+  ctx.font = "24px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText(m.text, x + w / 2, by - 12);
   ctx.strokeStyle = th.edge;
   ctx.strokeRect(bx, by, bw, bh);
-  ctx.fillStyle = m.state === "stale" ? th.stale : custom ?? th.accent;
-  ctx.fillRect(bx, by, (m.fraction ?? 0) * bw, bh);
+  ctx.fillStyle = m.state === "stale" ? th.stale : zone ?? th.good;
+  ctx.fillRect(bx, by, Math.max(0, Math.min(1, m.fraction ?? 0)) * bw, bh);
 }
 
 function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, custom?: string): void {
@@ -143,13 +149,14 @@ export function paintScreen(
     // Zone colour wins over style.color, as in the SVG backend.
     const style = (el.style ?? {}) as Record<string, unknown>;
     const str = (v: unknown) => (typeof v === "string" ? v : undefined);
-    const custom = resolveOptionalColor(m.zoneColor, th)
-      ?? resolveOptionalColor(str(style.color) ?? str(style.colorRole), th);
+    const zone = resolveOptionalColor(m.zoneColor, th);
+    const styleColor = resolveOptionalColor(str(style.color) ?? str(style.colorRole), th);
+    const custom = zone ?? styleColor;
     switch (el.type) {
       case "compass": dial(ctx, p, m, custom ?? th.accent, th, custom); break;
       case "windrose": dial(ctx, p, m, custom ?? th.warn, th, custom); break;
       case "gauge": gauge(ctx, p, m, th, custom); break;
-      case "bar": bar(ctx, p, m, th, custom); break;
+      case "bar": bar(ctx, p, m, th, zone, styleColor); break;
       case "trend": {
         if (trends && m.numeric != null) trends.push(p.elementId, m.numeric);
         trend(ctx, p, m, trends?.series(p.elementId) ?? [], th, custom);

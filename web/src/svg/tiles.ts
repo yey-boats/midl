@@ -180,9 +180,12 @@ export function barSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts = 
   const bx = x + 16, bw = w - 32, bh = 22;
   const by = y + h * 0.62;
 
-  // hero percent above the track (accent, optionally overridden by style.color/colorRole)
+  // hero percent above the track: style.color (default accent); an active zone
+  // colours the number as well as the fill (firmware value_color + zone block).
   const hero = heroFontSize({ w, h }, m.text + (m.side ?? ""), opts.size);
-  out.push(txt(cx, by - 14, hero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
+  const numBase = resolveColor(opts.colorRole, th, th.accent);
+  const numColor = m.zoneColor ? resolveColor(m.zoneColor, th, numBase) : numBase;
+  out.push(txt(cx, by - 14, hero, valColor(m, th, numColor), m.text + (m.side ?? ""), 700, "middle", ` letter-spacing="-0.02em"`));
 
   // track
   out.push(`<rect x="${f(bx)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" rx="3" fill="${th.widgets.barTrack}" stroke="${th.edge}" stroke-width="1"/>`);
@@ -257,7 +260,11 @@ export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Them
     // filled area
     const area = `${f(pts[0][0])},${f(bottom)} ${poly} ${f(pts[pts.length - 1][0])},${f(bottom)}`;
     out.push(`<polygon points="${area}" fill="rgba(87,199,216,0.06)"/>`);
-    out.push(`<polyline points="${poly}" fill="none" stroke="${th.widgets.gaugeFill}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
+    // style.color tints the sparkline as well as the number (firmware
+    // paint_trend_body: the chart series uses m.accent); default stays the
+    // faint theme gauge hue.
+    const lineColor = m.state === "stale" ? th.stale : resolveColor(opts.colorRole, th, th.widgets.gaugeFill);
+    out.push(`<polyline points="${poly}" fill="none" stroke="${lineColor}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
   }
   // numeric hero overlaid (accent, optionally overridden by colorRole)
   const trendValue = m.text + (m.side ?? "");
