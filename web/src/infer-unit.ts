@@ -24,7 +24,7 @@ export function inferSourceUnit(path: string): string | undefined {
     /ratio$/.test(leaf) ||
     leaf === "stateofcharge" ||
     leaf === "currentlevel" ||
-    /^tanks\..*\.level$/.test(p)
+    /(?:^|\.)tanks\..*\.level$/.test(p)
   ) {
     return "ratio";
   }
@@ -38,7 +38,7 @@ export function inferSourceUnit(path: string): string | undefined {
     /^below(keel|transducer|surface)$/.test(leaf) ||
     leaf === "arrivalcircle" ||
     /radius$/.test(leaf) ||
-    /^environment\.depth\./.test(p)
+    /(?:^|\.)environment\.depth\./.test(p)
   ) {
     return "m";
   }
@@ -65,7 +65,7 @@ export function inferSourceUnit(path: string): string | undefined {
   //         paths attitude.(roll|pitch|yaw), current.set(True|Magnetic)
   if (
     /^(heading|bearing|courseoverground|direction)/.test(leaf) ||
-    /^magnetic(variation|deviation)/.test(leaf) ||
+    /^magnetic(variation|deviation)$/.test(leaf) ||
     /angle/.test(leaf) ||
     /(?:^|\.)attitude\.(roll|pitch|yaw)$/.test(p) ||
     /(?:^|\.)current\.set(true|magnetic)$/.test(p)
@@ -80,8 +80,9 @@ export function inferSourceUnit(path: string): string | undefined {
   }
 
   // ── Temperature (K) ───────────────────────────────────────────────────────
-  // Leaves: temperature, *Temperature (oilTemperature, dewPointTemperature…)
-  if (/temperature$/.test(leaf)) {
+  // Leaves: temperature, *Temperature (oilTemperature, dewPointTemperature…);
+  //         children of a temperature segment (temperature.warnUpper…)
+  if (/temperature$/.test(leaf) || /(?:^|\.)temperature\.[^.]+$/.test(p)) {
     return "K";
   }
 
