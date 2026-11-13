@@ -12,7 +12,7 @@ import { resolveElement, type ElementModel } from "../model";
 import { prepareDashboard, type RenderResult } from "../render";
 import { TrendBuffers } from "../paint";
 import { esc, f } from "./geometry";
-import { frameSvg } from "./frame";
+import { frameSvg, captionBand } from "./frame";
 import { dialSvg } from "./dial";
 import { resolveOptionalColor } from "./color";
 import {
@@ -36,9 +36,21 @@ function sizev(v: unknown): number | string | undefined {
   return undefined;
 }
 
+/** Compass/windrose drawn as a grid-tile dial (minimal ring or band) rather
+ *  than a full HUD face. These carry the frame's top-left caption like every
+ *  firmware tile (build_tile); only the HUD owns a centre caption. */
+function isTileDial(el: Element, rect: Rect): boolean {
+  if (!ROUND_TYPES.has(el.type)) return false;
+  return el.style?.shape === "band" || Math.min(rect.w, rect.h) < 300;
+}
+
 function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends?: TrendBuffers): string {
-  const rect = p.rect;
   const style = el.style ?? {};
+  // Tile dials sit below the chrome caption band (firmware paint_compass_body
+  // reserves the caption row above the ring).
+  const tileDial = isTileDial(el, p.rect);
+  const band = tileDial ? captionBand(p.rect) : 0;
+  const rect = tileDial ? { x: p.rect.x, y: p.rect.y + band, w: p.rect.w, h: p.rect.h - band } : p.rect;
   // Widget tiles render value/secondary only — the frame owns the top-left
   // caption. So we do NOT pass `title` into the tile builders. Dials are the
   // exception: they draw their own centre caption from the title.
@@ -50,7 +62,7 @@ function widgetSvg(el: Element, p: Placement, m: ElementModel, th: Theme, trends
     colorRole: str((style as Record<string, unknown>).color as string | undefined) ?? str(style.colorRole),
   };
   const dialOpts = {
-    title: str(style.title), size: sizev(style.size),
+    title: tileDial ? undefined : str(style.title), size: sizev(style.size),
     shape: style.shape === "band" ? "band" as const : "round" as const, hull: boolv(style.hull),
     color: resolveOptionalColor(opts.colorRole, th),
     unit: opts.unit,
@@ -121,10 +133,11 @@ export function paintScreenSvg(
     const style = el.style ?? {};
     const tileTitle = str(style.title) ?? el.name ?? "";
     const isNoData = m.state === "no-data";
-    const frameTitle = (round && !isNoData) || isButton ? "" : tileTitle;
+    const hud = round && !isNoData && !isTileDial(el, p.rect);
+    const frameTitle = hud || isButton ? "" : tileTitle;
     // E3: for round tiles in no-data, pass round:false so frameSvg renders the
     // title caption (the dial itself won't render — the no-data branch fires next).
-    const frameRound = round && !isNoData;
+    const frameRound = hud;
     out.push(frameSvg(p.rect, frameTitle, th, { noData: isNoData && !isButton && !isSelfNoData, stale: m.state === "stale", round: frameRound }));
     if (isNoData && !isButton && !isSelfNoData) { out.push(noDataSvg(p.rect, th)); continue; }
     out.push(widgetSvg(el, p, m, th, trends));

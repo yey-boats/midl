@@ -5,6 +5,7 @@ import type { DataProvider } from "./data";
 import type { Theme } from "./theme";
 import { resolveElement, type ElementModel } from "./model";
 import { resolveOptionalColor } from "./svg/color";
+import { captionFontSize } from "./svg/frame";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -36,9 +37,10 @@ function frame(ctx: Ctx, p: Placement, title: string, th: Theme, noData: boolean
   ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
   ctx.setLineDash([]);
   ctx.fillStyle = th.dim;
-  ctx.font = "12px system-ui";
+  const fs = captionFontSize(p.rect); // firmware caption size, as the SVG frame (#37)
+  ctx.font = `${fs}px system-ui`;
   ctx.textAlign = "left";
-  ctx.fillText(title.toUpperCase(), x + 10, y + 18);
+  ctx.fillText(title.toUpperCase(), x + 12, y + 6 + fs * 0.9);
 }
 
 function centerText(ctx: Ctx, p: Placement, text: string, size: number, color: string): void {
