@@ -85,6 +85,21 @@ const WIDGETS_HC: WidgetColors = {
   hudBand: "#ffffff", dialTick: "#888888", dialCardDim: "#333333",
   dialInk: "#000000", cardinalN: "#ff3030",
 };
+// Sun: firmware `use_sun` (instruments src/ui/ui_theme.cpp) for direct
+// sunlight on the IPS panel — white ground, black ink, near-black borders.
+// Values are the firmware palette fields, mapped by how the firmware itself
+// uses them: gauge track = grid, gauge fill / true wind = accent, gauge ticks =
+// fg_dim, apparent wind = warn, HUD band = arc_band, in-band ink = band_ink,
+// band ticks / dimmed inter-cardinals = band_ink_dim, North = alarm. The AP pill
+// and bar track (firmware literals) take the light badge fill so the green
+// engaged label and the bar border stay legible on white.
+const WIDGETS_SUN: WidgetColors = {
+  gaugeTrack: "#444444", gaugeFill: "#0050a0", gaugeTick: "#3a3a3a",
+  windApparent: "#a05a00", windTrue: "#0050a0",
+  apPillBg: "#eeeeee", btnInk: "#ffffff", barTrack: "#eeeeee",
+  hudBand: "#e6e6e6", dialTick: "#555555", dialCardDim: "#555555",
+  dialInk: "#000000", cardinalN: "#c00000",
+};
 // Red-night: night-vision preservation. Everything is drawn in reds (with the
 // warn slot allowed a red-orange) on a true-black ground — no blue or green
 // bleed anywhere, so the helm keeps their dark adaptation. Semantic pairs that
@@ -106,7 +121,7 @@ const WIDGETS_CLASSIC: WidgetColors = {
   dialInk: "#f3ead8", cardinalN: "#b02a20",
 };
 
-export const THEMES: Record<"night" | "day" | "high-contrast" | "red-night" | "classic", Theme> = {
+export const THEMES: Record<"night" | "day" | "sun" | "high-contrast" | "red-night" | "classic", Theme> = {
   // Manager night palette (source of truth).
   night: {
     bg: "#0a1018", panel: "#101b29", panel2: "#16222f", edge: "#1f2d3d",
@@ -122,6 +137,16 @@ export const THEMES: Record<"night" | "day" | "high-contrast" | "red-night" | "c
     good: "#0a8f5e", warn: "#b06a00", bad: "#c02626", danger: "#c02626",
     port: "#c02626", starboard: "#0a8f5e", tide: "#0a5fc0", stale: "#9aa7b4",
     widgets: WIDGETS_DAY,
+  },
+  // Direct-sunlight variant (firmware `use_sun`), mapped onto tokens exactly as
+  // the firmware does in live_tokens(): panel2 = badge, edge = panel_edge,
+  // dim = fg_dim, accent2 = good, bad/danger = alarm.
+  sun: {
+    bg: "#ffffff", panel: "#ffffff", panel2: "#eeeeee", edge: "#1a1a1a",
+    fg: "#000000", dim: "#3a3a3a", accent: "#0050a0", accent2: "#007a3d",
+    good: "#007a3d", warn: "#a05a00", bad: "#c00000", danger: "#c00000",
+    port: "#c00000", starboard: "#007a3d", tide: "#0a5fc0", stale: "#8a8a8a",
+    widgets: WIDGETS_SUN,
   },
   // Maximum legibility: pure black ground, saturated primaries.
   "high-contrast": {
@@ -151,6 +176,7 @@ export const THEMES: Record<"night" | "day" | "high-contrast" | "red-night" | "c
 
 export function theme(name?: string): Theme {
   if (name === "day") return THEMES.day;
+  if (name === "sun") return THEMES.sun;
   if (name === "high-contrast") return THEMES["high-contrast"];
   if (name === "red-night") return THEMES["red-night"];
   if (name === "classic") return THEMES.classic;

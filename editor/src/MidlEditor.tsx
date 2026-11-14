@@ -107,10 +107,11 @@ export interface ValidationIssue {
 type Mode = "visual" | "source";
 // Every theme the renderer implements (web/src/theme.ts THEMES) — the selector
 // below renders one option per entry, in this order.
-type Theme = "night" | "day" | "high-contrast" | "red-night" | "classic";
+type Theme = "night" | "day" | "sun" | "high-contrast" | "red-night" | "classic";
 const PREVIEW_THEMES: Array<{ value: Theme; label: string }> = [
   { value: "night", label: "Preview: Night" },
   { value: "day", label: "Preview: Day" },
+  { value: "sun", label: "Preview: Sun" },
   { value: "high-contrast", label: "Preview: High contrast" },
   { value: "red-night", label: "Preview: Red night" },
   { value: "classic", label: "Preview: Classic" },

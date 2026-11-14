@@ -49,9 +49,9 @@ function rgb(hex: string): [number, number, number] {
   return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
 }
 
-test("THEMES declares exactly five themes", () => {
+test("THEMES declares exactly six themes", () => {
   expect(Object.keys(THEMES).sort()).toEqual(
-    ["classic", "day", "high-contrast", "night", "red-night"].sort(),
+    ["classic", "day", "high-contrast", "night", "red-night", "sun"].sort(),
   );
 });
 
@@ -114,4 +114,47 @@ test("FONT_FAMILY falls back to a sans-serif stack, never the serif default", as
   expect(FONT_FAMILY.trim().endsWith("sans-serif")).toBe(true);
   // Interpolated into font-family="..." attributes: no double quotes allowed.
   expect(FONT_FAMILY).not.toContain('"');
+});
+
+// ── sun (firmware use_sun parity) ─────────────────────────────────────────────
+
+test("theme() resolves sun as a distinct theme (not the night or day fallback)", () => {
+  const sun = theme("sun");
+  expect(sun).toBe((THEMES as Record<string, unknown>)["sun"]);
+  expect(sun).not.toBe(THEMES.night);
+  expect(sun).not.toBe(THEMES.day);
+});
+
+test("sun supplies every Theme token and every WidgetColors key", () => {
+  const sun = theme("sun");
+  for (const k of ALL_KEYS) {
+    expect(typeof (sun as unknown as Record<string, string>)[k]).toBe("string");
+  }
+  for (const k of WIDGET_KEYS) {
+    expect(typeof (sun.widgets as unknown as Record<string, string>)[k]).toBe("string");
+  }
+});
+
+test("sun tokens match the firmware use_sun palette (instruments live_tokens mapping)", () => {
+  const sun = theme("sun");
+  // firmware Palette field -> MIDL token, as in instruments ui_layouts.cpp live_tokens().
+  expect(sun.bg).toBe("#ffffff");        // bg
+  expect(sun.panel).toBe("#ffffff");     // panel
+  expect(sun.panel2).toBe("#eeeeee");    // badge
+  expect(sun.edge).toBe("#1a1a1a");      // panel_edge
+  expect(sun.fg).toBe("#000000");        // fg
+  expect(sun.dim).toBe("#3a3a3a");       // fg_dim
+  expect(sun.accent).toBe("#0050a0");    // accent
+  expect(sun.accent2).toBe("#007a3d");   // good (firmware has no accent2 slot)
+  expect(sun.good).toBe("#007a3d");      // good
+  expect(sun.warn).toBe("#a05a00");      // warn
+  expect(sun.bad).toBe("#c00000");       // alarm
+  expect(sun.danger).toBe("#c00000");    // alarm
+  expect(sun.port).toBe("#c00000");      // port
+  expect(sun.starboard).toBe("#007a3d"); // starboard
+  expect(sun.tide).toBe("#0a5fc0");      // tide
+  expect(sun.stale).toBe("#8a8a8a");     // stale
+  expect(sun.widgets.hudBand).toBe("#e6e6e6"); // arc_band
+  expect(sun.widgets.dialInk).toBe("#000000"); // band_ink
+  expect(sun.widgets.dialTick).toBe("#555555"); // band_ink_dim
 });

@@ -90,9 +90,9 @@ inline constexpr size_t ACTION_TARGET_MAX = 95;
 inline constexpr int FONTS[] = {14, 20, 28, 48};
 inline constexpr size_t FONT_COUNT = sizeof(FONTS) / sizeof(FONTS[0]);
 
-// `red-night` and `classic` are palette-only themes (no new capability
+// `sun`, `red-night` and `classic` are palette-only themes (no new capability
 // surface) — same element/attr set, different firmware color palette.
-inline constexpr const char *THEMES[] = {"day", "night", "high-contrast", "red-night", "classic", nullptr};
+inline constexpr const char *THEMES[] = {"day", "night", "high-contrast", "red-night", "classic", "sun", nullptr};
 inline constexpr size_t THEME_COUNT = (sizeof(THEMES) / sizeof(THEMES[0])) - 1;
 
 inline constexpr const char *PRESETS[] = {"full", "hero-split", nullptr};

@@ -1339,7 +1339,7 @@ test("class switcher offers round-360 (marked unsupported under a square-only ma
 
 // ── Preview-theme selector offers every implemented theme (WS1-T5) ───────────
 
-test("theme switcher offers all five renderer-implemented themes", async () => {
+test("theme switcher offers all six renderer-implemented themes", async () => {
   const { getByTestId } = render(
     <MidlEditor
       store={makeFakeStore()}
@@ -1353,7 +1353,7 @@ test("theme switcher offers all five renderer-implemented themes", async () => {
 
   const select = getByTestId("theme-switch") as HTMLSelectElement;
   const values = Array.from(select.options).map((o) => o.value);
-  expect(values).toEqual(["night", "day", "high-contrast", "red-night", "classic"]);
+  expect(values).toEqual(["night", "day", "sun", "high-contrast", "red-night", "classic"]);
 
   // Selecting a new theme sticks.
   await act(async () => {
