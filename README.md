@@ -271,7 +271,7 @@ semanticErrors(doc);     // error-severity issues only
   "elements": [ { "type": "compass", "bindings": ["value", "dir"], "glyphs": ["triangle", "diamond", …] }, … ],
   "sources": ["signalk"],
   "actionKinds": ["nav", "command"],
-  "themes": ["day", "night", "high-contrast"],
+  "themes": ["day", "night", "high-contrast", "red-night", "classic", "sun"],
   "fonts": [14, 20, 28, 48]
 }
 ```
