@@ -111,7 +111,15 @@ test("text widget renders a SignalK position object as two lat/lon lines", () =>
   const el = sv("navigation.position", undefined, undefined, "text");
   const m = resolveElement(el, new MockDataProvider({ "navigation.position": { value: { latitude: 41.386, longitude: 2.1738 } } }));
   expect(m.state).toBe("ok");
-  expect(m.text).toBe("41°23.16'N\n2°10.43'E");
+  expect(m.text).toBe("41°23.160'N\n002°10.428'E");
+});
+
+test("positions print like the firmware: padded degrees, 3-decimal minutes, carry at 60'", () => {
+  const el = sv("navigation.position", undefined, undefined, "text");
+  const at = (latitude: number, longitude: number) =>
+    resolveElement(el, new MockDataProvider({ "navigation.position": { value: { latitude, longitude } } })).text;
+  expect(at(43.354683, 15.792867)).toBe("43°21.281'N\n015°47.572'E");
+  expect(at(-5.5, -120.9999999)).toBe("05°30.000'S\n121°00.000'W");
 });
 
 test("stale value keeps its last reading but reports stale state", () => {
