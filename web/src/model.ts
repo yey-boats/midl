@@ -84,17 +84,19 @@ function isPosition(v: unknown): v is { latitude: number; longitude: number } {
 }
 
 // Render a position as two lines of degrees + decimal minutes with a hemisphere
-// suffix, e.g. "41°23.16'N\n2°10.43'E" — matching the design's text-position
-// widget. The renderer's text widget splits on "\n" into stacked lines.
+// suffix, the way the firmware prints it (instruments src/ui/ui_data.cpp
+// format_position, DDM "%02d°%06.3f'N" / "%03d°%06.3f'E"), e.g.
+// "41°23.160'N\n002°10.428'E". The text widget splits on "\n" into lines.
 function formatPosition(p: { latitude: number; longitude: number }): string {
-  const fmt = (val: number, pos: string, neg: string): string => {
+  const fmt = (val: number, width: number, pos: string, neg: string): string => {
     const hemi = val >= 0 ? pos : neg;
     const a = Math.abs(val);
-    const deg = Math.floor(a);
-    const min = (a - deg) * 60;
-    return `${deg}°${min.toFixed(2)}'${hemi}`;
+    let deg = Math.floor(a);
+    let min = Number(((a - deg) * 60).toFixed(3));
+    if (min >= 60) { deg += 1; min = 0; } // 59.9996' rounds up to the next degree
+    return `${String(deg).padStart(width, "0")}°${min.toFixed(3).padStart(6, "0")}'${hemi}`;
   };
-  return `${fmt(p.latitude, "N", "S")}\n${fmt(p.longitude, "E", "W")}`;
+  return `${fmt(p.latitude, 2, "N", "S")}\n${fmt(p.longitude, 3, "E", "W")}`;
 }
 
 function resolveMarkers(el: Element, provider: DataProvider): ResolvedMarker[] | undefined {
