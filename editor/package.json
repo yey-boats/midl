@@ -27,6 +27,8 @@
   "scripts": {
     "build:lib": "vite build --config vite.lib.config.ts && tsc --project tsconfig.build.json",
     "build:global": "vite build --config vite.global.config.ts",
+    "build:device": "node scripts/build-device.mjs",
+    "check:device": "node scripts/build-device.mjs --check",
     "test": "vitest run",
     "prepack": "cp ../LICENSE ../NOTICE ../COMMERCIAL.md .",
     "postpack": "rm -f LICENSE NOTICE COMMERCIAL.md"

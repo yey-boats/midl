@@ -23,3 +23,9 @@ build/
 /editor/LICENSE
 /editor/NOTICE
 /editor/COMMERCIAL.md
+
+# Device-hosted editor: the vite JS stage is scratch; the assembled
+# editor/device/dist/ (index.html.gz + manifest.json) is committed because the
+# display firmware embeds it from the midl submodule without running Node.
+editor/dist-device-build/
+!/editor/device/dist/

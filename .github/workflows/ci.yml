@@ -73,6 +73,12 @@ jobs:
       - name: Test (editor)
         run: npm test -w @yey-boats/midl-editor
 
+      # The device-hosted editor the display firmware embeds from this repo
+      # (editor/device/dist/, committed): rebuild it, fail above the 220 KB
+      # gzip budget, and fail when the committed output is stale.
+      - name: Device editor (build + size budget + freshness)
+        run: npm run check:device -w @yey-boats/midl-editor
+
   # midl#15: the Python validator (py/) and TS<->Python parity were never run
   # in CI. Installs py/, runs its pytest, then runs BOTH validators live over
   # conformance/cases.yaml and fails on any verdict difference (TS vs Python,

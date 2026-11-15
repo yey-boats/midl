@@ -53,6 +53,12 @@ export interface MidlEditorProps {
    * a label such as "Push to device ▸" to get the ghost Save + primary push pair.
    */
   pushLabel?: string;
+  /**
+   * Show the device-capability lint (what the manager's MIDL→v2 push drops).
+   * Default true. Hosts that deliver MIDL natively to a MIDL-only display (the
+   * device-hosted editor) pass false: nothing is dropped there.
+   */
+  deviceLint?: boolean;
 }
 
 // Imperative API exposed via ref (spec: webshell editor-chat surface, §6.1).
@@ -331,6 +337,7 @@ function LayoutControls({
 export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
   function MidlEditor(props: MidlEditorProps, ref): React.JSX.Element {
   const { store, provider, manifest: manifestSource, initialId, onSaved, pushLabel } = props;
+  const deviceLintOn = props.deviceLint !== false;
   const defaultClass = props.targetClass ?? "square-480";
 
   // ── State ────────────────────────────────────────────────────────────────────
@@ -586,7 +593,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
           source: "manifest",
         }));
         const maxTiles = manifest.classes.find((c) => c.id === className)?.maxTiles ?? 4;
-        const lintIssues: ValidationIssue[] = lintDeviceCapabilities(model, maxTiles, manifest).map((iss) => ({
+        const lintIssues: ValidationIssue[] = (deviceLintOn ? lintDeviceCapabilities(model, maxTiles, manifest) : []).map((iss) => ({
           path: "",
           message: iss.message,
           severity: iss.kind === "drop" ? "error" : "warning",
@@ -598,7 +605,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
         return className;
       },
     }),
-    [model, dirty, manifest, selectedCell, className],
+    [model, dirty, manifest, selectedCell, className, deviceLintOn],
   );
 
   // ── Preview ──────────────────────────────────────────────────────────────────
@@ -1304,7 +1311,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
       {/* Status bar — shown once manifest is available */}
       {manifest && (() => {
         const maxTiles = manifest.classes.find((c) => c.id === className)?.maxTiles ?? 4;
-        const lint = lintDeviceCapabilities(model, maxTiles, manifest);
+        const lint = deviceLintOn ? lintDeviceCapabilities(model, maxTiles, manifest) : [];
         return (
           <>
             <div data-testid="status-bar">
