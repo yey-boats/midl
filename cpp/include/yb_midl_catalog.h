@@ -36,7 +36,11 @@ inline constexpr const char *A_DIAL[] = {"title", "size",  "color",
                                          "sectors", "hull", "shape", nullptr};
 inline constexpr const char *A_WIND[] = {"title", "format", "size",  "unit",  "color",
                                          "side",  "sectors", "hull", "shape", nullptr};
-inline constexpr const char *A_TREND[] = {"title", "size", "unit", "color", nullptr};
+// trend: `format` (unit/decimals of the hero value and the y labels), `range`
+// (fixed y range in display units; absent = auto) and `history` (time window +
+// aggregation, see HISTORY_* below and docs/specs/2026-11-15-trend-history.md).
+inline constexpr const char *A_TREND[] = {"title", "format", "size", "unit",
+                                          "color", "range",  "history", nullptr};
 // clinometer (heel/pitch attitude dial): `format` carries format.decimals;
 // `color` and `zones` are optional style overrides — `zones` doubles as the
 // port/stbd heel-angle bands, `range` bounds the arc (e.g. max heel degrees).
@@ -104,18 +108,29 @@ inline constexpr size_t THEME_COUNT = (sizeof(THEMES) / sizeof(THEMES[0])) - 1;
 inline constexpr const char *PRESETS[] = {"full", "hero-split", nullptr};
 inline constexpr size_t PRESET_COUNT = (sizeof(PRESETS) / sizeof(PRESETS[0])) - 1;
 
+// Trend history capability (manifest top-level "history"). The device keeps
+// per-screen time-bucketed series in RAM only (lost on reboot): `points`
+// buckets per chart (step = window / points), at most `max_series` recorded
+// trend tiles per screen, windows up to HISTORY_MAX_WINDOW_S. HISTORY_WINDOWS
+// are the values the editor offers; any duration in [60 s, max] validates.
+inline constexpr int HISTORY_MIN_WINDOW_S = 60;
+inline constexpr int HISTORY_MAX_WINDOW_S = 86400;
+inline constexpr bool HISTORY_BACKFILL = true;
+inline constexpr const char *HISTORY_WINDOWS[] = {"10m", "30m", "1h", "6h", "24h", nullptr};
+
 struct ResClass {
     const char *id;
     int width, height, cols, rows, max_tiles, max_depth;
+    int history_points, history_max_series;
 };
 inline constexpr ResClass CLASSES[] = {
-    {"square-480", 480, 480, 3, 3, 9, 3},
-    {"landscape-800x480", 800, 480, 3, 2, 6, 3},
-    {"landscape-1024x600", 1024, 600, 3, 2, 6, 4},
+    {"square-480", 480, 480, 3, 3, 9, 3, 120, 6},
+    {"landscape-800x480", 800, 480, 3, 2, 6, 3, 120, 6},
+    {"landscape-1024x600", 1024, 600, 3, 2, 6, 4, 120, 6},
     // Round face: circular clipping leaves far less usable corner area than a
     // square/landscape panel of similar diagonal, so tile budget and nesting
     // depth are constrained well below square-480 (2x2 grid, max 4 tiles).
-    {"round-360", 360, 360, 2, 2, 4, 2},
+    {"round-360", 360, 360, 2, 2, 4, 2, 90, 2},
 };
 inline constexpr size_t CLASS_COUNT = sizeof(CLASSES) / sizeof(CLASSES[0]);
 

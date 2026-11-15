@@ -42,6 +42,17 @@
     "actionKinds": { "type": "array", "items": { "type": "string" } },
     "presets": { "type": "array", "items": { "type": "string" } },
     "fonts": { "type": "array", "items": { "type": "integer" } },
-    "themes": { "type": "array", "items": { "type": "string" } }
+    "themes": { "type": "array", "items": { "type": "string" } },
+    "history": {
+      "description": "Trend history capability (docs/specs/2026-11-15-trend-history.md).",
+      "type": "object",
+      "properties": {
+        "points": { "type": "integer", "minimum": 1 },
+        "maxSeries": { "type": "integer", "minimum": 0 },
+        "maxWindowS": { "type": "integer", "minimum": 60 },
+        "windows": { "type": "array", "items": { "type": "string" } },
+        "backfill": { "type": "boolean" }
+      }
+    }
   }
 }

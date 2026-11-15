@@ -76,7 +76,7 @@
           "type": "object",
           "properties": {
             "range": {
-              "description": "Gauge/bar value limits [lo, hi] in DISPLAY units (post-format). The fill fraction is (value-lo)/(hi-lo). Semantic pass requires hi > lo.",
+              "description": "Gauge/bar value limits [lo, hi] in DISPLAY units (post-format); on a `trend` the fixed y range (absent = auto). The fill fraction is (value-lo)/(hi-lo). Semantic pass requires hi > lo.",
               "type": "array",
               "items": { "type": "number" },
               "minItems": 2,
@@ -141,6 +141,21 @@
               "dir": { "description": "Data source whose value gives the marker's bow-relative angle.", "$ref": "#/$defs/source" },
               "kind": { "description": "Marker kind: `rim` (default, orbits the dial rim) or `vector` (center vector, e.g. tide/current).", "type": "string", "enum": ["rim", "vector"] }
             }
+          }
+        },
+        "history": {
+          "description": "Trend history (only on `trend`): the chart spans `window` (right edge = now) as fixed time buckets; `agg` combines the samples in one bucket. Absent = window 10m, agg avg. The semantic pass requires window >= 60 s and <= the device manifest's history.maxWindowS. See docs/specs/2026-11-15-trend-history.md.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "window": {
+              "description": "Time span of the chart: a duration string `<n>s`, `<n>m` or `<n>h` (e.g. `10m`), or a number of seconds.",
+              "oneOf": [
+                { "type": "string", "pattern": "^\\d+[smh]$" },
+                { "type": "integer", "minimum": 1 }
+              ]
+            },
+            "agg": { "description": "How the samples in one bucket are combined (default `avg`).", "type": "string", "enum": ["avg", "min", "max", "last"] }
           }
         },
         "action": { "description": "Optional interaction performed when the element is activated (e.g. a button).", "$ref": "#/$defs/action" },

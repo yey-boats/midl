@@ -667,5 +667,38 @@
   "fixture-unknown-element-admissible-square-480": {
     "ok": true,
     "paths": []
+  },
+  "valid-trend-history": {
+    "ok": true,
+    "paths": []
+  },
+  "valid-trend-history-seconds": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-trend-history-window-short": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/t/history/window"
+    ]
+  },
+  "invalid-trend-history-window-shape": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/t/history/window",
+      "/screens/0/elements/t/history/agg"
+    ]
+  },
+  "invalid-history-not-trend": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/v/history"
+    ]
+  },
+  "invalid-trend-history-over-device-max": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/t/history/window"
+    ]
   }
 }

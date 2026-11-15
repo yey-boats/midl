@@ -15,6 +15,12 @@ export { parseDoc, toCanonicalJson, toYaml } from "./canonicalize";
 export { validateConfigStructure, validateManifestStructure } from "./validate";
 export { validateSemantics, semanticErrors } from "./semantic";
 export { satisfies } from "./satisfy";
+export {
+  HISTORY_AGGS, HISTORY_MIN_WINDOW_S, HISTORY_DEFAULT_MAX_WINDOW_S, HISTORY_DEFAULT_WINDOW_S,
+  HISTORY_DEFAULT_POINTS, HISTORY_DEFAULT_AGG, HISTORY_DEFAULT_WINDOWS,
+  parseWindowS, formatWindow, resolveHistory,
+} from "./history";
+export type { ResolvedHistory } from "./history";
 export { migrateDocument, registerMigration } from "./migrate";
 export type { Migration } from "./migrate";
 export { solveLayout } from "./solve";

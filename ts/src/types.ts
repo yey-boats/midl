@@ -68,6 +68,16 @@ export interface Marker {
 // NOTE: the device push pipeline (midlToV2 -> firmware) currently carries only
 // type/path/unit/title; the editor's device-capability lint flags style/format
 // keys (and markers/action/dir) that will not reach a given device.
+// Trend history (`trend` only): the chart spans `window` (a duration "10m",
+// "1h", "90s" or a number of seconds; 60 s .. manifest history.maxWindowS) as
+// fixed time buckets, `agg` combines the samples in one bucket. Absent means
+// { window: "10m", agg: "avg" }. See docs/specs/2026-11-15-trend-history.md.
+export type HistoryAgg = "avg" | "min" | "max" | "last";
+export interface TrendHistory {
+  window?: string | number;
+  agg?: HistoryAgg;
+}
+
 export interface Element {
   type: string;
   name?: string;
@@ -81,6 +91,8 @@ export interface Element {
   markers?: Marker[];
   action?: Action;
   zoom?: string;
+  // Trend history window/aggregation (`trend` only).
+  history?: TrendHistory;
 }
 
 export type Node =
@@ -154,6 +166,23 @@ export interface Manifest {
   glyphs?: string[];
   // Maximum authored markers a single dial can render on this device.
   maxMarkersPerDial?: number;
+  // Trend history capability. Absent on older manifests (treat as the
+  // defaults: 120 points, no series limit known, 24 h max window).
+  history?: HistoryCap;
+}
+
+// Trend history capability (manifest top level, generated from the catalog).
+export interface HistoryCap {
+  // Buckets per chart: step = window / points.
+  points?: number;
+  // Most trend tiles with history on one screen; extra tiles show the number only.
+  maxSeries?: number;
+  // Longest window the device records.
+  maxWindowS?: number;
+  // Windows the editor offers (any duration within limits validates).
+  windows?: string[];
+  // The device backfills from the SignalK History API when the server has one.
+  backfill?: boolean;
 }
 
 // An issue surfaced by a validation pass. `severity` distinguishes hard

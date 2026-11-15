@@ -19,7 +19,7 @@ tws:
   bindings:
     value: { kind: signalk, path: environment.wind.speedTrue }
   history:
-    window: 10m        # duration: "<n>s" | "<n>m" | "<n>h", or a number of seconds
+    window: 10m        # duration: "<n>s" | "<n>m" | "<n>h", or an integer number of seconds
     agg: avg           # avg | min | max | last   (default avg)
   style:
     range: [0, 30]     # optional, in DISPLAY units (after format.unit). Absent = auto.
