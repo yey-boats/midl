@@ -13,6 +13,9 @@ import { MidlEditor, getDeviceDimensions } from "./MidlEditor";
 import type { MidlEditorHandle } from "./MidlEditor";
 import { parseMidl } from "./midl-io";
 import { EditorError } from "./model";
+import { readFileSync } from "node:fs";
+
+const editorCss = readFileSync(new URL("./midl-editor.css", import.meta.url), "utf8");
 
 // ── rAF shims ─────────────────────────────────────────────────────────────────
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
@@ -134,6 +137,26 @@ test("mounts with initialId and shows non-empty sanitized SVG in preview-host", 
     expect(host.innerHTML).toBeTruthy();
     expect(host.innerHTML).toContain("<svg");
   }, { timeout: 3000 });
+});
+
+test("grid cells sit above the preview so a click selects a cell", async () => {
+  // midl-editor.css stacks the preview host (and the frame's inset shade) with
+  // z-index; the transparent cell overlay must be above all of them, or the SVG
+  // takes every click and no cell can be selected (bench display, 2026-11-15).
+  const cssZ = [...editorCss.matchAll(/preview-host"\][^{]*\{[^}]*z-index:\s*(\d+)/g)].map((m) => Number(m[1]));
+  expect(cssZ.length).toBeGreaterThan(0);
+  const { getByTestId } = render(
+    <MidlEditor
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => expect(getByTestId("preview-host").innerHTML).toContain("<svg"), { timeout: 3000 });
+  const overlayZ = Number(getByTestId("grid-overlay").style.zIndex);
+  expect(overlayZ).toBeGreaterThan(Math.max(...cssZ, 3));
 });
 
 test("mode toggle updates mode-body text but model persists", async () => {

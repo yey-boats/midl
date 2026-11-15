@@ -1212,7 +1212,10 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
                     // eslint-disable-next-line react/no-danger
                     dangerouslySetInnerHTML={{ __html: previewSvg }}
                   />
-                  <div style={{ position: "absolute", inset: 0 }}>
+                  {/* Above the preview host (z-index 2) and the frame's inset shade
+                      (z-index 3, pointer-events none): otherwise the SVG preview takes
+                      every click and no cell can be selected. Cells are transparent. */}
+                  <div data-testid="grid-overlay" style={{ position: "absolute", inset: 0, zIndex: 4 }}>
                     <GridCanvas
                       model={model}
                       viewport={{ w: deviceDims.w, h: deviceDims.h }}
