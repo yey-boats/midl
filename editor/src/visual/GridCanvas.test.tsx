@@ -6,7 +6,7 @@ import { test, expect, vi, afterEach } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import React from "react";
 import type { EditorModel } from "../model";
-import { GridCanvas } from "./GridCanvas";
+import { GridCanvas, placeCells } from "./GridCanvas";
 
 afterEach(() => cleanup());
 
@@ -230,4 +230,31 @@ test("cell with rowSpan=2 in a 2-row grid occupies 100% height", () => {
   // cell-0 rowSpan=2: height = 2 * (100/2) = 100%
   expect(getByTestId("cell-0").style.height).toBe("100%");
   expect(getByTestId("cell-1").style.height).toBe("50%");
+});
+
+test("after a spanning cell, later cells sit where the renderer puts them", () => {
+  // 2×2 wind screen: dial across the top, two tiles below (3 cells, not 4).
+  const cells = [{ element: "wind", colSpan: 2 }, { element: "tws" }, { element: "twd" }];
+  const model: EditorModel = {
+    midl: "1.0.0", screenId: "screen", title: "Test", elements: {},
+    layout: { rows: 2, cols: 2, cells }, variants: [],
+  };
+  const { getByTestId } = render(
+    <GridCanvas model={model} viewport={VIEWPORT} selected={null} onSelect={vi.fn()} />,
+  );
+  const at = (i: number) => {
+    const s = getByTestId(`cell-${i}`).style;
+    return [s.left, s.top, s.width, s.height];
+  };
+  expect(at(0)).toEqual(["0%", "0%", "100%", "50%"]);
+  expect(at(1)).toEqual(["0%", "50%", "50%", "50%"]);
+  expect(at(2)).toEqual(["50%", "50%", "50%", "50%"]);
+});
+
+test("placeCells skips slots covered by a rowSpan and drops cells past the grid", () => {
+  const p = placeCells(2, 2, [{ rowSpan: 2 }, {}, {}, {}]);
+  expect(p[0]).toEqual({ row: 0, col: 0, colSpan: 1, rowSpan: 2 });
+  expect(p[1]).toEqual({ row: 0, col: 1, colSpan: 1, rowSpan: 1 });
+  expect(p[2]).toEqual({ row: 1, col: 1, colSpan: 1, rowSpan: 1 });
+  expect(p[3]).toBeNull();
 });

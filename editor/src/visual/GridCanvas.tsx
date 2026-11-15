@@ -30,20 +30,23 @@ export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: G
   const cellW = 100 / cols;
   const cellH = 100 / rows;
 
+  // Place cells the way the renderer does (ts/src/solve.ts): row-major, each
+  // cell takes the next free slot and a span marks every slot it covers. With
+  // spans, cell i is no longer at slot i, so the overlay must not use i.
+  const placed = placeCells(rows, cols, cells);
+
   return (
     <div
       data-component="grid-canvas"
       style={{ position: "relative", width: "100%", height: "100%" }}
     >
       {cells.map((cell, i) => {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        const leftPct = col * cellW;
-        const topPct = row * cellH;
-        const colSpan = cell.colSpan ?? 1;
-        const rowSpan = cell.rowSpan ?? 1;
-        const widthPct = cellW * colSpan;
-        const heightPct = cellH * rowSpan;
+        const at = placed[i];
+        if (!at) return null; // past the grid: the renderer drops it too
+        const leftPct = at.col * cellW;
+        const topPct = at.row * cellH;
+        const widthPct = cellW * at.colSpan;
+        const heightPct = cellH * at.rowSpan;
 
         const isSelected = i === selected;
         const isHovered = i === hovered;
@@ -144,4 +147,29 @@ export function GridCanvas({ model, viewport: _viewport, selected, onSelect }: G
       })}
     </div>
   );
+}
+
+export interface CellPlacement { row: number; col: number; colSpan: number; rowSpan: number }
+
+/** Grid slot of each cell, as the renderer's solver assigns it (null when the
+ *  grid is already full). Spans are clamped to the grid edge. */
+export function placeCells(
+  rows: number,
+  cols: number,
+  cells: Array<{ colSpan?: number; rowSpan?: number }>,
+): Array<CellPlacement | null> {
+  const occupied = new Array<boolean>(rows * cols).fill(false);
+  let slot = 0;
+  return cells.map((cell) => {
+    while (slot < occupied.length && occupied[slot]) slot++;
+    if (slot >= occupied.length) return null;
+    const row = Math.floor(slot / cols);
+    const col = slot % cols;
+    const colSpan = Math.max(1, Math.min(typeof cell.colSpan === "number" ? cell.colSpan : 1, cols - col));
+    const rowSpan = Math.max(1, Math.min(typeof cell.rowSpan === "number" ? cell.rowSpan : 1, rows - row));
+    for (let dr = 0; dr < rowSpan; dr++) {
+      for (let dc = 0; dc < colSpan; dc++) occupied[(row + dr) * cols + col + dc] = true;
+    }
+    return { row, col, colSpan, rowSpan };
+  });
 }
