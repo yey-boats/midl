@@ -139,9 +139,14 @@ its native painter:
 | `trend` | rolling sparkline | `value` | |
 | `autopilot` | state pill + nudge buttons | `value` | action |
 | `button` | tap target | — | action |
+| `clinometer` | heel/pitch attitude arc | `value` | `range`, `zones` |
+| `windsteer` | heading-up wind-steering dial with laylines | `value`, `dir` | full-screen composite; windrose stand-in when small |
 
 Markers (on dials), glyphs, fonts, themes, and per-class tile/nesting limits are
 all advertised by the device manifest.
+
+The built-in screens every display ships with (dashboard, wind, autopilot, …)
+are MIDL documents too: see [`library/builtin/`](library/builtin/README.md).
 
 ## The layout grammar
 

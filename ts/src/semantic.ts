@@ -26,9 +26,9 @@ import type { ConfigDoc, Element, Issue, Node, Screen, Source } from "./types";
 import { PRESETS } from "./presets";
 
 // Known element types and the bindings they require to render anything
-// meaningful. Mirrors the C++ catalog's 10 element types. `button` is an action
-// trigger and binds nothing; `compass`/`windrose` require `value` and accept an
-// optional `dir` binding (a heading reference); `clinometer` (heel/pitch
+// meaningful. Mirrors the C++ catalog's 11 element types. `button` is an action
+// trigger and binds nothing; `compass`/`windrose`/`windsteer` require `value`
+// and accept an optional `dir` binding (a heading reference); `clinometer` (heel/pitch
 // attitude dial) requires `value` (e.g. navigation.attitude roll). Types absent
 // from this registry are *allowed* (extensibility) but produce a warning, not
 // an error.
@@ -43,6 +43,7 @@ const ELEMENT_REQUIRED_BINDINGS: Record<string, string[]> = {
   windrose: ["value"],
   button: [],
   clinometer: ["value"],
+  windsteer: ["value"],
 };
 
 function err(path: string, message: string): Issue {

@@ -1,0 +1,224 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Trip",
+    "description": "Trip log: distance run, time under way, average and maximum speed, and live SOG.",
+    "useCase": "Passage log: how far and how fast since the trip was reset.",
+    "agentNotes": "trip.* are device-local numbers in display units (nm, kn); trip.underway is text.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "trip",
+      "title": "Trip",
+      "elements": {
+        "dist": {
+          "type": "single-value",
+          "name": "DISTANCE",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "trip.distance"
+            }
+          },
+          "format": {
+            "unit": "nm",
+            "decimals": 2
+          },
+          "style": {
+            "size": "XL",
+            "color": "accent"
+          }
+        },
+        "time": {
+          "type": "text",
+          "name": "TIME UNDERWAY",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "trip.underway"
+            }
+          }
+        },
+        "avg": {
+          "type": "single-value",
+          "name": "AVG SPEED",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "trip.avgSpeed"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          }
+        },
+        "max": {
+          "type": "single-value",
+          "name": "MAX SPEED",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "trip.maxSpeed"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          }
+        },
+        "now": {
+          "type": "single-value",
+          "name": "NOW",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.speedOverGround"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          },
+          "style": {
+            "color": "good"
+          }
+        }
+      },
+      "layout": {
+        "flow": "col",
+        "children": [
+          {
+            "element": "dist"
+          },
+          {
+            "flow": "row",
+            "children": [
+              {
+                "element": "time"
+              },
+              {
+                "element": "avg"
+              },
+              {
+                "element": "max"
+              }
+            ]
+          },
+          {
+            "element": "now"
+          }
+        ],
+        "weights": [
+          2,
+          1,
+          1
+        ]
+      },
+      "variants": [
+        {
+          "class": "square-480",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "dist"
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "time"
+                  },
+                  {
+                    "element": "avg"
+                  },
+                  {
+                    "element": "max"
+                  }
+                ]
+              },
+              {
+                "element": "now"
+              }
+            ],
+            "weights": [
+              2,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "class": "landscape-800x480",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "dist"
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "time"
+                  },
+                  {
+                    "element": "avg"
+                  },
+                  {
+                    "element": "max"
+                  }
+                ]
+              },
+              {
+                "element": "now"
+              }
+            ],
+            "weights": [
+              2,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "class": "landscape-1024x600",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "dist"
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "time"
+                  },
+                  {
+                    "element": "avg"
+                  },
+                  {
+                    "element": "max"
+                  }
+                ]
+              },
+              {
+                "element": "now"
+              }
+            ],
+            "weights": [
+              2,
+              1,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

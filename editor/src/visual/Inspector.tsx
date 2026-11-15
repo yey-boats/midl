@@ -50,7 +50,7 @@ const ACTION_KIND_OPTIONS = ["put", "command", "nav"] as const;
 // always editable regardless of type (see isActionType below).
 const ACTION_TYPES = new Set(["button", "control", "autopilot"]);
 // Dial element types that support markers / sectors / hull / shape.
-const DIAL_TYPES = new Set(["compass", "windrose"]);
+const DIAL_TYPES = new Set(["compass", "windrose", "windsteer"]);
 // The 10 MIDL dial glyphs (mirrors web/src/svg/glyphs.ts GLYPH_NAMES).
 const MARKER_GLYPH_OPTIONS = [
   "triangle", "diamond", "circle", "bar", "cross",

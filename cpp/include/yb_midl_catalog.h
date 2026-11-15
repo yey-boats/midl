@@ -56,6 +56,12 @@ inline constexpr ElementType ELEMENTS[] = {
     // Heel arc with port/stbd bands + pitch secondary; binds
     // navigation.attitude roll (value). No glyphs — it is not a marker dial.
     {"clinometer", "Clinometer", B_VALUE, A_CLIN, false},
+    // Heading-up wind-steering composite (firmware windsteer:: painter): a
+    // semicircular compass with no-go/target layline sectors, a HDG/COG/CTS/TWD
+    // marker ring and wind/speed tiles. Binds apparent wind like `windrose`
+    // (value = AWS, dir = AWA); below the full-screen threshold the firmware
+    // and the web renderers draw the windrose stand-in.
+    {"windsteer", "WindSteer", B_VALUE_DIR, A_WIND, true},
 };
 inline constexpr size_t ELEMENT_COUNT = sizeof(ELEMENTS) / sizeof(ELEMENTS[0]);
 

@@ -1,0 +1,327 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Wind Classic",
+    "description": "Classic wind instrument: wind rose with the apparent/true wind, heading, course and speed readouts.",
+    "useCase": "Sailing with the full set of wind and speed numbers beside the rose.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "wind_classic",
+      "title": "Wind Classic",
+      "elements": {
+        "rose": {
+          "type": "windrose",
+          "name": "AWS",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.speedApparent"
+            },
+            "dir": {
+              "kind": "signalk",
+              "path": "environment.wind.angleApparent"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          },
+          "style": {
+            "color": "warn"
+          }
+        },
+        "aws": {
+          "type": "single-value",
+          "name": "AWS",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.speedApparent"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          },
+          "style": {
+            "color": "warn"
+          }
+        },
+        "awa": {
+          "type": "single-value",
+          "name": "AWA",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.angleApparent"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0,
+            "side": true
+          },
+          "style": {
+            "color": "warn"
+          }
+        },
+        "tws": {
+          "type": "single-value",
+          "name": "TWS",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.speedTrue"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          }
+        },
+        "twa": {
+          "type": "single-value",
+          "name": "TWA",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.angleTrueWater"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0,
+            "side": true
+          }
+        },
+        "hdg": {
+          "type": "single-value",
+          "name": "HDG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.headingTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          },
+          "style": {
+            "color": "accent"
+          }
+        },
+        "cog": {
+          "type": "single-value",
+          "name": "COG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.courseOverGroundTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          }
+        },
+        "sog": {
+          "type": "single-value",
+          "name": "SOG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.speedOverGround"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          },
+          "style": {
+            "color": "good"
+          }
+        },
+        "stw": {
+          "type": "single-value",
+          "name": "STW",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.speedThroughWater"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          }
+        }
+      },
+      "layout": {
+        "flow": "col",
+        "children": [
+          {
+            "element": "rose"
+          },
+          {
+            "rows": 2,
+            "cols": 4,
+            "cells": [
+              {
+                "element": "aws"
+              },
+              {
+                "element": "awa"
+              },
+              {
+                "element": "tws"
+              },
+              {
+                "element": "twa"
+              },
+              {
+                "element": "hdg"
+              },
+              {
+                "element": "cog"
+              },
+              {
+                "element": "sog"
+              },
+              {
+                "element": "stw"
+              }
+            ]
+          }
+        ],
+        "weights": [
+          2,
+          1
+        ]
+      },
+      "variants": [
+        {
+          "class": "square-480",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "rose"
+              },
+              {
+                "rows": 2,
+                "cols": 4,
+                "cells": [
+                  {
+                    "element": "aws"
+                  },
+                  {
+                    "element": "awa"
+                  },
+                  {
+                    "element": "tws"
+                  },
+                  {
+                    "element": "twa"
+                  },
+                  {
+                    "element": "hdg"
+                  },
+                  {
+                    "element": "cog"
+                  },
+                  {
+                    "element": "sog"
+                  },
+                  {
+                    "element": "stw"
+                  }
+                ]
+              }
+            ],
+            "weights": [
+              2,
+              1
+            ]
+          }
+        },
+        {
+          "class": "landscape-800x480",
+          "layout": {
+            "flow": "row",
+            "children": [
+              {
+                "element": "rose"
+              },
+              {
+                "rows": 5,
+                "cols": 1,
+                "cells": [
+                  {
+                    "element": "tws"
+                  },
+                  {
+                    "element": "twa"
+                  },
+                  {
+                    "element": "sog"
+                  },
+                  {
+                    "element": "stw"
+                  },
+                  {
+                    "element": "cog"
+                  }
+                ]
+              }
+            ],
+            "weights": [
+              3,
+              2
+            ]
+          }
+        },
+        {
+          "class": "landscape-1024x600",
+          "layout": {
+            "flow": "row",
+            "children": [
+              {
+                "element": "rose"
+              },
+              {
+                "rows": 5,
+                "cols": 1,
+                "cells": [
+                  {
+                    "element": "tws"
+                  },
+                  {
+                    "element": "twa"
+                  },
+                  {
+                    "element": "sog"
+                  },
+                  {
+                    "element": "stw"
+                  },
+                  {
+                    "element": "cog"
+                  }
+                ]
+              }
+            ],
+            "weights": [
+              3,
+              2
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

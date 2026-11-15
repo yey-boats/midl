@@ -1,0 +1,107 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "AP HUD",
+    "description": "Round autopilot view: mode badge, big target heading and current heading.",
+    "useCase": "Knob: steer the autopilot target with the dial.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "ap_hud",
+      "title": "AP HUD",
+      "elements": {
+        "state": {
+          "type": "autopilot",
+          "name": "AP",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "steering.autopilot.state"
+            }
+          },
+          "style": {
+            "color": "good"
+          }
+        },
+        "target": {
+          "type": "single-value",
+          "name": "TARGET",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "steering.autopilot.target.headingTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          },
+          "style": {
+            "size": "XL",
+            "color": "accent"
+          }
+        },
+        "hdg": {
+          "type": "single-value",
+          "name": "HDG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.headingTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          }
+        }
+      },
+      "layout": {
+        "flow": "col",
+        "children": [
+          {
+            "element": "state"
+          },
+          {
+            "element": "target"
+          },
+          {
+            "element": "hdg"
+          }
+        ],
+        "weights": [
+          1,
+          2,
+          1
+        ]
+      },
+      "variants": [
+        {
+          "class": "round-360",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "state"
+              },
+              {
+                "element": "target"
+              },
+              {
+                "element": "hdg"
+              }
+            ],
+            "weights": [
+              1,
+              2,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

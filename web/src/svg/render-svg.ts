@@ -22,7 +22,7 @@ import {
 
 export { TrendBuffers } from "../paint";
 
-const ROUND_TYPES = new Set(["compass", "windrose"]);
+const ROUND_TYPES = new Set(["compass", "windrose", "windsteer"]);
 /** Smallest round-safe content width worth drawing into (#36). */
 const MIN_SAFE = 24;
 // Control elements that handle their own no-data state (they must never be
@@ -50,7 +50,7 @@ function isTileDial(el: Element, rect: Rect): boolean {
  *  dial (windrose_is_fullscreen: w >= 400 && h >= 300). Every compass and
  *  every smaller windrose keeps its top-left caption. */
 function ownsCentreCaption(el: Element, rect: Rect): boolean {
-  return el.type === "windrose" && !isTileDial(el, rect) && rect.w >= 400 && rect.h >= 300;
+  return (el.type === "windrose" || el.type === "windsteer") && !isTileDial(el, rect) && rect.w >= 400 && rect.h >= 300;
 }
 
 function widgetSvg(el: Element, p: Placement, rect: Rect, m: ElementModel, th: Theme, trends?: TrendBuffers): string {
@@ -77,6 +77,10 @@ function widgetSvg(el: Element, p: Placement, rect: Rect, m: ElementModel, th: T
     case "compass":
       return dialSvg(rect, m, th.accent, th, dialOpts);
     case "windrose":
+    // TODO: `windsteer` (heading-up wind-steering composite with layline
+    // sectors) has no dedicated SVG face yet; it previews as the wind dial,
+    // like the firmware's below-threshold windrose stand-in.
+    case "windsteer":
       return dialSvg(rect, m, th.warn, th, dialOpts);
     case "gauge":
       return gaugeSvg(rect, m, th, opts);

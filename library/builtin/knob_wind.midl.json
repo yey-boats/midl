@@ -1,0 +1,87 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Wind",
+    "description": "Round apparent-wind view: AWS with the apparent wind angle and side.",
+    "useCase": "Knob: apparent wind at a glance.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "knob_wind",
+      "title": "Wind",
+      "elements": {
+        "aws": {
+          "type": "single-value",
+          "name": "APP WIND",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.speedApparent"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          },
+          "style": {
+            "size": "XL",
+            "color": "warn"
+          }
+        },
+        "awa": {
+          "type": "single-value",
+          "name": "AWA",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.angleApparent"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0,
+            "side": true
+          }
+        }
+      },
+      "layout": {
+        "flow": "col",
+        "children": [
+          {
+            "element": "aws"
+          },
+          {
+            "element": "awa"
+          }
+        ],
+        "weights": [
+          3,
+          1
+        ]
+      },
+      "variants": [
+        {
+          "class": "round-360",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "aws"
+              },
+              {
+                "element": "awa"
+              }
+            ],
+            "weights": [
+              3,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

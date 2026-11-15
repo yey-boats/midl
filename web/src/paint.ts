@@ -163,7 +163,8 @@ export function paintScreen(
     const custom = zone ?? styleColor;
     switch (el.type) {
       case "compass": dial(ctx, p, m, custom ?? th.accent, th, custom); break;
-      case "windrose": dial(ctx, p, m, custom ?? th.warn, th, custom); break;
+      case "windrose":
+      case "windsteer": dial(ctx, p, m, custom ?? th.warn, th, custom); break; // windsteer: windrose stand-in
       case "gauge": gauge(ctx, p, m, th, custom); break;
       case "bar": bar(ctx, p, m, th, Array.isArray(style.zones) && style.zones.length > 0, zone, styleColor, typeof style.center === "number"); break;
       case "trend": {

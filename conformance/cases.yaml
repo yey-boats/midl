@@ -186,6 +186,40 @@ cases:
             heel: { type: clinometer }
           layout: { element: heel }
 
+  - name: valid-windsteer-square-480
+    targetClass: square-480
+    note: windsteer (wind-steering composite) over a nudge-button row, as the built-in wind_steer screen
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            ws: { type: windsteer, bindings: { value: { kind: signalk, path: environment.wind.speedApparent }, dir: { kind: signalk, path: environment.wind.angleApparent } } }
+            m1: { type: button, name: "-1", action: { kind: command, target: autopilot heading -1 } }
+          layout: { flow: col, weights: [3, 1], children: [{ element: ws }, { element: m1 }] }
+
+  - name: invalid-windsteer-missing-value
+    targetClass: square-480
+    note: windsteer requires a value binding, same as windrose
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            ws: { type: windsteer }
+          layout: { element: ws }
+
+  - name: valid-text-local-id
+    targetClass: square-480
+    note: text-valued device-local ids (status record) bind with kind local
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            ip: { type: text, name: IP, bindings: { value: { kind: local, id: net.ip } } }
+          layout: { element: ip }
+
   # midl#22: firmware source/action kinds (instruments include/midl_kinds.h).
   - name: valid-const-source
     targetClass: square-480

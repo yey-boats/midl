@@ -1,0 +1,235 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Status",
+    "description": "Device health: network, SignalK connection, memory, uptime and firmware build.",
+    "useCase": "Checking Wi-Fi, SignalK and firmware state.",
+    "agentNotes": "All values are text-valued device-local ids; unknown ids render --.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "status",
+      "title": "Status",
+      "elements": {
+        "ip": {
+          "type": "text",
+          "name": "IP",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "net.ip"
+            }
+          }
+        },
+        "ssid": {
+          "type": "text",
+          "name": "SSID",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "net.ssid"
+            }
+          }
+        },
+        "rssi": {
+          "type": "text",
+          "name": "RSSI",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "net.rssi"
+            }
+          }
+        },
+        "sk": {
+          "type": "text",
+          "name": "SIGNALK",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "sk.state"
+            }
+          }
+        },
+        "skhost": {
+          "type": "text",
+          "name": "SK HOST",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "sk.host"
+            }
+          }
+        },
+        "heap": {
+          "type": "text",
+          "name": "HEAP",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "sys.heap"
+            }
+          }
+        },
+        "uptime": {
+          "type": "text",
+          "name": "UPTIME",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "sys.uptime"
+            }
+          }
+        },
+        "version": {
+          "type": "text",
+          "name": "VERSION",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "sys.version"
+            }
+          }
+        },
+        "build": {
+          "type": "text",
+          "name": "BUILD",
+          "bindings": {
+            "value": {
+              "kind": "local",
+              "id": "sys.build"
+            }
+          }
+        }
+      },
+      "layout": {
+        "rows": 3,
+        "cols": 3,
+        "cells": [
+          {
+            "element": "ip"
+          },
+          {
+            "element": "ssid"
+          },
+          {
+            "element": "rssi"
+          },
+          {
+            "element": "sk"
+          },
+          {
+            "element": "skhost"
+          },
+          {
+            "element": "heap"
+          },
+          {
+            "element": "uptime"
+          },
+          {
+            "element": "version"
+          },
+          {
+            "element": "build"
+          }
+        ]
+      },
+      "variants": [
+        {
+          "class": "square-480",
+          "layout": {
+            "rows": 3,
+            "cols": 3,
+            "cells": [
+              {
+                "element": "ip"
+              },
+              {
+                "element": "ssid"
+              },
+              {
+                "element": "rssi"
+              },
+              {
+                "element": "sk"
+              },
+              {
+                "element": "skhost"
+              },
+              {
+                "element": "heap"
+              },
+              {
+                "element": "uptime"
+              },
+              {
+                "element": "version"
+              },
+              {
+                "element": "build"
+              }
+            ]
+          }
+        },
+        {
+          "class": "landscape-800x480",
+          "layout": {
+            "rows": 2,
+            "cols": 3,
+            "cells": [
+              {
+                "element": "ip"
+              },
+              {
+                "element": "ssid"
+              },
+              {
+                "element": "rssi"
+              },
+              {
+                "element": "sk"
+              },
+              {
+                "element": "uptime"
+              },
+              {
+                "element": "version"
+              }
+            ]
+          }
+        },
+        {
+          "class": "landscape-1024x600",
+          "layout": {
+            "rows": 2,
+            "cols": 3,
+            "cells": [
+              {
+                "element": "ip"
+              },
+              {
+                "element": "ssid"
+              },
+              {
+                "element": "rssi"
+              },
+              {
+                "element": "sk"
+              },
+              {
+                "element": "uptime"
+              },
+              {
+                "element": "version"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

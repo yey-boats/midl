@@ -1,0 +1,48 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Depth",
+    "description": "Round single big value: depth below the transducer.",
+    "useCase": "Knob: one number, readable across the cockpit.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "knob_big",
+      "title": "Depth",
+      "elements": {
+        "depth": {
+          "type": "single-value",
+          "name": "DEPTH",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.depth.belowTransducer"
+            }
+          },
+          "format": {
+            "unit": "m",
+            "decimals": 1
+          },
+          "style": {
+            "size": "Fill",
+            "color": "accent"
+          }
+        }
+      },
+      "layout": {
+        "element": "depth"
+      },
+      "variants": [
+        {
+          "class": "round-360",
+          "layout": {
+            "element": "depth"
+          }
+        }
+      ]
+    }
+  ]
+}

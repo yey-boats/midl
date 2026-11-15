@@ -1,0 +1,227 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Depth",
+    "description": "Depth below keel hero with water temperature, SOG, TWA and a depth-history sparkline.",
+    "useCase": "Shallow water, anchoring and pilotage.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "depth",
+      "title": "Depth",
+      "elements": {
+        "depth": {
+          "type": "single-value",
+          "name": "BELOW KEEL",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.depth.belowKeel"
+            }
+          },
+          "format": {
+            "unit": "m",
+            "decimals": 1
+          },
+          "style": {
+            "size": "XL",
+            "color": "accent"
+          }
+        },
+        "temp": {
+          "type": "single-value",
+          "name": "WATER TEMP",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.water.temperature"
+            }
+          },
+          "format": {
+            "unit": "degC",
+            "decimals": 1
+          }
+        },
+        "sog": {
+          "type": "single-value",
+          "name": "SOG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.speedOverGround"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          }
+        },
+        "twa": {
+          "type": "single-value",
+          "name": "TWA",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.angleTrueWater"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0,
+            "side": true
+          }
+        },
+        "hist": {
+          "type": "trend",
+          "name": "DEPTH HISTORY",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.depth.belowKeel"
+            }
+          },
+          "format": {
+            "unit": "m"
+          },
+          "style": {
+            "color": "accent"
+          }
+        }
+      },
+      "layout": {
+        "flow": "col",
+        "children": [
+          {
+            "element": "depth"
+          },
+          {
+            "flow": "row",
+            "children": [
+              {
+                "element": "temp"
+              },
+              {
+                "element": "sog"
+              },
+              {
+                "element": "twa"
+              }
+            ]
+          },
+          {
+            "element": "hist"
+          }
+        ],
+        "weights": [
+          2,
+          1,
+          1
+        ]
+      },
+      "variants": [
+        {
+          "class": "square-480",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "depth"
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "temp"
+                  },
+                  {
+                    "element": "sog"
+                  },
+                  {
+                    "element": "twa"
+                  }
+                ]
+              },
+              {
+                "element": "hist"
+              }
+            ],
+            "weights": [
+              2,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "class": "landscape-800x480",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "depth"
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "temp"
+                  },
+                  {
+                    "element": "sog"
+                  },
+                  {
+                    "element": "twa"
+                  }
+                ]
+              },
+              {
+                "element": "hist"
+              }
+            ],
+            "weights": [
+              2,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "class": "landscape-1024x600",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "depth"
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "temp"
+                  },
+                  {
+                    "element": "sog"
+                  },
+                  {
+                    "element": "twa"
+                  }
+                ]
+              },
+              {
+                "element": "hist"
+              }
+            ],
+            "weights": [
+              2,
+              1,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
