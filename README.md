@@ -211,6 +211,7 @@ sensor on another.
 | `schemas/` | JSON Schemas (config + capabilities) and generated per-class manifests (`gen/`) |
 | `ts/` | [`@yey-boats/midl`](ts) — the language core: validator, preset expansion, version compatibility + migrations |
 | `web/` | web renderer — vanilla TypeScript + Canvas: layout solver + element painters + multi-resolution preview |
+| `editor/` | the MIDL editor (React); also builds the **device-hosted editor** the display serves itself (`editor/device/dist/`, see [editor/README.md](editor/README.md)) |
 | `bindings/` | additional language bindings _(planned: Swift / Kotlin for mobile + watch)_ |
 
 Consumed by **espdisp** (firmware), the **manager** plugin, and the
@@ -291,6 +292,7 @@ make gen-manifest     # C++ catalog -> schemas/gen/*.json
 make check-catalog    # assert the catalog matches the firmware's painters
 cd ts  && npx vitest run    # language-core tests + golden corpus
 cd web && npx vite          # open the live preview at http://localhost:5173
+npm run build:device -w @yey-boats/midl-editor   # device-hosted editor -> editor/device/dist/ (commit it)
 ```
 
 ## License
