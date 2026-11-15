@@ -1195,9 +1195,9 @@ screens:
       sog:
         type: single-value
         name: SOG
-        style: { color: "#ff0000" }
         bindings:
           value: { kind: signalk, path: navigation.speedOverGround }
+          dir: { kind: signalk, path: navigation.courseOverGroundTrue }
     layout: { rows: 1, cols: 1, cells: [{ element: sog }] }
 `;
 
@@ -1246,7 +1246,7 @@ test("handle.getValidationIssues merges manifest validation and device-lint for 
   // The clean fixture model has no manifest errors and no device-lint issues.
   expect(ref.current!.getValidationIssues()).toEqual([]);
 
-  // A colour override is dropped by the device push pipeline → device-lint error.
+  // A binding the class does not declare for single-value → device-lint error.
   await act(async () => { ref.current!.setDoc(LINT_DOC); });
   await waitFor(() => {
     const issues = ref.current!.getValidationIssues();

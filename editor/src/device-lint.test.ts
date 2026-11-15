@@ -24,34 +24,21 @@ describe("lintDeviceCapabilities", () => {
     expect(lintDeviceCapabilities(m)).toEqual([]);
   });
 
-  test("zones, range, markers, sectors, hull, band, color, size, side, dir, action are all flagged", () => {
+  test("without a manifest, rich authored features are not flagged (the device renders MIDL natively)", () => {
     const m = model({
       elements: {
         a: {
           id: "a", type: "windrose",
           bindings: { value: { kind: "signalk", path: "x" }, dir: { kind: "signalk", path: "y" } },
-          markers: [{ glyph: "triangle", color: "accent" }],
-          action: { kind: "put", target: "z", value: "auto" },
           format: { side: "port-stbd", decimals: 1 },
-          style: { zones: [{ lt: 10, color: "warn" }], range: [0, 100], sectors: [{ from: -30, to: 30, color: "port" }], hull: true, shape: "band", colorRole: "warn", size: "XL" },
+          style: { sectors: [{ from: -30, to: 30, color: "port" }], hull: true, shape: "band", colorRole: "warn", size: "XL" },
         },
+        t: { id: "t", type: "trend", bindings: { value: { kind: "signalk", path: "z" } } },
       },
+      layout: { flow: "row", children: [{ element: "a" }, { element: "t" }] },
+      variants: [{ class: "landscape-800x480", layout: { rows: 1, cols: 1, cells: [{ element: "a" }] } }],
     });
-    const features = new Set(lintDeviceCapabilities(m).map((i) => i.feature));
-    for (const f of ["zones", "range", "markers", "sectors", "hull", "shape=band", "color", "size", "format.side", "secondary-binding", "action"]) {
-      expect(features.has(f)).toBe(true);
-    }
-  });
-
-  test("trend is flagged as degraded (renders as plain number)", () => {
-    const m = model({ elements: { a: { id: "a", type: "trend", bindings: { value: { kind: "signalk", path: "x" } } } } });
-    const trend = lintDeviceCapabilities(m).find((i) => i.feature === "trend");
-    expect(trend?.kind).toBe("degrade");
-  });
-
-  test("a non-grid (flow) base layout is flagged", () => {
-    const m = model({ layout: { flow: "row", children: [{ element: "a" }, { element: "b" }] } });
-    expect(lintDeviceCapabilities(m).some((i) => i.feature === "layout")).toBe(true);
+    expect(lintDeviceCapabilities(m)).toEqual([]);
   });
 
   test("tile overflow beyond maxTiles is flagged", () => {
@@ -59,11 +46,6 @@ describe("lintDeviceCapabilities", () => {
     const overflow = lintDeviceCapabilities(m, 4).find((i) => i.feature === "tile-overflow");
     expect(overflow).toBeDefined();
     expect(overflow!.message).toMatch(/5 tiles/);
-  });
-
-  test("variants are flagged as not selected by the device", () => {
-    const m = model({ variants: [{ class: "landscape-800x480", layout: { rows: 1, cols: 1, cells: [{ element: "a" }] } }] });
-    expect(lintDeviceCapabilities(m).some((i) => i.feature === "variants")).toBe(true);
   });
 });
 
@@ -76,6 +58,7 @@ describe("lintDeviceCapabilities — manifest-driven (#4)", () => {
       { type: "windrose", bindings: ["value", "dir"], glyphs: ["triangle", "diamond"] },
     ],
     actionKinds: ["nav", "command"],
+    presets: ["full", "hero-split"],
     glyphs: ["triangle", "diamond"],
     maxMarkersPerDial: 2,
   };
@@ -113,5 +96,41 @@ describe("lintDeviceCapabilities — manifest-driven (#4)", () => {
     const issues = lintDeviceCapabilities(m, 4, MANIFEST);
     expect(issues.some((i) => i.feature === "binding" && /"bogus" binding is not a supported/.test(i.message))).toBe(true);
     expect(issues.some((i) => i.feature === "binding" && /"dir"/.test(i.message))).toBe(false);
+  });
+
+  test("a wind dial with direction, a trend and a spanning grid pass on square-480", () => {
+    const real = { ...MANIFEST, elements: [
+      ...MANIFEST.elements,
+      { type: "trend", bindings: ["value"], attrs: ["title", "size", "unit", "color"] },
+    ] } as Manifest;
+    const m = model({
+      elements: {
+        w: { id: "w", type: "windrose", bindings: { value: { kind: "signalk", path: "a" }, dir: { kind: "signalk", path: "b" } } },
+        t: { id: "t", type: "trend", bindings: { value: { kind: "signalk", path: "c" } } },
+        d: { id: "d", type: "single-value", bindings: { value: { kind: "signalk", path: "e" } } },
+      },
+      layout: { rows: 2, cols: 2, cells: [{ element: "w", colSpan: 2 }, { element: "t" }, { element: "d" }] },
+    });
+    expect(lintDeviceCapabilities(m, 4, real)).toEqual([]);
+  });
+
+  test("style attrs the type does not declare are flagged; declared ones pass", () => {
+    const m = model({
+      elements: {
+        a: { id: "a", type: "single-value", bindings: { value: { kind: "signalk", path: "x" } },
+             format: { side: "port-stbd" }, style: { zones: [{ lt: 1, color: "warn" }], size: "XL", colorRole: "warn" } },
+      },
+    });
+    const features = lintDeviceCapabilities(m, 4, MANIFEST).map((i) => i.feature);
+    expect(features).toContain("zones");
+    expect(features).toContain("side");
+    expect(features).not.toContain("size");
+    expect(features).not.toContain("color");
+  });
+
+  test("a preset the class does not ship is flagged", () => {
+    const m = model({ layout: { preset: "quad-xyz", slots: [{ element: "a" }] } as never });
+    const issues = lintDeviceCapabilities(m, 4, MANIFEST);
+    expect(issues.some((i) => i.feature === "preset" && /quad-xyz/.test(i.message))).toBe(true);
   });
 });

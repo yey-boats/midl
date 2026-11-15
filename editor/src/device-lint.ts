@@ -3,18 +3,16 @@
 //
 // Device capability lint.
 //
-// The web preview (the SVG renderer) is far richer than what actually reaches a
-// boat display. The push pipeline projects MIDL → v2 via `midlToV2`
-// (Instruments-manager/lib/midl-adapter.js), which carries only `type`, `path`
-// (bindings.value), `unit` (format.unit) and `title` (name) per element, plus a
-// flat grid layout. Everything else — zones, range, markers, sectors, hull,
-// band shape, secondary bindings, colour/size roles, actions, flow/preset
-// layouts and variants — is SILENTLY dropped or degraded on the device.
+// The boat display renders MIDL natively (instruments: midl_render/midl_solve;
+// the MIDL->v2 projection is gone since the MIDL-only change, 2026-11-15). What a
+// device class can draw is declared by its capability manifest
+// (schemas/gen/yb-midl-capabilities.<class>.json): element types, binding keys,
+// per-type attrs, glyphs, marker cap, action kinds, presets, tile cap.
 //
-// This lint inspects an EditorModel and reports, per authored feature, what the
-// device will not render, so the author is warned instead of surprised. It is
-// advisory: nothing here blocks a save. It is intentionally model-only (no
-// firmware path whitelist) — path coverage is the manifest/capability pass's job.
+// This lint checks an EditorModel against that manifest and reports, per
+// authored feature, what the device will not render, so the author is warned
+// instead of surprised. It is advisory: nothing here blocks a save. Without a
+// manifest only the tile cap is checked: there is nothing else to judge by.
 import type { Manifest } from "@yey-boats/midl";
 import type { EditorModel, EditorElement, LayoutNode } from "./model";
 
@@ -41,77 +39,18 @@ function countTiles(n: LayoutNode): number {
   return 0;
 }
 
-function lintElement(id: string, el: EditorElement, issues: DeviceLintIssue[]): void {
-  const style = (el.style ?? {}) as Record<string, unknown>;
-  const format = (el.format ?? {}) as Record<string, unknown>;
+// Authored style/format keys and the manifest attr that declares support.
+const STYLE_ATTRS: Array<[string, string]> = [
+  ["zones", "zones"], ["range", "range"], ["sectors", "sectors"], ["hull", "hull"],
+  ["shape", "shape"], ["color", "color"], ["colorRole", "color"], ["size", "size"],
+];
 
-  if (el.type === "trend") {
-    issues.push({ elementId: id, feature: "trend", kind: "degrade",
-      message: `"${id}": the device shows the value as a plain number — the sparkline/history is not rendered.` });
-  }
-
-  if (Array.isArray(el.markers) && el.markers.length > 0) {
-    issues.push({ elementId: id, feature: "markers", kind: "drop",
-      message: `"${id}": ${el.markers.length} authored marker(s) are dropped — the device uses its built-in compass/windrose markers only.` });
-  }
-
-  if (Array.isArray(style.sectors) && (style.sectors as unknown[]).length > 0) {
-    issues.push({ elementId: id, feature: "sectors", kind: "drop",
-      message: `"${id}": dial sectors (no-go / layline arcs) are not drawn on the device.` });
-  }
-
-  if (style.hull) {
-    issues.push({ elementId: id, feature: "hull", kind: "drop",
-      message: `"${id}": the hull silhouette is not drawn on the device.` });
-  }
-
-  if (style.shape === "band") {
-    issues.push({ elementId: id, feature: "shape=band", kind: "degrade",
-      message: `"${id}": the rolling heading-band shape renders as a plain round dial on the device.` });
-  }
-
-  if (Array.isArray(style.zones) && (style.zones as unknown[]).length > 0) {
-    issues.push({ elementId: id, feature: "zones", kind: "drop",
-      message: `"${id}": threshold colour zones are dropped — the device shows a single fixed colour (no warn/danger colouring).` });
-  }
-
-  if (Array.isArray(style.range)) {
-    issues.push({ elementId: id, feature: "range", kind: "degrade",
-      message: `"${id}": the authored gauge/bar range is dropped — the device uses a fixed per-metric scale, so the fill fraction may differ.` });
-  }
-
-  if (style.colorRole !== undefined || style.color !== undefined) {
-    issues.push({ elementId: id, feature: "color", kind: "drop",
-      message: `"${id}": the colour override is dropped — the device draws every tile in its single accent colour.` });
-  }
-
-  if (typeof style.size === "string") {
-    issues.push({ elementId: id, feature: "size", kind: "drop",
-      message: `"${id}": the size role is dropped — the device picks the font size from the tile geometry.` });
-  }
-
-  if (format.side) {
-    issues.push({ elementId: id, feature: "format.side", kind: "drop",
-      message: `"${id}": the port/starboard suffix is not author-controllable on the device (it is hardcoded per metric).` });
-  }
-
-  if (el.bindings) {
-    const extra = Object.keys(el.bindings).filter((k) => k !== "value");
-    if (extra.length > 0) {
-      issues.push({ elementId: id, feature: "secondary-binding", kind: "drop",
-        message: `"${id}": the ${extra.join(", ")} binding(s) are dropped — the device only consumes the primary value binding.` });
-    }
-  }
-
-  if (el.action !== undefined) {
-    issues.push({ elementId: id, feature: "action", kind: "drop",
-      message: `"${id}": the action is dropped — tapping this element does nothing on the device (autopilot buttons are firmware-defined).` });
-  }
+function present(v: unknown): boolean {
+  if (v === undefined || v === null || v === false) return false;
+  return !(Array.isArray(v) && v.length === 0);
 }
 
-// Manifest-authoritative checks: things the device CLASS does not support at all
-// (distinct from the push-pipeline drops above, which apply regardless of class).
-// These only run when a manifest is supplied.
+// Manifest-authoritative checks: what the device class does not support.
 function lintAgainstManifest(model: EditorModel, manifest: Manifest, issues: DeviceLintIssue[]): void {
   const capByType = new Map(manifest.elements.map((c) => [c.type, c]));
   const knownTypes = manifest.elements.length > 0;
@@ -128,7 +67,25 @@ function lintAgainstManifest(model: EditorModel, manifest: Manifest, issues: Dev
       continue; // further per-attr checks need a cap
     }
 
-    // Binding keys the class does not declare (beyond the dropped-by-push note).
+    // Authored style/format attrs the type does not declare for this class.
+    if (cap?.attrs) {
+      const style = (el.style ?? {}) as Record<string, unknown>;
+      const format = (el.format ?? {}) as Record<string, unknown>;
+      const seen = new Set<string>();
+      for (const [key, attr] of STYLE_ATTRS) {
+        if (present(style[key]) && !cap.attrs.includes(attr) && !seen.has(attr)) {
+          seen.add(attr);
+          issues.push({ elementId: id, feature: attr, kind: "drop",
+            message: `"${id}": style.${key} is not drawn for "${el.type}" on this device class.` });
+        }
+      }
+      if (present(format.side) && !cap.attrs.includes("side")) {
+        issues.push({ elementId: id, feature: "side", kind: "drop",
+          message: `"${id}": the port/starboard suffix (format.side) is not shown for "${el.type}" on this device class.` });
+      }
+    }
+
+    // Binding keys the class does not declare.
     if (el.bindings && cap?.bindings) {
       for (const key of Object.keys(el.bindings)) {
         if (!cap.bindings.includes(key)) {
@@ -164,41 +121,42 @@ function lintAgainstManifest(model: EditorModel, manifest: Manifest, issues: Dev
   }
 }
 
+function presetsIn(n: LayoutNode, out: string[]): string[] {
+  if (typeof n !== "object" || n === null) return out;
+  if ("preset" in n && typeof n.preset === "string") out.push(n.preset);
+  if ("flow" in n) for (const c of n.children ?? []) presetsIn(c, out);
+  return out;
+}
+
 /**
- * Inspect a model and return the authored features that the device push pipeline
- * (`midlToV2` → firmware) will drop or degrade. `maxTiles` is the device class's
- * tile cap (default 4); excess tiles are silently truncated on the device.
+ * Inspect a model and return the authored features the device will drop or
+ * degrade. `maxTiles` is the device class's tile cap (the manifest's
+ * `classes[].maxTiles`); tiles past it are not shown.
  *
- * When `manifest` is supplied, additional manifest-authoritative checks run
- * (element type / binding / glyph / marker-count / action-kind support for the
- * device class) — these describe what the class cannot render at all, distinct
- * from the push-pipeline drops which apply regardless of class.
+ * When `manifest` is supplied, the element type / binding / attr / glyph /
+ * marker-count / action-kind / preset support of the device class is checked.
  */
 export function lintDeviceCapabilities(model: EditorModel, maxTiles = 4, manifest?: Manifest): DeviceLintIssue[] {
   const issues: DeviceLintIssue[] = [];
 
-  for (const [id, el] of Object.entries(model.elements)) {
-    lintElement(id, el, issues);
+  const tiles = countTiles(model.layout);
+  if (tiles > maxTiles) {
+    issues.push({ feature: "tile-overflow", kind: "drop",
+      message: `${tiles} tiles authored but the device shows at most ${maxTiles} — the extra tile(s) are dropped.` });
   }
 
-  // Layout-level: non-grid base layout, tile overflow, and variants.
-  if (!isGrid(model.layout)) {
-    issues.push({ feature: "layout", kind: "drop",
-      message: `The base layout is a flow/preset layout — the device only renders a flat grid, so this layout is not reproduced on the device.` });
-  } else {
-    const tiles = countTiles(model.layout);
-    if (tiles > maxTiles) {
-      issues.push({ feature: "tile-overflow", kind: "drop",
-        message: `${tiles} tiles authored but the device shows at most ${maxTiles} — the extra tile(s) are dropped.` });
+  if (manifest) {
+    lintAgainstManifest(model, manifest, issues);
+    const known = manifest.presets;
+    if (Array.isArray(known) && known.length > 0) {
+      for (const p of presetsIn(model.layout, [])) {
+        if (!known.includes(p)) {
+          issues.push({ feature: "preset", kind: "drop",
+            message: `The "${p}" preset layout is not available on this device class (available: ${known.join(", ")}).` });
+        }
+      }
     }
   }
-
-  if (model.variants && model.variants.length > 0) {
-    issues.push({ feature: "variants", kind: "degrade",
-      message: `Per-class variant layouts are not selected by the device — it renders whatever layout is pushed, regardless of its screen class.` });
-  }
-
-  if (manifest) lintAgainstManifest(model, manifest, issues);
 
   return issues;
 }
