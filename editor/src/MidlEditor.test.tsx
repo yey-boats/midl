@@ -13,9 +13,17 @@ import { MidlEditor, getDeviceDimensions } from "./MidlEditor";
 import type { MidlEditorHandle } from "./MidlEditor";
 import { parseMidl } from "./midl-io";
 import { EditorError } from "./model";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-const editorCss = readFileSync(new URL("./midl-editor.css", import.meta.url), "utf8");
+// The stylesheet, read from disk: vitest doesn't process CSS imports, and under
+// jsdom import.meta.url is not a file: URL. Tests run from editor/ (npm -w) or
+// the repo root.
+const editorCss = readFileSync(
+  ["src/midl-editor.css", "editor/src/midl-editor.css"].map((p) => resolve(process.cwd(), p)).find(existsSync) ??
+    "src/midl-editor.css",
+  "utf8",
+);
 
 // ── rAF shims ─────────────────────────────────────────────────────────────────
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
