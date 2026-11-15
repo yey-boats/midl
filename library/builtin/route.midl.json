@@ -1,0 +1,236 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Route",
+    "description": "Active-route progress: distance and bearing to the waypoint, course to steer, XTE and VMG.",
+    "useCase": "Following a route to the next waypoint.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "route",
+      "title": "Route",
+      "elements": {
+        "dtw": {
+          "type": "single-value",
+          "name": "DTW",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.courseRhumbline.nextPoint.distance"
+            }
+          },
+          "format": {
+            "unit": "nm",
+            "decimals": 2
+          },
+          "style": {
+            "color": "accent"
+          }
+        },
+        "btw": {
+          "type": "single-value",
+          "name": "BTW",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.courseRhumbline.nextPoint.bearingTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          },
+          "style": {
+            "color": "good"
+          }
+        },
+        "cts": {
+          "type": "single-value",
+          "name": "CTS",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.courseRhumbline.bearingTrackTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          },
+          "style": {
+            "color": "good"
+          }
+        },
+        "xte": {
+          "type": "single-value",
+          "name": "XTE",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.courseRhumbline.crossTrackError"
+            }
+          },
+          "format": {
+            "unit": "nm",
+            "decimals": 2,
+            "side": true
+          },
+          "style": {
+            "color": "warn"
+          }
+        },
+        "vmg": {
+          "type": "single-value",
+          "name": "VMG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.courseRhumbline.velocityMadeGood"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          },
+          "style": {
+            "color": "fg"
+          }
+        }
+      },
+      "layout": {
+        "flow": "col",
+        "children": [
+          {
+            "flow": "row",
+            "children": [
+              {
+                "element": "dtw"
+              },
+              {
+                "element": "btw"
+              },
+              {
+                "element": "cts"
+              }
+            ]
+          },
+          {
+            "flow": "row",
+            "children": [
+              {
+                "element": "xte"
+              },
+              {
+                "element": "vmg"
+              }
+            ]
+          }
+        ]
+      },
+      "variants": [
+        {
+          "class": "square-480",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "dtw"
+                  },
+                  {
+                    "element": "btw"
+                  },
+                  {
+                    "element": "cts"
+                  }
+                ]
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "xte"
+                  },
+                  {
+                    "element": "vmg"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "class": "landscape-800x480",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "dtw"
+                  },
+                  {
+                    "element": "btw"
+                  },
+                  {
+                    "element": "cts"
+                  }
+                ]
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "xte"
+                  },
+                  {
+                    "element": "vmg"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "class": "landscape-1024x600",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "dtw"
+                  },
+                  {
+                    "element": "btw"
+                  },
+                  {
+                    "element": "cts"
+                  }
+                ]
+              },
+              {
+                "flow": "row",
+                "children": [
+                  {
+                    "element": "xte"
+                  },
+                  {
+                    "element": "vmg"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

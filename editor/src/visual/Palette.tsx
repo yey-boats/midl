@@ -83,6 +83,17 @@ const TYPE_META: Record<string, TypeMeta> = {
       </svg>
     ),
   },
+  "windsteer": {
+    label: "Wind steer",
+    description: "Heading-up wind steering with laylines",
+    icon: (
+      <svg width={W} height={H} viewBox="0 0 14 14" fill="none" aria-hidden>
+        <path d="M1.5 10 A5.5 5.5 0 0 1 12.5 10" stroke="currentColor" strokeWidth="1.2"/>
+        <line x1="7" y1="10" x2="7" y2="3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+        <path d="M4.2 5.2 L7 4.5 L9.8 5.2" stroke="currentColor" strokeWidth="0.9" opacity="0.5"/>
+      </svg>
+    ),
+  },
   "trend": {
     label: "Trend",
     description: "Time-series line",

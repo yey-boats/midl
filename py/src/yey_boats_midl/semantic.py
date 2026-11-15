@@ -19,7 +19,8 @@ from .types import Issue
 # compass/windrose require value and accept an optional `dir` (heading
 # reference) — the TS reference never required `dir`; requiring it here was a
 # parity bug the grown conformance corpus caught (midl#16). clinometer
-# (heel/pitch attitude dial) requires value. Types absent here are allowed but warned.
+# (heel/pitch attitude dial) and windsteer (wind-steering composite, binds like
+# windrose) require value. Types absent here are allowed but warned.
 ELEMENT_REQUIRED_BINDINGS: Dict[str, List[str]] = {
     "single-value": ["value"],
     "text": ["value"],
@@ -31,6 +32,7 @@ ELEMENT_REQUIRED_BINDINGS: Dict[str, List[str]] = {
     "windrose": ["value"],
     "button": [],
     "clinometer": ["value"],
+    "windsteer": ["value"],
 }
 
 

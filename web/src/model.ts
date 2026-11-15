@@ -50,8 +50,9 @@ export interface ElementModel {
 /** square-480 capability: maxMarkersPerDial. */
 export const MAX_MARKERS = 12;
 
-const ANGLE_TYPES = new Set(["compass", "windrose"]);
-const NUMERIC_TYPES = new Set(["gauge", "bar", "trend", "compass", "windrose"]);
+// `windsteer` (wind-steering composite) previews as a windrose stand-in.
+const ANGLE_TYPES = new Set(["compass", "windrose", "windsteer"]);
+const NUMERIC_TYPES = new Set(["gauge", "bar", "trend", "compass", "windrose", "windsteer"]);
 
 function asDeg(r: { value: unknown; sourceUnit?: string }): number | undefined {
   if (typeof r.value !== "number" || !Number.isFinite(r.value)) return undefined;

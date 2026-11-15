@@ -72,6 +72,20 @@
       "/screens/0/elements/heel/bindings/value"
     ]
   },
+  "valid-windsteer-square-480": {
+    "ok": true,
+    "paths": []
+  },
+  "invalid-windsteer-missing-value": {
+    "ok": false,
+    "paths": [
+      "/screens/0/elements/ws/bindings/value"
+    ]
+  },
+  "valid-text-local-id": {
+    "ok": true,
+    "paths": []
+  },
   "valid-const-source": {
     "ok": true,
     "paths": []

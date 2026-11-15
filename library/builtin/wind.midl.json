@@ -1,0 +1,63 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Wind",
+    "description": "Full-screen 360-degree wind rose: apparent and true wind markers, AWS hero and wind readouts.",
+    "useCase": "Sailing: wind angle and speed from any bearing.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "wind",
+      "title": "Wind",
+      "elements": {
+        "rose": {
+          "type": "windrose",
+          "name": "AWS",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "environment.wind.speedApparent"
+            },
+            "dir": {
+              "kind": "signalk",
+              "path": "environment.wind.angleApparent"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          },
+          "style": {
+            "color": "warn"
+          }
+        }
+      },
+      "layout": {
+        "element": "rose"
+      },
+      "variants": [
+        {
+          "class": "square-480",
+          "layout": {
+            "element": "rose"
+          }
+        },
+        {
+          "class": "landscape-800x480",
+          "layout": {
+            "element": "rose"
+          }
+        },
+        {
+          "class": "landscape-1024x600",
+          "layout": {
+            "element": "rose"
+          }
+        }
+      ]
+    }
+  ]
+}

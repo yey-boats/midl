@@ -19,11 +19,11 @@ test.each(CLASSES)("generated manifest %s is structurally valid", (cls) => {
   expect(validateManifestStructure(load(cls))).toEqual([]);
 });
 
-test("square-480 advertises the 10 element types and correct limits", () => {
+test("square-480 advertises the 11 element types and correct limits", () => {
   const m = load("square-480");
   const types = m.elements.map((e) => e.type).sort();
   expect(types).toEqual(
-    ["autopilot", "bar", "button", "clinometer", "compass", "gauge", "single-value", "text", "trend", "windrose"].sort(),
+    ["autopilot", "bar", "button", "clinometer", "compass", "gauge", "single-value", "text", "trend", "windrose", "windsteer"].sort(),
   );
   const c = m.classes.find((x) => x.id === "square-480")!;
   // square-480 → 3×3 grid, maxTiles 9 (catalog commit 39f9684).

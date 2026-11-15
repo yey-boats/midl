@@ -1,0 +1,176 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Nav",
+    "description": "Position and course overview: heading compass with the course-to-steer marker, SOG, COG and position.",
+    "useCase": "Under way: where we are and where we are heading.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "nav",
+      "title": "Nav",
+      "elements": {
+        "hdg": {
+          "type": "compass",
+          "name": "HDG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.headingTrue"
+            },
+            "dir": {
+              "kind": "signalk",
+              "path": "navigation.headingTrue"
+            }
+          },
+          "style": {
+            "color": "accent"
+          },
+          "markers": [
+            {
+              "dir": {
+                "kind": "signalk",
+                "path": "navigation.courseRhumbline.bearingTrackTrue"
+              },
+              "glyph": "triangle",
+              "color": "good"
+            }
+          ]
+        },
+        "sog": {
+          "type": "single-value",
+          "name": "SOG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.speedOverGround"
+            }
+          },
+          "format": {
+            "unit": "kn",
+            "decimals": 1
+          },
+          "style": {
+            "color": "accent"
+          }
+        },
+        "cog": {
+          "type": "single-value",
+          "name": "COG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.courseOverGroundTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          },
+          "style": {
+            "color": "fg"
+          }
+        },
+        "pos": {
+          "type": "text",
+          "name": "POS",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.position"
+            }
+          },
+          "style": {
+            "color": "good"
+          }
+        }
+      },
+      "layout": {
+        "rows": 2,
+        "cols": 2,
+        "cells": [
+          {
+            "element": "hdg"
+          },
+          {
+            "element": "sog"
+          },
+          {
+            "element": "cog"
+          },
+          {
+            "element": "pos"
+          }
+        ]
+      },
+      "variants": [
+        {
+          "class": "square-480",
+          "layout": {
+            "rows": 2,
+            "cols": 2,
+            "cells": [
+              {
+                "element": "hdg"
+              },
+              {
+                "element": "sog"
+              },
+              {
+                "element": "cog"
+              },
+              {
+                "element": "pos"
+              }
+            ]
+          }
+        },
+        {
+          "class": "landscape-800x480",
+          "layout": {
+            "rows": 2,
+            "cols": 2,
+            "cells": [
+              {
+                "element": "hdg"
+              },
+              {
+                "element": "sog"
+              },
+              {
+                "element": "cog"
+              },
+              {
+                "element": "pos"
+              }
+            ]
+          }
+        },
+        {
+          "class": "landscape-1024x600",
+          "layout": {
+            "rows": 2,
+            "cols": 2,
+            "cells": [
+              {
+                "element": "hdg"
+              },
+              {
+                "element": "sog"
+              },
+              {
+                "element": "cog"
+              },
+              {
+                "element": "pos"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

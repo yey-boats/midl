@@ -1,0 +1,86 @@
+{
+  "midl": "1.0.0",
+  "meta": {
+    "title": "Compass",
+    "description": "Round heading view: big heading with COG below.",
+    "useCase": "Knob: heading at a glance.",
+    "tags": [
+      "builtin"
+    ]
+  },
+  "screens": [
+    {
+      "id": "knob_compass",
+      "title": "Compass",
+      "elements": {
+        "hdg": {
+          "type": "single-value",
+          "name": "HEADING",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.headingTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          },
+          "style": {
+            "size": "XL",
+            "color": "accent"
+          }
+        },
+        "cog": {
+          "type": "single-value",
+          "name": "COG",
+          "bindings": {
+            "value": {
+              "kind": "signalk",
+              "path": "navigation.courseOverGroundTrue"
+            }
+          },
+          "format": {
+            "unit": "deg",
+            "decimals": 0
+          }
+        }
+      },
+      "layout": {
+        "flow": "col",
+        "children": [
+          {
+            "element": "hdg"
+          },
+          {
+            "element": "cog"
+          }
+        ],
+        "weights": [
+          3,
+          1
+        ]
+      },
+      "variants": [
+        {
+          "class": "round-360",
+          "layout": {
+            "flow": "col",
+            "children": [
+              {
+                "element": "hdg"
+              },
+              {
+                "element": "cog"
+              }
+            ],
+            "weights": [
+              3,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
