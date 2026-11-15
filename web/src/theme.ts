@@ -131,11 +131,14 @@ export const THEMES: Record<"night" | "day" | "sun" | "high-contrast" | "red-nig
     widgets: WIDGETS_NIGHT,
   },
   // Daylight-readable variant: light surfaces, darkened semantic hues.
+  // Tokens are the firmware `day` palette (instruments include/ui_palette.h,
+  // after its WCAG AA pass), mapped as live_tokens() does: panel2 = badge,
+  // edge = panel_edge, dim = fg_dim, accent2 = good, bad/danger = alarm.
   day: {
-    bg: "#e7edf3", panel: "#f4f7fa", panel2: "#e9eef4", edge: "#c3ccd6",
-    fg: "#10202f", dim: "#5b6f82", accent: "#0a6fd0", accent2: "#0a8f5e",
-    good: "#0a8f5e", warn: "#b06a00", bad: "#c02626", danger: "#c02626",
-    port: "#c02626", starboard: "#0a8f5e", tide: "#0a5fc0", stale: "#9aa7b4",
+    bg: "#eef1f4", panel: "#ffffff", panel2: "#e7edf2", edge: "#c7d2da",
+    fg: "#14211d", dim: "#5a6b78", accent: "#0266a8", accent2: "#1b7a4b",
+    good: "#1b7a4b", warn: "#8a5500", bad: "#c62828", danger: "#c62828",
+    port: "#c62828", starboard: "#1b7a4b", tide: "#0a5fc0", stale: "#9aa7b4",
     widgets: WIDGETS_DAY,
   },
   // Direct-sunlight variant (firmware `use_sun`), mapped onto tokens exactly as
@@ -156,20 +159,22 @@ export const THEMES: Record<"night" | "day" | "sun" | "high-contrast" | "red-nig
     port: "#ff3030", starboard: "#00ff88", tide: "#3aa0ff", stale: "#666666",
     widgets: WIDGETS_HC,
   },
-  // Night-vision-safe: true-black ground, red-only inks (see WIDGETS_RED_NIGHT).
+  // Night-vision-safe: true-black ground, red/amber inks (see WIDGETS_RED_NIGHT).
+  // Tokens are the firmware `red_night` palette, mapped as for day.
   "red-night": {
-    bg: "#000000", panel: "#140303", panel2: "#1c0505", edge: "#401010",
-    fg: "#ff4438", dim: "#a03028", accent: "#ff6a5c", accent2: "#e0352b",
-    good: "#ff8a50", warn: "#ff7530", bad: "#ff2018", danger: "#ff2018",
-    port: "#ff2018", starboard: "#ff8a50", tide: "#c03a30", stale: "#5c211c",
+    bg: "#000000", panel: "#140302", panel2: "#1f0705", edge: "#4a1410",
+    fg: "#ff4b3e", dim: "#d84a3a", accent: "#ff7a29", accent2: "#e0921e",
+    good: "#e0921e", warn: "#ffa028", bad: "#ff1a1a", danger: "#ff1a1a",
+    port: "#ff5252", starboard: "#d9a441", tide: "#c03a30", stale: "#5c211c",
     widgets: WIDGETS_RED_NIGHT,
   },
   // Cream/brass analog look: warm cream surfaces, dark ink, brass accents.
+  // Tokens are the firmware `classic` palette, mapped as for day.
   classic: {
-    bg: "#f3ead8", panel: "#efe4cd", panel2: "#e7d9bd", edge: "#b09a6a",
-    fg: "#2b2114", dim: "#6b5a40", accent: "#8c6d1f", accent2: "#7a5a14",
-    good: "#3f6b3a", warn: "#a86412", bad: "#8c2f24", danger: "#8c2f24",
-    port: "#8c2f24", starboard: "#3f6b3a", tide: "#35566b", stale: "#a89878",
+    bg: "#e8e1cf", panel: "#f7f1e3", panel2: "#e4dbc4", edge: "#b9ab8c",
+    fg: "#2e2a24", dim: "#685d4e", accent: "#7a5a10", accent2: "#3e6b41",
+    good: "#3e6b41", warn: "#8a5500", bad: "#9e2f28", danger: "#9e2f28",
+    port: "#9e2f28", starboard: "#3e6b41", tide: "#35566b", stale: "#a89878",
     widgets: WIDGETS_CLASSIC,
   },
 };

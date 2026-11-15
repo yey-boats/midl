@@ -158,3 +158,21 @@ test("sun tokens match the firmware use_sun palette (instruments live_tokens map
   expect(sun.widgets.dialInk).toBe("#000000"); // band_ink
   expect(sun.widgets.dialTick).toBe("#555555"); // band_ink_dim
 });
+
+// ── firmware palette parity (instruments include/ui_palette.h) ───────────────
+
+test("day, red-night and classic tokens match the firmware palettes (live_tokens mapping)", () => {
+  // [bg, panel, badge, panel_edge, fg, fg_dim, accent, warn, alarm, good, port, starboard]
+  const fw: Record<string, string[]> = {
+    day: ["#eef1f4", "#ffffff", "#e7edf2", "#c7d2da", "#14211d", "#5a6b78", "#0266a8", "#8a5500", "#c62828", "#1b7a4b", "#c62828", "#1b7a4b"],
+    "red-night": ["#000000", "#140302", "#1f0705", "#4a1410", "#ff4b3e", "#d84a3a", "#ff7a29", "#ffa028", "#ff1a1a", "#e0921e", "#ff5252", "#d9a441"],
+    classic: ["#e8e1cf", "#f7f1e3", "#e4dbc4", "#b9ab8c", "#2e2a24", "#685d4e", "#7a5a10", "#8a5500", "#9e2f28", "#3e6b41", "#9e2f28", "#3e6b41"],
+  };
+  for (const [name, p] of Object.entries(fw)) {
+    const t = theme(name);
+    const got = [t.bg, t.panel, t.panel2, t.edge, t.fg, t.dim, t.accent, t.warn, t.bad, t.good, t.port, t.starboard];
+    expect(got).toEqual(p);
+    expect(t.danger).toBe(t.bad);
+    expect(t.accent2).toBe(t.good);
+  }
+});
