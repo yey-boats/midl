@@ -6,20 +6,13 @@ import type { Theme } from "./theme";
 import { resolveElement, type ElementModel } from "./model";
 import { resolveOptionalColor } from "./svg/color";
 import { captionFontSize } from "./svg/frame";
+import { HistoryStore, trendChartFor, allowedTrendKeys, trendAllowed, chartRuns, type TrendChart } from "./history";
 
 type Ctx = CanvasRenderingContext2D;
 
-export class TrendBuffers {
-  private cap = 120;
-  private map = new Map<string, number[]>();
-  push(id: string, n: number): void {
-    const a = this.map.get(id) ?? [];
-    a.push(n);
-    if (a.length > this.cap) a.shift();
-    this.map.set(id, a);
-  }
-  series(id: string): number[] { return this.map.get(id) ?? []; }
-}
+// The old count-based TrendBuffers is now the time-bucket HistoryStore
+// (same constructor, same `trends` option); both names stay exported.
+export { TrendBuffers, HistoryStore } from "./history";
 
 // `custom` is the element's resolved style.color (allowlisted hex) or undefined.
 function fg(m: ElementModel, th: Theme, custom?: string): string {
@@ -111,23 +104,36 @@ function gauge(ctx: Ctx, p: Placement, m: ElementModel, th: Theme, custom?: stri
   centerText(ctx, p, m.text, 20, fg(m, th, custom));
 }
 
-function trend(ctx: Ctx, p: Placement, m: ElementModel, series: number[], th: Theme, custom?: string): void {
+// Trend tile (spec §3): with history, the number sits in the upper half and
+// the time chart fills the lower half, y-range max/min as dim labels at its
+// left edge; without a history store the number is centred (no chart).
+function trend(ctx: Ctx, p: Placement, m: ElementModel, chart: TrendChart | null | undefined, th: Theme, custom?: string): void {
   const { x, y, w, h } = p.rect;
-  if (series.length >= 2) {
-    const lo = Math.min(...series), hi = Math.max(...series), span = hi - lo || 1;
-    ctx.strokeStyle = m.state === "stale" ? th.stale : custom ?? th.accent;
+  if (chart === undefined) { centerText(ctx, p, m.text, 26, fg(m, th, custom ?? th.accent)); return; }
+  ctx.fillStyle = fg(m, th, custom ?? th.accent);
+  ctx.font = "24px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(m.text, x + w / 2, y + h * 0.3);
+  ctx.textBaseline = "alphabetic";
+  if (!chart) return;
+  const fs = Math.max(9, Math.min(13, h * 0.07));
+  const gutter = Math.max(chart.hiLabel.length, chart.loLabel.length) * fs * 0.6 + 6;
+  const top = y + h * 0.52, bottom = y + h - 10;
+  const x0 = x + 10 + gutter, cw = Math.max(1, w - 20 - gutter), ch = Math.max(1, bottom - top);
+  ctx.strokeStyle = m.state === "stale" ? th.stale : custom ?? th.accent;
+  ctx.lineWidth = 2;
+  for (const run of chartRuns(chart, x0, top, cw, ch)) {
     ctx.beginPath();
-    series.forEach((v, i) => {
-      const px = x + 10 + (i / (series.length - 1)) * (w - 20);
-      const py = y + h - 12 - ((v - lo) / span) * (h - 36);
-      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-    });
+    run.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)));
     ctx.stroke();
   }
-  ctx.fillStyle = fg(m, th, custom ?? th.accent);
-  ctx.font = "14px system-ui";
-  ctx.textAlign = "right";
-  ctx.fillText(m.text, x + w - 10, y + h - 10);
+  ctx.lineWidth = 1;
+  ctx.fillStyle = th.dim;
+  ctx.font = `${fs}px system-ui`;
+  ctx.textAlign = "left";
+  ctx.fillText(chart.hiLabel, x + 10, top + fs * 0.8);
+  ctx.fillText(chart.loLabel, x + 10, bottom);
 }
 
 function pill(ctx: Ctx, p: Placement, text: string, color: string, th: Theme): void {
@@ -143,8 +149,11 @@ export function paintScreen(
   elements: Record<string, Element>,
   provider: DataProvider,
   th: Theme,
-  trends?: TrendBuffers,
+  /** Trend history store; keep one instance across paints. */
+  trends?: HistoryStore,
 ): void {
+  const allowed = trends && Number.isFinite(trends.maxSeries)
+    ? allowedTrendKeys(placements.map((p) => p.elementId), elements, trends.maxSeries) : undefined;
   for (const p of placements) {
     const el = elements[p.elementId];
     if (!el) continue;
@@ -168,9 +177,8 @@ export function paintScreen(
       case "gauge": gauge(ctx, p, m, th, custom); break;
       case "bar": bar(ctx, p, m, th, Array.isArray(style.zones) && style.zones.length > 0, zone, styleColor, typeof style.center === "number"); break;
       case "trend": {
-        if (trends && m.numeric != null) trends.push(p.elementId, m.numeric);
         // trend has no zones in the firmware: line and number follow style.color only
-        trend(ctx, p, m, trends?.series(p.elementId) ?? [], th, styleColor);
+        trend(ctx, p, m, trendChartFor(el, m, trends, provider, trendAllowed(el, allowed)), th, styleColor);
         break;
       }
       case "autopilot": pill(ctx, p, m.text || "STBY", custom ?? th.accent, th); break;

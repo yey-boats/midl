@@ -45,6 +45,10 @@ export interface ElementModel {
   sectors?: Array<{ from: number; to: number; color: string }>;
   /** Port/Starboard side from a signed angle when `el.format.side` is set. */
   side?: "P" | "S";
+  /** trend: the raw (SI, as received) numeric value recorded into history. */
+  raw?: number;
+  /** trend: the unit of `raw` (provider-tagged or inferred from the path). */
+  sourceUnit?: string;
 }
 
 /** square-480 capability: maxMarkersPerDial. */
@@ -175,6 +179,10 @@ export function resolveElement(el: Element, provider: DataProvider): ElementMode
     text = fmt.numeric == null && typeof rv.value === "string" && rv.value.length > 0 ? rv.value : fmt.text;
   }
   const m: ElementModel = { state, text, numeric: fmt.numeric };
+  if (el.type === "trend" && typeof rv.value === "number" && Number.isFinite(rv.value)) {
+    m.raw = rv.value;
+    if (rv.sourceUnit) m.sourceUnit = rv.sourceUnit;
+  }
 
   if (el.type === "bar" || el.type === "gauge") {
     const range = (el.style?.range as [number, number] | undefined) ?? [0, 1];

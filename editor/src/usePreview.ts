@@ -3,7 +3,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import type { Manifest, Rect } from "@yey-boats/midl";
-import { renderDashboardSvg } from "@yey-boats/midl-web";
+import { renderDashboardSvg, HistoryStore } from "@yey-boats/midl-web";
 import type { DataProvider } from "@yey-boats/midl-web";
 import type { EditorModel } from "./model";
 import { serializeMidl } from "./midl-io";
@@ -36,6 +36,10 @@ export interface PreviewState {
 
 const EMPTY_SVG = `<svg xmlns="http://www.w3.org/2000/svg"></svg>`;
 
+/** Repaint cadence while the model has trend tiles, so the charts scroll one
+ *  bucket per step even when no bound value changes. */
+export const TREND_TICK_MS = 1000;
+
 /** Extract all SignalK paths bound in the model's elements. */
 function getBoundPaths(model: EditorModel): string[] {
   const out = new Set<string>();
@@ -54,14 +58,22 @@ function getBoundPaths(model: EditorModel): string[] {
  * - If valid, calls renderDashboardSvg → sanitizeSvg; clears error.
  * - Re-renders automatically when bound SignalK paths update in the provider
  *   (via provider.subscribe) or when the provider emits onChange (injected values).
+ * - Keeps ONE trend HistoryStore for the hook's lifetime (pass `history` to share
+ *   one across mounts), so a live preview draws a growing trend line instead of
+ *   a plain number, and ticks while trend tiles are on screen.
  */
 export function usePreview(
   model: EditorModel,
   provider: DataProvider,
   manifest: Manifest,
-  opts: { theme: string; className: string },
+  opts: { theme: string; className: string; history?: HistoryStore },
 ): PreviewState {
   const [state, setState] = useState<PreviewState>({ svg: EMPTY_SVG, error: null });
+  const ownStore = useRef<HistoryStore | null>(null);
+  if (!ownStore.current) ownStore.current = new HistoryStore();
+  const store = opts.history ?? ownStore.current;
+  const storeRef = useRef(store);
+  storeRef.current = store;
 
   // Keep a ref to the last good svg so we don't flash empty on validation errors
   const lastGoodSvgRef = useRef<string>(EMPTY_SVG);
@@ -106,6 +118,7 @@ export function usePreview(
         const viewport = viewportForClass(o.className);
         const result = renderDashboardSvg(serialized, mf, o.className, viewport, p, {
           theme: o.theme,
+          trends: storeRef.current,
         });
         const sanitized = sanitizeSvg(result.svg);
         lastGoodSvgRef.current = sanitized;
@@ -154,6 +167,17 @@ export function usePreview(
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model, provider]);
+
+  // Effect 3: trend tiles scroll each step and redraw when a backfill lands.
+  const hasTrend = Object.values(model.elements).some((el) => el.type === "trend");
+  useEffect(() => {
+    store.onUpdate = () => scheduleRender.current();
+    const tick = hasTrend ? setInterval(() => scheduleRender.current(), TREND_TICK_MS) : undefined;
+    return () => {
+      if (tick) clearInterval(tick);
+      store.onUpdate = undefined;
+    };
+  }, [store, hasTrend]);
 
   return state;
 }

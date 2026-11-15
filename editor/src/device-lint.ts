@@ -14,6 +14,7 @@
 // instead of surprised. It is advisory: nothing here blocks a save. Without a
 // manifest only the tile cap is checked: there is nothing else to judge by.
 import type { Manifest } from "@yey-boats/midl";
+import { HISTORY_DEFAULT_MAX_WINDOW_S, resolveHistory, parseWindowS } from "@yey-boats/midl";
 import type { EditorModel, EditorElement, LayoutNode } from "./model";
 
 export interface DeviceLintIssue {
@@ -79,6 +80,10 @@ function lintAgainstManifest(model: EditorModel, manifest: Manifest, issues: Dev
             message: `"${id}": style.${key} is not drawn for "${el.type}" on this device class.` });
         }
       }
+      if (present(el.history) && !cap.attrs.includes("history")) {
+        issues.push({ elementId: id, feature: "history", kind: "drop",
+          message: `"${id}": this device class does not record trend history (history is ignored).` });
+      }
       if (present(format.side) && !cap.attrs.includes("side")) {
         issues.push({ elementId: id, feature: "side", kind: "drop",
           message: `"${id}": the port/starboard suffix (format.side) is not shown for "${el.type}" on this device class.` });
@@ -121,6 +126,44 @@ function lintAgainstManifest(model: EditorModel, manifest: Manifest, issues: Dev
   }
 }
 
+// Element ids the layout places (grid cells, flow children, preset slots).
+function placedIds(n: LayoutNode, out: string[]): string[] {
+  if (typeof n !== "object" || n === null) return out;
+  if (isGrid(n)) { for (const c of n.cells) if (c && c.element) out.push(c.element); }
+  else if ("flow" in n) for (const c of n.children ?? []) placedIds(c, out);
+  else if ("preset" in n) out.push(...(n.slots ?? []));
+  else if ("element" in n) out.push(n.element);
+  return out;
+}
+
+// Trend history limits (docs/specs/2026-11-15-trend-history.md §2/§5): the
+// device records at most history.maxSeries series per screen (tiles past it
+// show the number only) and windows up to history.maxWindowS.
+function lintHistory(model: EditorModel, manifest: Manifest, issues: DeviceLintIssue[]): void {
+  const cap = manifest.history;
+  const maxWindowS = cap?.maxWindowS ?? HISTORY_DEFAULT_MAX_WINDOW_S;
+  const keys = new Map<string, string>(); // series key -> first element id
+  for (const id of placedIds(model.layout, [])) {
+    const el = model.elements[id];
+    if (!el || el.type !== "trend") continue;
+    const s = parseWindowS(el.history?.window);
+    if (s !== undefined && s > maxWindowS) {
+      issues.push({ elementId: id, feature: "history-window", kind: "degrade",
+        message: `"${id}": the trend window (${s} s) is longer than this device records (${maxWindowS} s).` });
+    }
+    const b = el.bindings?.value;
+    if (!b) continue;
+    const h = resolveHistory(el);
+    const key = `${b.kind}:${b.path ?? b.id ?? JSON.stringify(b.value)}|${h.agg}|${h.windowS}`;
+    if (keys.has(key)) continue; // shares a series with an earlier tile
+    keys.set(key, id);
+    if (typeof cap?.maxSeries === "number" && keys.size > cap.maxSeries) {
+      issues.push({ elementId: id, feature: "history-series", kind: "degrade",
+        message: `"${id}": this screen has more trend charts than the device records (${cap.maxSeries}); this tile shows the number only.` });
+    }
+  }
+}
+
 function presetsIn(n: LayoutNode, out: string[]): string[] {
   if (typeof n !== "object" || n === null) return out;
   if ("preset" in n && typeof n.preset === "string") out.push(n.preset);
@@ -147,6 +190,7 @@ export function lintDeviceCapabilities(model: EditorModel, maxTiles = 4, manifes
 
   if (manifest) {
     lintAgainstManifest(model, manifest, issues);
+    lintHistory(model, manifest, issues);
     const known = manifest.presets;
     if (Array.isArray(known) && known.length > 0) {
       for (const p of presetsIn(model.layout, [])) {

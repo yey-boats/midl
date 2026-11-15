@@ -4,6 +4,7 @@
 import React from "react";
 import type { Manifest } from "@yey-boats/midl";
 import type { Source } from "@yey-boats/midl";
+import { HISTORY_DEFAULT_WINDOWS, formatWindow, parseWindowS } from "@yey-boats/midl";
 import type { DataProvider } from "@yey-boats/midl-web";
 import { formatValue } from "@yey-boats/midl-web";
 import type { EditorModel, EditorElement, BindingSource } from "../model";
@@ -67,6 +68,14 @@ const MARKER_COLOR_OPTIONS = [
   { label: "tide (blue)", value: "tide" },
 ] as const;
 const DIAL_SHAPE_OPTIONS = ["round", "band"] as const;
+// Trend history (docs/specs/2026-11-15-trend-history.md §5).
+const HISTORY_DEFAULT_WINDOW = "10m";
+const HISTORY_AGG_OPTIONS = [
+  { label: "average", value: "avg" },
+  { label: "minimum", value: "min" },
+  { label: "maximum", value: "max" },
+  { label: "last", value: "last" },
+] as const;
 
 interface MarkerEntry { glyph?: string; color?: string; dir?: BindingSource; kind?: string; [k: string]: unknown; }
 interface SectorEntry { from: number; to: number; color: string; }
@@ -229,6 +238,35 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
   function handleSizeChange(sizeRole: string) {
     if (sizeRole === SIZE_PIXEL || sizeRole === SIZE_UNKNOWN) return;
     setStyleKey("size", sizeRole === SIZE_UNSET ? undefined : sizeRole);
+  }
+
+  // ── Trend history handlers ────────────────────────────────────────────────
+  // Defaults (window 10m, agg avg) are written as an absent key so the document
+  // stays minimal; an emptied history object is dropped.
+  function setHistoryKey(key: "window" | "agg", value: string | undefined) {
+    if (!selectedElement) return;
+    const history: NonNullable<EditorElement["history"]> = { ...selectedElement.history };
+    if (value === undefined) delete history[key];
+    else if (key === "agg") history.agg = value as NonNullable<EditorElement["history"]>["agg"];
+    else history.window = value;
+    const next: EditorElement = { ...selectedElement, history };
+    if (Object.keys(history).length === 0) delete next.history;
+    updateElement(next);
+  }
+
+  function handleHistoryWindowChange(w: string) {
+    setHistoryKey("window", w === HISTORY_DEFAULT_WINDOW ? undefined : w);
+  }
+
+  function handleHistoryAggChange(agg: string) {
+    setHistoryKey("agg", agg === "avg" ? undefined : agg);
+  }
+
+  // Range auto = no style.range; fixed starts at 0..(a round max).
+  function handleTrendRangeModeChange(mode: string) {
+    if (!selectedElement) return;
+    if (mode === "auto") { setStyleKey("range", undefined); return; }
+    setStyleKey("range", [0, 30]);
   }
 
   function handleRemoveElement() {
@@ -484,6 +522,17 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
   const rangeMax = currentRange?.[1] ?? 100;
   const currentZones = (selectedElement.style?.zones as ZoneEntry[] | undefined) ?? [];
   const currentUnit = selectedElement.format?.unit as string | undefined;
+
+  // ── Trend history values ───────────────────────────────────────────────────
+  const isTrend = selectedElement.type === "trend";
+  const historyWindows = manifest.history?.windows?.length ? manifest.history.windows : [...HISTORY_DEFAULT_WINDOWS];
+  const rawWindow = selectedElement.history?.window;
+  const windowS = parseWindowS(rawWindow);
+  const currentWindow = rawWindow === undefined ? HISTORY_DEFAULT_WINDOW
+    : typeof rawWindow === "number" && windowS !== undefined ? formatWindow(windowS) : String(rawWindow);
+  const windowOptions = historyWindows.includes(currentWindow) ? historyWindows : [...historyWindows, currentWindow];
+  const currentAgg = selectedElement.history?.agg ?? "avg";
+  const trendRangeFixed = Array.isArray(currentRange);
 
   // ── Secondary-binding values (B2) ──────────────────────────────────────────
   // Extra binding keys (beyond "value") declared by the manifest for this element
@@ -753,6 +802,71 @@ export function Inspector({ model, selectedCell, manifest, provider, onChange, o
           </div>
         </div>
       </div>
+
+      {/* ── HISTORY section (trend only) ──────────────────────────── */}
+      {isTrend && (
+        <div data-section="insp-section-history" style={{ borderBottom: "1px solid var(--line, #1d2b3a)" }}>
+          <div style={{ padding: "8px 12px 6px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "0.75em", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.09em", opacity: 0.6 }}>History</span>
+            {currentUnit && (<span style={{ fontSize: "0.75em", opacity: 0.45 }}>{currentUnit}</span>)}
+          </div>
+          <div style={{ padding: "4px 12px 10px", display: "flex", flexDirection: "column", gap: "7px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "0.77em", opacity: 0.7, minWidth: "56px" }}>Window</span>
+              <select
+                data-testid="history-window"
+                value={currentWindow}
+                onChange={(e) => handleHistoryWindowChange(e.target.value)}
+                style={{ flex: 1 }}
+              >
+                {windowOptions.map((w) => (<option key={w} value={w}>{w}</option>))}
+              </select>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "0.77em", opacity: 0.7, minWidth: "56px" }}>Combine</span>
+              <select
+                data-testid="history-agg"
+                value={currentAgg}
+                onChange={(e) => handleHistoryAggChange(e.target.value)}
+                style={{ flex: 1 }}
+              >
+                {HISTORY_AGG_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+              </select>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "0.77em", opacity: 0.7, minWidth: "56px" }}>Range</span>
+              <select
+                data-testid="trend-range-mode"
+                value={trendRangeFixed ? "fixed" : "auto"}
+                onChange={(e) => handleTrendRangeModeChange(e.target.value)}
+                style={{ flex: trendRangeFixed ? undefined : 1 }}
+              >
+                <option value="auto">auto</option>
+                <option value="fixed">fixed</option>
+              </select>
+              {trendRangeFixed && (
+                <>
+                  <input
+                    data-testid="range-min"
+                    type="number"
+                    value={rangeMin}
+                    onChange={(e) => handleRangeMinChange(Number(e.target.value))}
+                    style={{ width: "52px" }}
+                  />
+                  <span style={{ fontSize: "0.77em", opacity: 0.5 }}>–</span>
+                  <input
+                    data-testid="range-max"
+                    type="number"
+                    value={rangeMax}
+                    onChange={(e) => handleRangeMaxChange(Number(e.target.value))}
+                    style={{ width: "52px" }}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── LIMITS section (gauge / bar only) ───────────────────────── */}
       {isRangedType && (

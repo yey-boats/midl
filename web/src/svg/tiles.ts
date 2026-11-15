@@ -13,6 +13,7 @@ import { polar, arc, esc, f } from "./geometry";
 import { resolveColor } from "./color";
 import { unitLabel } from "../format";
 import { captionBand } from "./frame";
+import { buildChart, chartRuns, type TrendChart } from "../history";
 
 const FN = FONT_FAMILY;
 
@@ -260,35 +261,51 @@ export function gaugeSvg(rect: Rect, m: ElementModel, th: Theme, opts: TileOpts 
 }
 
 // Numeric hero with a faint sparkline watermark + filled area pinned to bottom.
-export function trendSvg(rect: Rect, m: ElementModel, series: number[], th: Theme, opts: TileOpts = {}): string {
+/** The trend tile's chart input: a built chart (time history), null for an
+ *  empty history (chart area, no line, no labels), a legacy plain series of
+ *  display values, or undefined (number only). */
+export type TrendInput = TrendChart | null | number[] | undefined;
+
+function asChart(input: TrendInput): TrendChart | null | undefined {
+  if (input === undefined || input === null) return input;
+  if (Array.isArray(input)) return input.length ? buildChart(input) : undefined;
+  return input;
+}
+
+// Trend tile (spec §3): hero value on top, the time chart in the lower half
+// with the y range's max/min as small dim labels at its left edge.
+export function trendSvg(rect: Rect, m: ElementModel, series: TrendInput, th: Theme, opts: TileOpts = {}): string {
   const { x, y, w, h } = rect;
-  const cx = x + w / 2, cy = y + h / 2;
+  const cx = x + w / 2;
   const out: string[] = [];
-  if (series.length >= 2) {
-    const lo = Math.min(...series), hi = Math.max(...series), span = hi - lo || 1;
-    const bottom = y + h - 8;
-    const pts = series.map((v, i) => {
-      const px = x + 12 + (i / (series.length - 1)) * (w - 24);
-      const py = y + h - 12 - ((v - lo) / span) * (h - 40);
-      return [px, py] as const;
-    });
-    const poly = pts.map(([px, py]) => `${f(px)},${f(py)}`).join(" ");
-    // filled area
-    const area = `${f(pts[0][0])},${f(bottom)} ${poly} ${f(pts[pts.length - 1][0])},${f(bottom)}`;
-    // style.color tints the sparkline and its wash as well as the number
-    // (firmware paint_trend_body: the chart series uses m.accent). The SVG
-    // keeps its faint watermark look (gauge hue at 0.22) by design; the
-    // firmware and Canvas draw a full-strength accent line.
-    const lineColor = m.state === "stale" ? th.stale : resolveColor(opts.colorRole, th, th.widgets.gaugeFill);
-    out.push(`<polygon points="${area}" fill="${lineColor}" fill-opacity="0.06"/>`);
-    out.push(`<polyline points="${poly}" fill="none" stroke="${lineColor}" stroke-opacity="0.22" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
+  const chart = asChart(series);
+  const hasChart = chart !== undefined;
+  const lineColor = m.state === "stale" ? th.stale : resolveColor(opts.colorRole, th, th.widgets.gaugeFill);
+  if (chart) {
+    const fs = Math.max(9, Math.min(13, h * 0.07));
+    const gutter = Math.max(chart.hiLabel.length, chart.loLabel.length) * fs * 0.6 + 6;
+    const top = y + h * 0.52, bottom = y + h - 10;
+    const x0 = x + 10 + gutter, cw = Math.max(1, w - 20 - gutter), ch = Math.max(1, bottom - top);
+    // style.color tints the line and its wash as well as the number
+    // (firmware paint_trend_body: the chart series uses m.accent).
+    for (const run of chartRuns(chart, x0, top, cw, ch)) {
+      const poly = run.map(([px, py]) => `${f(px)},${f(py)}`).join(" ");
+      const area = `${f(run[0][0])},${f(bottom)} ${poly} ${f(run[run.length - 1][0])},${f(bottom)}`;
+      out.push(`<polygon points="${area}" fill="${lineColor}" fill-opacity="0.08"/>`);
+      out.push(`<polyline points="${poly}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
+    }
+    out.push(txt(x + 10, top + fs * 0.8, fs, th.dim, chart.hiLabel, 400, "start"));
+    out.push(txt(x + 10, bottom, fs, th.dim, chart.loLabel, 400, "start"));
   }
-  // numeric hero overlaid (accent, optionally overridden by colorRole)
+  // numeric hero (accent, optionally overridden by colorRole): centred when
+  // there is no history, else in the upper half above the chart
   const trendValue = m.text + (m.side ?? "");
   const isNoDataTrend = trendValue === "--";
-  const trendHeroRaw = heroFontSize({ w, h }, trendValue, opts.size);
+  const heroBox = hasChart ? { w, h: h * 0.5 } : { w, h };
+  const trendHeroRaw = heroFontSize(heroBox, trendValue, opts.size);
   const trendHero = isNoDataTrend ? Math.min(trendHeroRaw, h * 0.3, NO_DATA_MAX_FS) : trendHeroRaw;
-  out.push(txt(cx, cy + trendHero * 0.34, trendHero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), trendValue, 700, "middle", ` letter-spacing="-0.02em"`));
+  const heroCy = hasChart ? y + h * 0.28 : y + h / 2;
+  out.push(txt(cx, heroCy + trendHero * 0.34, trendHero, valColor(m, th, resolveColor(opts.colorRole, th, th.accent)), trendValue, 700, "middle", ` letter-spacing="-0.02em"`));
   return `<g>${out.join("")}</g>`;
 }
 

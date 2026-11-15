@@ -60,6 +60,7 @@ function elementToEditorElement(id: string, el: Element): EditorElement {
   if (el.markers !== undefined) out.markers = el.markers;
   if (el.action !== undefined) out.action = el.action;
   if (el.zoom !== undefined) out.zoom = el.zoom;
+  if (el.history !== undefined) out.history = { ...el.history };
   if (el.meta !== undefined) out.meta = { ...(el.meta as Record<string, unknown>) };
   return out;
 }
@@ -252,6 +253,7 @@ function editorElementToElement(el: EditorElement): Element {
   if (el.markers !== undefined) out.markers = el.markers as import("@yey-boats/midl").Marker[];
   if (el.action !== undefined) out.action = el.action as import("@yey-boats/midl").Action;
   if (el.zoom !== undefined) out.zoom = el.zoom;
+  if (el.history !== undefined && Object.keys(el.history).length > 0) out.history = { ...el.history };
   if (el.meta !== undefined) out.meta = el.meta as import("@yey-boats/midl").Meta;
   return out;
 }
