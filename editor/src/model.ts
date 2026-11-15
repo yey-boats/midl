@@ -21,6 +21,8 @@ export interface EditorElement {
   markers?: unknown[];
   action?: unknown;
   zoom?: string;
+  // Trend history window/aggregation (`trend` only; see the core TrendHistory).
+  history?: { window?: string | number; agg?: "avg" | "min" | "max" | "last" };
   meta?: Record<string, unknown>;
 }
 

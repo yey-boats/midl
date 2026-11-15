@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List
 
+from .history import HISTORY_MIN_WINDOW_S, parse_window_s
 from .presets import PRESETS
 from .types import Issue
 
@@ -194,6 +195,43 @@ def _check_element(el_id: str, el: Any, path: str, issues: List[Issue]) -> None:
 
     _check_action(el, path, issues)
     _check_limits(el_id, el, path, issues)
+    _check_history(el_id, el, path, issues)
+
+
+def _check_history(el_id: str, el: Any, path: str, issues: List[Issue]) -> None:
+    """Trend history — mirrors ts/src/semantic.ts checkHistory.
+
+    `history` belongs to a `trend` only; its window must be a duration of at
+    least HISTORY_MIN_WINDOW_S. The device maximum is checked in satisfy.py.
+    """
+    if "history" not in el:
+        return
+    h = el.get("history")
+    if el.get("type") != "trend":
+        issues.append(
+            _err(
+                f"{path}/history",
+                f'element "{el_id}" of type "{el.get("type")}" cannot have history; only a trend records history',
+            )
+        )
+        return
+    if not isinstance(h, dict) or "window" not in h:
+        return
+    s = parse_window_s(h.get("window"))
+    if s is None:
+        issues.append(
+            _err(
+                f"{path}/history/window",
+                f'element "{el_id}" history window is not a duration; use e.g. "10m", "1h" or a number of seconds',
+            )
+        )
+    elif s < HISTORY_MIN_WINDOW_S:
+        issues.append(
+            _err(
+                f"{path}/history/window",
+                f'element "{el_id}" history window is {s} s; it must be at least {HISTORY_MIN_WINDOW_S} s',
+            )
+        )
 
 
 # midl#22: a `put` target must be a SignalK path — mirrors ts/src/semantic.ts

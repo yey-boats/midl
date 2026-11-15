@@ -5,12 +5,12 @@
 // single self-contained bundle a device (or Instruments-manager) can serve from
 // flash with no backend and no framework. Excludes the React <MidlDashboard>
 // wrapper; the canvas `renderDashboard` API needs no React.
-export { renderDashboard, prepareDashboard, paintPrepared, TrendBuffers } from "./render";
+export { renderDashboard, prepareDashboard, paintPrepared, TrendBuffers, HistoryStore } from "./render";
 export type { RenderResult, PreparedDashboard } from "./render";
 export { paintScreen } from "./paint";
 export { renderDashboardSvg, paintScreenSvg } from "./svg/render-svg";
 export { MockDataProvider, collectBindings } from "./data";
-export type { DataProvider, ResolvedValue } from "./data";
+export type { DataProvider, ResolvedValue, HistoryRequest } from "./data";
 export { resolveElement } from "./model";
 export type { ElementModel, ModelState } from "./model";
 export { formatValue, convert } from "./format";

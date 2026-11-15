@@ -1314,3 +1314,70 @@ cases:
     targetClass: square-480
     note: the same windrose document is admissible on the real square-480 manifest (dir optional)
     docFile: ts/test/fixtures/invalid/unknown-element.json
+
+  # Trend history (docs/specs/2026-11-15-trend-history.md).
+  - name: valid-trend-history
+    targetClass: square-480
+    note: a trend with a history window/agg and a fixed display range
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            tws: { type: trend, format: { unit: kn, decimals: 1 }, history: { window: 10m, agg: max }, style: { range: [0, 30] }, bindings: { value: { kind: signalk, path: environment.wind.speedTrue } } }
+          layout: { element: tws }
+
+  - name: valid-trend-history-seconds
+    targetClass: round-360
+    note: window as a number of seconds, default agg
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            t: { type: trend, history: { window: 3600 }, bindings: { value: { kind: signalk, path: environment.depth.belowTransducer } } }
+          layout: { element: t }
+
+  - name: invalid-trend-history-window-short
+    targetClass: square-480
+    note: a window under 60 s is a semantic error
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            t: { type: trend, history: { window: 30s }, bindings: { value: { kind: signalk, path: environment.wind.speedTrue } } }
+          layout: { element: t }
+
+  - name: invalid-trend-history-window-shape
+    targetClass: square-480
+    note: a window that is not "<n>s|m|h" or a number fails the schema
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            t: { type: trend, history: { window: 10min, agg: median }, bindings: { value: { kind: signalk, path: environment.wind.speedTrue } } }
+          layout: { element: t }
+
+  - name: invalid-history-not-trend
+    targetClass: square-480
+    note: history is only meaningful on a trend
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            v: { type: single-value, history: { window: 10m }, bindings: { value: { kind: signalk, path: environment.wind.speedTrue } } }
+          layout: { element: v }
+
+  - name: invalid-trend-history-over-device-max
+    targetClass: square-480
+    note: 25 h exceeds the manifest history.maxWindowS (24 h)
+    doc: |
+      midl: 1.0.0
+      screens:
+        - id: s
+          elements:
+            t: { type: trend, history: { window: 25h }, bindings: { value: { kind: signalk, path: environment.wind.speedTrue } } }
+          layout: { element: t }

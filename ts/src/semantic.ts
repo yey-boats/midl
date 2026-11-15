@@ -24,6 +24,7 @@
 
 import type { ConfigDoc, Element, Issue, Node, Screen, Source } from "./types";
 import { PRESETS } from "./presets";
+import { HISTORY_MIN_WINDOW_S, parseWindowS } from "./history";
 
 // Known element types and the bindings they require to render anything
 // meaningful. Mirrors the C++ catalog's 11 element types. `button` is an action
@@ -226,6 +227,26 @@ function checkElement(id: string, el: Element, path: string, issues: Issue[]): v
 
   checkAction(el, path, issues);
   checkLimits(id, el, path, issues);
+  checkHistory(id, el, path, issues);
+}
+
+// Trend history (docs/specs/2026-11-15-trend-history.md): `history` belongs to
+// a `trend` only, and its window must be a duration of at least
+// HISTORY_MIN_WINDOW_S. The upper bound is device-specific (manifest
+// history.maxWindowS) and is checked by the capability pass (satisfy.ts).
+function checkHistory(id: string, el: Element, path: string, issues: Issue[]): void {
+  const h = el.history;
+  if (h === undefined) return;
+  if (el.type !== "trend") {
+    issues.push(err(`${path}/history`, `element "${id}" of type "${el.type}" cannot have history; only a trend records history`));
+    return;
+  }
+  if (!h || typeof h !== "object" || h.window === undefined) return;
+  const s = parseWindowS(h.window);
+  if (s === undefined)
+    issues.push(err(`${path}/history/window`, `element "${id}" history window is not a duration; use e.g. "10m", "1h" or a number of seconds`));
+  else if (s < HISTORY_MIN_WINDOW_S)
+    issues.push(err(`${path}/history/window`, `element "${id}" history window is ${s} s; it must be at least ${HISTORY_MIN_WINDOW_S} s`));
 }
 
 // midl#22: a `put` target must be a SignalK path — 2+ segments of

@@ -93,7 +93,14 @@ int main(int argc, char **argv) {
         if (i) o += ", ";
         o += std::to_string(FONTS[i]);
     }
-    o += "]\n}\n";
+    o += "],\n";
+
+    // trend history capability (docs/specs/2026-11-15-trend-history.md §2)
+    o += "  \"history\": { \"points\": " + std::to_string(cls->history_points);
+    o += ", \"maxSeries\": " + std::to_string(cls->history_max_series);
+    o += ", \"maxWindowS\": " + std::to_string(HISTORY_MAX_WINDOW_S);
+    o += ", \"windows\": " + strArray(HISTORY_WINDOWS);
+    o += std::string(", \"backfill\": ") + (HISTORY_BACKFILL ? "true" : "false") + " }\n}\n";
 
     std::fputs(o.c_str(), stdout);
     return 0;

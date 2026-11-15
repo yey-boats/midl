@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
-import type { ConfigDoc, Source } from "@yey-boats/midl";
+import type { ConfigDoc, HistoryAgg, Source } from "@yey-boats/midl";
 
 // Generic renderer data seam. The renderer pulls values through `DataProvider`;
 // it has no transport knowledge. Transport-specific providers (e.g. a
@@ -18,11 +18,26 @@ export interface ResolvedValue {
   present: boolean;
 }
 
+/** A trend series' backfill request (docs/specs/2026-11-15-trend-history.md §4). */
+export interface HistoryRequest {
+  /** Chart window in seconds. */
+  window_s: number;
+  /** Bucket width in seconds (window / points). */
+  step_s: number;
+  /** How the server should aggregate each step (SignalK History API method:
+   *  avg -> average, min, max, last). */
+  agg: HistoryAgg;
+}
+
 export interface DataProvider {
   getValue(binding: Source): ResolvedValue;
   /** Notify `cb` when any of `paths` updates; returns an unsubscribe. */
   subscribe(paths: string[], cb: () => void): () => void;
   now(): number;
+  /** Optional trend backfill: past values of a SignalK `path` over the last
+   *  `window_s`, as [epoch ms, raw SI value] rows. Called once per series per
+   *  history store; reject / resolve [] when there is no history. */
+  history?(path: string, req: HistoryRequest): Promise<Array<[number, number]>>;
 }
 
 const NO_DATA: ResolvedValue = { value: undefined, stale: false, present: false };

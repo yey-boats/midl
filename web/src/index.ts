@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 Yey Boats Project. See LICENSE and COMMERCIAL.md.
 export { MidlDashboard, type MidlDashboardProps } from "./MidlDashboard";
-export { renderDashboard, prepareDashboard, paintPrepared, TrendBuffers, type RenderResult, type PreparedDashboard } from "./render";
+export { renderDashboard, prepareDashboard, paintPrepared, TrendBuffers, HistoryStore, type RenderResult, type PreparedDashboard } from "./render";
+export { HistorySeries, historyKey, buildChart, chartFor, type HistoryStoreOptions, type SeriesConfig, type TrendChart } from "./history";
 export { MockDataProvider, collectBindings } from "./data";
-export type { DataProvider, ResolvedValue } from "./data";
+export type { DataProvider, ResolvedValue, HistoryRequest } from "./data";
 export { resolveElement, type ElementModel, type ModelState } from "./model";
 export { formatValue, convert } from "./format";
 export { THEMES, theme, type Theme } from "./theme";

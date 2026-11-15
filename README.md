@@ -136,7 +136,7 @@ its native painter:
 | `bar` | horizontal fill | `value` | `range`, `zones` |
 | `compass` | heading dial + markers | `value`, `dir` | glyph markers |
 | `windrose` | apparent/true wind dial | `value`, `dir` | glyph markers |
-| `trend` | rolling sparkline | `value` | |
+| `trend` | value + time-windowed history chart | `value` | `history`, `range`, `format` (see below) |
 | `autopilot` | state pill + nudge buttons | `value` | action |
 | `button` | tap target | — | action |
 | `clinometer` | heel/pitch attitude arc | `value` | `range`, `zones` |
@@ -144,6 +144,37 @@ its native painter:
 
 Markers (on dials), glyphs, fonts, themes, and per-class tile/nesting limits are
 all advertised by the device manifest.
+
+### Trend history
+
+A `trend` draws its value on top and, below it, a chart of the last `window`
+of that value ([spec](docs/specs/2026-11-15-trend-history.md)):
+
+```yaml
+tws:
+  type: trend
+  name: TWS 10m
+  format: { unit: kn, decimals: 1 }
+  bindings: { value: { kind: signalk, path: environment.wind.speedTrue } }
+  history: { window: 10m, agg: avg }   # "<n>s|m|h" or seconds; avg | min | max | last
+  style: { range: [0, 30] }            # display units; absent = auto
+```
+
+- `history` absent means `window: 10m, agg: avg`. The window must be at least
+  60 s and at most the manifest's `history.maxWindowS`.
+- The chart has `history.points` fixed time buckets (`step = window / points`,
+  aligned to `floor(t / step)`, right edge = now). A bucket without samples is
+  a gap; the chart moves one bucket per step even when the value is steady.
+  `agg` combines the samples in a bucket.
+- Auto range: min/max of the visible points padded 10 % (a flat line gets
+  ±1 display unit). The y range's max/min are labelled at the chart's left.
+- Values are kept as received (SI) and converted to `format.unit` when drawn.
+- The device records only the screen on display, in RAM (lost on reboot), at
+  most `history.maxSeries` charts per screen (extra trend tiles show the number
+  only), and backfills from the SignalK History API when the server has one.
+- Web: pass one `HistoryStore` (formerly `TrendBuffers`, still exported) as
+  the `trends` option on every paint; a `DataProvider` may implement
+  `history(path, { window_s, step_s, agg })` to backfill each series once.
 
 The built-in screens every display ships with (dashboard, wind, autopilot, …)
 are MIDL documents too: see [`library/builtin/`](library/builtin/README.md).
@@ -278,7 +309,9 @@ semanticErrors(doc);     // error-severity issues only
   "sources": ["signalk"],
   "actionKinds": ["nav", "command"],
   "themes": ["day", "night", "high-contrast", "red-night", "classic", "sun"],
-  "fonts": [14, 20, 28, 48]
+  "fonts": [14, 20, 28, 48],
+  "history": { "points": 120, "maxSeries": 6, "maxWindowS": 86400,
+               "windows": ["10m", "30m", "1h", "6h", "24h"], "backfill": true }
 }
 ```
 

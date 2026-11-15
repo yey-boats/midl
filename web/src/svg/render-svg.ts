@@ -10,7 +10,7 @@ import type { Theme } from "../theme";
 import { theme, FONT_FAMILY } from "../theme";
 import { resolveElement, type ElementModel } from "../model";
 import { prepareDashboard, type RenderResult } from "../render";
-import { TrendBuffers } from "../paint";
+import { HistoryStore, trendChartFor, allowedTrendKeys, trendAllowed } from "../history";
 import { esc, f } from "./geometry";
 import { frameSvg, captionBand, captionFontSize } from "./frame";
 import { safeRect, fitCircle, viewportDisc, type Disc } from "./round-safe";
@@ -20,7 +20,7 @@ import {
   singleValueSvg, textSvg, barSvg, gaugeSvg, trendSvg, autopilotSvg, buttonSvg,
 } from "./tiles";
 
-export { TrendBuffers } from "../paint";
+export { TrendBuffers, HistoryStore } from "../history";
 
 const ROUND_TYPES = new Set(["compass", "windrose", "windsteer"]);
 /** Smallest round-safe content width worth drawing into (#36). */
@@ -53,7 +53,9 @@ function ownsCentreCaption(el: Element, rect: Rect): boolean {
   return (el.type === "windrose" || el.type === "windsteer") && !isTileDial(el, rect) && rect.w >= 400 && rect.h >= 300;
 }
 
-function widgetSvg(el: Element, p: Placement, rect: Rect, m: ElementModel, th: Theme, trends?: TrendBuffers): string {
+interface TrendCtx { store?: HistoryStore; provider: DataProvider; allowed?: Set<string>; }
+
+function widgetSvg(el: Element, p: Placement, rect: Rect, m: ElementModel, th: Theme, tc: TrendCtx): string {
   const style = el.style ?? {};
   // A dial with a chrome caption must not repeat it in the centre.
   const centreTitle = ownsCentreCaption(el, p.rect) ? str(style.title) : undefined;
@@ -86,10 +88,8 @@ function widgetSvg(el: Element, p: Placement, rect: Rect, m: ElementModel, th: T
       return gaugeSvg(rect, m, th, opts);
     case "bar":
       return barSvg(rect, m, th, opts);
-    case "trend": {
-      if (trends && m.numeric != null) trends.push(p.elementId, m.numeric);
-      return trendSvg(rect, m, trends?.series(p.elementId) ?? [], th, opts);
-    }
+    case "trend":
+      return trendSvg(rect, m, trendChartFor(el, m, tc.store, tc.provider, trendAllowed(el, tc.allowed)), th, opts);
     case "autopilot":
       return autopilotSvg(rect, m, th, opts);
     case "button":
@@ -120,11 +120,18 @@ export function paintScreenSvg(
   elements: Record<string, Element>,
   provider: DataProvider,
   th: Theme,
-  trends?: TrendBuffers,
+  /** Trend history store; keep one instance across paints (TrendBuffers is
+   *  the same class under its old name). */
+  trends?: HistoryStore,
   /** Visible disc of a round panel (#36); content is kept inside it. */
   disc?: Disc,
 ): string {
   const out: string[] = [];
+  const tc: TrendCtx = {
+    store: trends, provider,
+    allowed: trends && Number.isFinite(trends.maxSeries)
+      ? allowedTrendKeys(placements.map((p) => p.elementId), elements, trends.maxSeries) : undefined,
+  };
   for (const p of placements) {
     const el = elements[p.elementId];
     if (!el) continue;
@@ -181,7 +188,7 @@ export function paintScreenSvg(
       const band = captionBand(p.rect);
       body = { x: p.rect.x, y: p.rect.y + band, w: p.rect.w, h: p.rect.h - band };
     }
-    out.push(widgetSvg(el, p, body, m, th, trends));
+    out.push(widgetSvg(el, p, body, m, th, tc));
   }
   return out.join("");
 }
@@ -192,7 +199,7 @@ export function renderDashboardSvg(
   className: string,
   viewport: Rect,
   provider: DataProvider,
-  opts: { theme?: string; trends?: TrendBuffers } = {},
+  opts: { theme?: string; trends?: HistoryStore } = {},
 ): RenderResult & { svg: string } {
   const th = theme(opts.theme);
   const head = `<svg viewBox="0 0 ${f(viewport.w)} ${f(viewport.h)}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">`;
@@ -208,6 +215,7 @@ export function renderDashboardSvg(
   }
   // Round device classes (round-360, round-240, …) get round-safe content.
   const disc = className.startsWith("round") ? viewportDisc(viewport) : undefined;
+  opts.trends?.configure(manifest.history);
   const body: string[] = [`<rect width="${f(viewport.w)}" height="${f(viewport.h)}" fill="${th.bg}"/>`];
   for (const sp of prep.screens) {
     body.push(`<g data-screen="${esc(sp.screenId)}">${paintScreenSvg(sp.placements, prep.elements[sp.screenId], provider, th, opts.trends, disc)}</g>`);

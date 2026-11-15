@@ -3,6 +3,7 @@
 
 import type { ConfigDoc, Element, ElementCap, Issue, Manifest, Node, Screen, Source } from "./types";
 import { expand, countTiles, depth } from "./presets";
+import { HISTORY_DEFAULT_MAX_WINDOW_S, parseWindowS } from "./history";
 
 function resolveLayout(screen: Screen, className: string): Node {
   const v = screen.variants?.find((x) => x.class === className);
@@ -41,6 +42,15 @@ function checkElement(
     issues.push({ path: `${path}/action`, message: `action kind not supported: ${el.action.kind}` });
 }
 
+// Trend history window above the device's recording limit (manifest
+// history.maxWindowS). See docs/specs/2026-11-15-trend-history.md.
+function checkHistoryWindow(el: Element, path: string, maxWindowS: number, issues: Issue[]): void {
+  if (el.type !== "trend" || !el.history || typeof el.history !== "object") return;
+  const s = parseWindowS(el.history.window);
+  if (s !== undefined && s > maxWindowS)
+    issues.push({ path: `${path}/history/window`, message: `history window ${s} s exceeds the device maximum ${maxWindowS} s` });
+}
+
 export function satisfies(config: ConfigDoc, manifest: Manifest, className: string): Issue[] {
   const issues: Issue[] = [];
   const cls = manifest.classes.find((c) => c.id === className);
@@ -50,6 +60,7 @@ export function satisfies(config: ConfigDoc, manifest: Manifest, className: stri
   const capByType = new Map(manifest.elements.map((e) => [e.type, e]));
   const allowedSources = new Set(manifest.sources ?? ["signalk"]);
   const allowedActions = new Set(manifest.actionKinds ?? []);
+  const maxWindowS = manifest.history?.maxWindowS ?? HISTORY_DEFAULT_MAX_WINDOW_S;
 
   config.screens.forEach((screen, si) => {
     let tree: Node;
@@ -75,6 +86,7 @@ export function satisfies(config: ConfigDoc, manifest: Manifest, className: stri
         continue;
       }
       checkElement(el, `/screens/${si}/elements/${id}`, allowedTypes, capByType, allowedSources, allowedActions, issues);
+      checkHistoryWindow(el, `/screens/${si}/elements/${id}`, maxWindowS, issues);
     }
   });
   return issues;

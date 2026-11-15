@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Set
 
+from .history import HISTORY_DEFAULT_MAX_WINDOW_S, parse_window_s
 from .presets import count_tiles, depth, expand
 from .types import Issue
 
@@ -56,6 +57,19 @@ def _check_element(
         issues.append(Issue(f"{path}/action", f"action kind not supported: {action.get('kind')}"))
 
 
+def _check_history_window(el: Dict[str, Any], path: str, max_window_s: float, issues: List[Issue]) -> None:
+    """Trend history window above the device's recording limit (manifest
+    history.maxWindowS) — mirrors ts/src/satisfy.ts checkHistoryWindow."""
+    history = el.get("history")
+    if el.get("type") != "trend" or not isinstance(history, dict):
+        return
+    s = parse_window_s(history.get("window"))
+    if s is not None and s > max_window_s:
+        issues.append(
+            Issue(f"{path}/history/window", f"history window {s} s exceeds the device maximum {max_window_s} s")
+        )
+
+
 def satisfies(config: Dict[str, Any], manifest: Dict[str, Any], class_name: str) -> List[Issue]:
     issues: List[Issue] = []
     cls = next((c for c in manifest.get("classes", []) if c.get("id") == class_name), None)
@@ -66,6 +80,7 @@ def satisfies(config: Dict[str, Any], manifest: Dict[str, Any], class_name: str)
     cap_by_type: Dict[str, Dict[str, Any]] = {e["type"]: e for e in manifest["elements"]}
     allowed_sources: Set[str] = set(manifest.get("sources") or ["signalk"])
     allowed_actions: Set[str] = set(manifest.get("actionKinds") or [])
+    max_window_s = (manifest.get("history") or {}).get("maxWindowS", HISTORY_DEFAULT_MAX_WINDOW_S)
 
     for si, screen in enumerate(config["screens"]):
         try:
@@ -89,5 +104,6 @@ def satisfies(config: Dict[str, Any], manifest: Dict[str, Any], class_name: str)
                 issues.append(Issue(f"/screens/{si}", f"layout references unknown element: {el_id}"))
                 continue
             _check_element(el, f"/screens/{si}/elements/{el_id}", allowed_types, cap_by_type, allowed_sources, allowed_actions, issues)
+            _check_history_window(el, f"/screens/{si}/elements/{el_id}", max_window_s, issues)
 
     return issues
