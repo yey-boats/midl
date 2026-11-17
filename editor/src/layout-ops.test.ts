@@ -988,3 +988,68 @@ describe("clearWidgets", () => {
     expect(() => serializeMidl(result, "yaml")).not.toThrow();
   });
 });
+
+describe("grid edits preserve rendered span positions (#57)", () => {
+  function spanned() {
+    const m = makeGridModel(2, 2);
+    gridLayout(m).cells = [{ element: "wind", colSpan: 2 }, { element: "tws" }, { element: "twd" }];
+    return m;
+  }
+
+  it("adds a column beside a wide cell without shifting the next row", () => {
+    const m = frozen(spanned());
+    expect(gridLayout(addCol(m)).cells).toEqual([
+      { element: "wind", colSpan: 2 }, {}, { element: "tws" }, { element: "twd" }, {},
+    ]);
+  });
+
+  it("removes the last rendered row, rather than slicing by cell index", () => {
+    expect(gridLayout(removeRow(spanned(), 1)).cells).toEqual([{ element: "wind", colSpan: 2 }]);
+  });
+
+  it("shrinks a span when removing its first or last column", () => {
+    expect(gridLayout(removeCol(spanned(), 0)).cells).toEqual([{ element: "wind" }, { element: "twd" }]);
+    expect(gridLayout(removeCol(spanned(), 1)).cells).toEqual([{ element: "wind" }, { element: "tws" }]);
+  });
+
+  it("preserves vertical spans when adding a column or row", () => {
+    const m = makeGridModel(2, 2);
+    gridLayout(m).cells = [{ element: "a", rowSpan: 2 }, { element: "b" }, { element: "c" }];
+    expect(gridLayout(addCol(m)).cells).toEqual([
+      { element: "a", rowSpan: 2 }, { element: "b" }, {}, { element: "c" }, {},
+    ]);
+    expect(gridLayout(addRow(m)).cells).toEqual([
+      { element: "a", rowSpan: 2 }, { element: "b" }, { element: "c" }, {}, {},
+    ]);
+    expect(gridLayout(removeRow(m, 0)).cells).toEqual([{ element: "a" }, { element: "c" }]);
+    expect(gridLayout(removeRow(m, 1)).cells).toEqual([{ element: "a" }, { element: "b" }]);
+  });
+
+  it("shrinks spans crossing a middle removed line and preserves anchors after it", () => {
+    const m = makeGridModel(3, 3);
+    gridLayout(m).cells = [
+      { element: "a", rowSpan: 3, colSpan: 2 }, { element: "b" },
+      { element: "c" }, { element: "d" },
+    ];
+    expect(gridLayout(removeRow(m, 1)).cells).toEqual([
+      { element: "a", rowSpan: 2, colSpan: 2 }, { element: "b" }, { element: "d" },
+    ]);
+    expect(gridLayout(removeCol(m, 1)).cells).toEqual([
+      { element: "a", rowSpan: 3 }, { element: "b" }, { element: "c" }, { element: "d" },
+    ]);
+  });
+
+  it("fills missing old slots before a new row and clamps spans to their old footprint", () => {
+    const m = makeGridModel(2, 2);
+    gridLayout(m).cells = [{ element: "a", rowSpan: 99 }];
+    expect(gridLayout(addRow(m)).cells).toEqual([
+      { element: "a", rowSpan: 2 }, {}, {}, {}, {},
+    ]);
+  });
+
+  it("keeps elements removed from a grid available in the elements map", () => {
+    const m = spanned();
+    m.elements.twd = { id: "twd", type: "compass" };
+    expect(removeRow(m, 1).elements.twd).toEqual(m.elements.twd);
+  });
+});

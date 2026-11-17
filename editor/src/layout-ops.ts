@@ -3,6 +3,7 @@
 
 import type { EditorModel, EditorElement, GridCell } from "./model";
 import { EditorError } from "./model";
+import { placeCells } from "./grid-placement";
 
 // ── Guard helper ─────────────────────────────────────────────────────────────
 
@@ -14,100 +15,74 @@ function assertGrid(m: EditorModel): { rows: number; cols: number; cells: GridCe
   return l as { rows: number; cols: number; cells: GridCell[] };
 }
 
-// ── addRow ───────────────────────────────────────────────────────────────────
+/** Preserve rendered cell positions when a grid dimension changes. Removing a
+ * line through a span shrinks it; its element is unplaced only if no area remains.
+ * Empty slots must be emitted too, since the renderer packs at the next free slot.
+ */
+function resizeGrid(m: EditorModel, axis: "row" | "col", remove?: number): EditorModel {
+  const g = assertGrid(m);
+  const rows = g.rows + (axis === "row" ? (remove === undefined ? 1 : -1) : 0);
+  const cols = g.cols + (axis === "col" ? (remove === undefined ? 1 : -1) : 0);
+  const anchors = new Map<number, GridCell>();
+  placeCells(g.rows, g.cols, g.cells).forEach((at, i) => {
+    if (!at) return;
+    let { row, col, rowSpan, colSpan } = at;
+    if (remove !== undefined) {
+      const start = axis === "row" ? row : col;
+      const span = axis === "row" ? rowSpan : colSpan;
+      if (start <= remove && remove < start + span) {
+        if (span === 1) return;
+        if (axis === "row") rowSpan--;
+        else colSpan--;
+      } else if (start > remove) {
+        if (axis === "row") row--;
+        else col--;
+      }
+    }
+    const cell = { ...g.cells[i] };
+    if (rowSpan > 1) cell.rowSpan = rowSpan;
+    else delete cell.rowSpan;
+    if (colSpan > 1) cell.colSpan = colSpan;
+    else delete cell.colSpan;
+    anchors.set(row * cols + col, cell);
+  });
+  const occupied = new Array<boolean>(rows * cols).fill(false);
+  const cells: GridCell[] = [];
+  for (let slot = 0; slot < occupied.length; slot++) {
+    if (occupied[slot]) continue;
+    const cell = anchors.get(slot) ?? {};
+    cells.push(cell);
+    const row = Math.floor(slot / cols);
+    const col = slot % cols;
+    for (let dr = 0; dr < (cell.rowSpan ?? 1); dr++)
+      for (let dc = 0; dc < (cell.colSpan ?? 1); dc++)
+        occupied[(row + dr) * cols + col + dc] = true;
+  }
+  return { ...m, elements: { ...m.elements }, layout: { rows, cols, cells } };
+}
 
 export function addRow(m: EditorModel): EditorModel {
-  const g = assertGrid(m);
-  const newCells: GridCell[] = Array.from({ length: g.cols }, () => ({}));
-  return {
-    ...m,
-    elements: { ...m.elements },
-    layout: {
-      rows: g.rows + 1,
-      cols: g.cols,
-      cells: [...g.cells.map((c) => ({ ...c })), ...newCells],
-    },
-  };
+  return resizeGrid(m, "row");
 }
-
-// ── addCol ───────────────────────────────────────────────────────────────────
 
 export function addCol(m: EditorModel): EditorModel {
-  const g = assertGrid(m);
-  const newCells: GridCell[] = [];
-  for (let r = 0; r < g.rows; r++) {
-    // Copy existing cells for this row
-    for (let c = 0; c < g.cols; c++) {
-      newCells.push({ ...g.cells[r * g.cols + c] });
-    }
-    // Append empty cell at end of row
-    newCells.push({});
-  }
-  return {
-    ...m,
-    elements: { ...m.elements },
-    layout: {
-      rows: g.rows,
-      cols: g.cols + 1,
-      cells: newCells,
-    },
-  };
+  return resizeGrid(m, "col");
 }
-
-// ── removeRow ─────────────────────────────────────────────────────────────────
 
 export function removeRow(m: EditorModel, row: number): EditorModel {
   const g = assertGrid(m);
-  if (g.rows <= 1) {
-    throw new EditorError("removeRow: cannot remove the last row");
-  }
-  if (row < 0 || row >= g.rows) {
+  if (g.rows <= 1) throw new EditorError("removeRow: cannot remove the last row");
+  if (!Number.isInteger(row) || row < 0 || row >= g.rows)
     throw new EditorError(`removeRow: row index ${row} out of bounds (rows=${g.rows})`);
-  }
-  const start = row * g.cols;
-  const end = start + g.cols;
-  const newCells = [
-    ...g.cells.slice(0, start).map((c) => ({ ...c })),
-    ...g.cells.slice(end).map((c) => ({ ...c })),
-  ];
-  return {
-    ...m,
-    elements: { ...m.elements },
-    layout: {
-      rows: g.rows - 1,
-      cols: g.cols,
-      cells: newCells,
-    },
-  };
+  return resizeGrid(m, "row", row);
 }
-
-// ── removeCol ─────────────────────────────────────────────────────────────────
 
 export function removeCol(m: EditorModel, col: number): EditorModel {
   const g = assertGrid(m);
-  if (g.cols <= 1) {
-    throw new EditorError("removeCol: cannot remove the last column");
-  }
-  if (col < 0 || col >= g.cols) {
+  if (g.cols <= 1) throw new EditorError("removeCol: cannot remove the last column");
+  if (!Number.isInteger(col) || col < 0 || col >= g.cols)
     throw new EditorError(`removeCol: col index ${col} out of bounds (cols=${g.cols})`);
-  }
-  const newCells: GridCell[] = [];
-  for (let r = 0; r < g.rows; r++) {
-    for (let c = 0; c < g.cols; c++) {
-      if (c !== col) {
-        newCells.push({ ...g.cells[r * g.cols + c] });
-      }
-    }
-  }
-  return {
-    ...m,
-    elements: { ...m.elements },
-    layout: {
-      rows: g.rows,
-      cols: g.cols - 1,
-      cells: newCells,
-    },
-  };
+  return resizeGrid(m, "col", col);
 }
 
 // ── assignElementToCell ───────────────────────────────────────────────────────
