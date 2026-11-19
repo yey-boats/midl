@@ -13,6 +13,7 @@ import {
   removeElement,
   setCellSpan,
   setGrid,
+  resizeGridTo,
   clearWidgets,
 } from "./layout-ops";
 import type { EditorModel, EditorElement } from "./model";
@@ -1051,5 +1052,58 @@ describe("grid edits preserve rendered span positions (#57)", () => {
     const m = spanned();
     m.elements.twd = { id: "twd", type: "compass" };
     expect(removeRow(m, 1).elements.twd).toEqual(m.elements.twd);
+  });
+});
+
+describe("dimension changes keep overflow cells and spans (#61)", () => {
+  function five() {
+    const m = makeGridModel(2, 2);
+    gridLayout(m).cells = [
+      { element: "a" }, { element: "b" }, { element: "c" }, { element: "d" }, { element: "e" },
+    ];
+    return m;
+  }
+  function spanned() {
+    const m = makeGridModel(2, 2);
+    gridLayout(m).cells = [{ element: "wind", colSpan: 2 }, { element: "tws" }, { element: "twd" }];
+    return m;
+  }
+  const placed = (m: EditorModel) =>
+    gridLayout(m).cells.filter((c) => c.element).map((c) => c.element);
+
+  it("addRow places a hand-authored overflow cell into the new row", () => {
+    expect(gridLayout(addRow(frozen(five()))).cells).toEqual([
+      { element: "a" }, { element: "b" }, { element: "c" }, { element: "d" }, { element: "e" }, {},
+    ]);
+  });
+
+  it("addCol places the overflow cell into the first new slot", () => {
+    const out = addCol(five());
+    expect(placed(out)).toEqual(["a", "b", "e", "c", "d"]);
+    expect(gridLayout(out).cells).toHaveLength(6);
+  });
+
+  it("resizeGridTo grows without losing spans", () => {
+    const out = gridLayout(resizeGridTo(frozen(spanned()), 3, 3));
+    expect(out.rows).toBe(3);
+    expect(out.cols).toBe(3);
+    expect(out.cells[0]).toEqual({ element: "wind", colSpan: 2 });
+    expect(out.cells.filter((c) => c.element).map((c) => c.element)).toEqual(["wind", "tws", "twd"]);
+  });
+
+  it("resizeGridTo shrinks through the span-preserving removes", () => {
+    const out = gridLayout(resizeGridTo(spanned(), 1, 2));
+    expect([out.rows, out.cols]).toEqual([1, 2]);
+    expect(out.cells).toEqual([{ element: "wind", colSpan: 2 }]);
+    const narrow = gridLayout(resizeGridTo(spanned(), 2, 1));
+    expect(narrow.cells).toEqual([{ element: "wind" }, { element: "tws" }]);
+  });
+
+  it("resizeGridTo enforces 1x1 and keeps every element in the map", () => {
+    const m = spanned();
+    m.elements.twd = { id: "twd", type: "compass" };
+    const out = resizeGridTo(m, 0, 0);
+    expect([gridLayout(out).rows, gridLayout(out).cols]).toEqual([1, 1]);
+    expect(out.elements.twd).toEqual(m.elements.twd);
   });
 });
