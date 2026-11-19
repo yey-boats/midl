@@ -1490,3 +1490,55 @@ test("Cmd/Ctrl+S saves (and prevents the browser dialog)", async () => {
   await new Promise((r) => setTimeout(r, 50));
   expect(store.savedCalls.length).toBe(2);
 });
+
+// midl#61: the Layout tab's grid buttons went through setGrid, which rebuilds
+// every cell 1x1, so a dimension change dropped authored spans.
+const SPANNED_DOC = `midl: 1.0.0
+screens:
+  - id: s
+    elements:
+      wind:
+        type: single-value
+        name: WIND
+        bindings:
+          value: { kind: signalk, path: environment.wind.speedApparent }
+      tws:
+        type: single-value
+        name: TWS
+        bindings:
+          value: { kind: signalk, path: environment.wind.speedTrue }
+      twd:
+        type: single-value
+        name: TWD
+        bindings:
+          value: { kind: signalk, path: environment.wind.directionTrue }
+    layout: { rows: 2, cols: 2, cells: [{ element: wind, colSpan: 2 }, { element: tws }, { element: twd }] }
+`;
+
+test("Layout tab grid buttons keep authored spans (#61)", async () => {
+  const ref = React.createRef<MidlEditorHandle>();
+  const { getByTestId } = render(
+    <MidlEditor
+      ref={ref}
+      store={makeFakeStore()}
+      provider={new MockDataProvider({})}
+      manifest={makeFakeManifestSource()}
+      initialId="dashboard-1"
+      targetClass="square-480"
+    />,
+  );
+  await waitFor(() => {
+    expect((getByTestId("name-input") as HTMLInputElement).value).toBe("Test Dashboard");
+  }, { timeout: 3000 });
+  act(() => ref.current!.setDoc(SPANNED_DOC));
+  fireEvent.click(getByTestId("tab-layout"));
+  // "+" beside the Rows readout, then "+" beside Cols
+  act(() => { fireEvent.click(getByTestId("layout-rows").nextElementSibling as Element); });
+  act(() => { fireEvent.click(getByTestId("layout-cols").nextElementSibling as Element); });
+  const layout = ref.current!.getModel().layout as {
+    rows: number; cols: number; cells: Array<{ element?: string; colSpan?: number }>;
+  };
+  expect([layout.rows, layout.cols]).toEqual([3, 3]);
+  expect(layout.cells[0]).toEqual({ element: "wind", colSpan: 2 });
+  expect(layout.cells.filter((c) => c.element).map((c) => c.element)).toEqual(["wind", "tws", "twd"]);
+});

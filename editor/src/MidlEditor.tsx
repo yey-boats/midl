@@ -12,7 +12,7 @@ import { SIGNALK_CATALOG, applyCatalogDefaults } from "./signalk-catalog";
 import { usePreview } from "./usePreview";
 import { validateModel } from "./validate";
 import { lintDeviceCapabilities } from "./device-lint";
-import { addElement, assignElementToCell, removeElement, setGrid, clearWidgets } from "./layout-ops";
+import { addElement, assignElementToCell, removeElement, resizeGridTo, clearWidgets } from "./layout-ops";
 import { Palette } from "./visual/Palette";
 import { GridCanvas } from "./visual/GridCanvas";
 import { Inspector } from "./visual/Inspector";
@@ -821,7 +821,7 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
     [handleBindPath],
   );
 
-  // ── Layout tab: setGrid handler ───────────────────────────────────────────────
+  // ── Layout tab: grid size handler (span-preserving resizeGridTo, #61) ─────────
   // A shrink that drops the cell count below the number of placed widgets would
   // orphan some of them (they survive in the tray, but it's still surprising). Warn
   // first, naming how many tiles become unplaced (#1/#2 data-loss). Headless/no-
@@ -850,7 +850,8 @@ export const MidlEditor = forwardRef<MidlEditorHandle, MidlEditorProps>(
           if (!proceed) return;
         }
       }
-      try { setModel((m) => setGrid(m, rows, cols)); } catch { /* ignore */ }
+      // Span-preserving resize (#61): setGrid rebuilt every cell 1x1.
+      try { setModel((m) => resizeGridTo(m, rows, cols)); } catch { /* ignore */ }
     },
     [model],
   );

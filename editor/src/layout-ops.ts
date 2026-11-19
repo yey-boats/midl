@@ -18,14 +18,21 @@ function assertGrid(m: EditorModel): { rows: number; cols: number; cells: GridCe
 /** Preserve rendered cell positions when a grid dimension changes. Removing a
  * line through a span shrinks it; its element is unplaced only if no area remains.
  * Empty slots must be emitted too, since the renderer packs at the next free slot.
+ * Cells that did not fit the old grid (a hand-authored overflow) are not dropped
+ * (#61): they take the first free slots of the new grid, keeping their span when
+ * it fits there, else as 1x1.
  */
 function resizeGrid(m: EditorModel, axis: "row" | "col", remove?: number): EditorModel {
   const g = assertGrid(m);
   const rows = g.rows + (axis === "row" ? (remove === undefined ? 1 : -1) : 0);
   const cols = g.cols + (axis === "col" ? (remove === undefined ? 1 : -1) : 0);
   const anchors = new Map<number, GridCell>();
+  const overflow: GridCell[] = [];
   placeCells(g.rows, g.cols, g.cells).forEach((at, i) => {
-    if (!at) return;
+    if (!at) {
+      if (g.cells[i].element) overflow.push({ ...g.cells[i] });
+      return;
+    }
     let { row, col, rowSpan, colSpan } = at;
     if (remove !== undefined) {
       const start = axis === "row" ? row : col;
@@ -48,9 +55,38 @@ function resizeGrid(m: EditorModel, axis: "row" | "col", remove?: number): Edito
   });
   const occupied = new Array<boolean>(rows * cols).fill(false);
   const cells: GridCell[] = [];
+  const anchorSlots = new Set<number>();
+  anchors.forEach((cell, slot) => {
+    const row = Math.floor(slot / cols);
+    const col = slot % cols;
+    for (let dr = 0; dr < (cell.rowSpan ?? 1); dr++)
+      for (let dc = 0; dc < (cell.colSpan ?? 1); dc++) anchorSlots.add((row + dr) * cols + col + dc);
+  });
+  const fits = (cell: GridCell, slot: number) => {
+    const row = Math.floor(slot / cols);
+    const col = slot % cols;
+    const rs = cell.rowSpan ?? 1;
+    const cs = cell.colSpan ?? 1;
+    if (row + rs > rows || col + cs > cols) return false;
+    for (let dr = 0; dr < rs; dr++)
+      for (let dc = 0; dc < cs; dc++) {
+        const s = (row + dr) * cols + col + dc;
+        if (occupied[s] || (s !== slot && anchorSlots.has(s))) return false;
+      }
+    return true;
+  };
   for (let slot = 0; slot < occupied.length; slot++) {
     if (occupied[slot]) continue;
-    const cell = anchors.get(slot) ?? {};
+    let cell = anchors.get(slot);
+    if (!cell && !anchorSlots.has(slot) && overflow.length > 0) {
+      cell = overflow.shift()!;
+      if (!fits(cell, slot)) {
+        cell = { ...cell };
+        delete cell.rowSpan;
+        delete cell.colSpan;
+      }
+    }
+    cell = cell ?? {};
     cells.push(cell);
     const row = Math.floor(slot / cols);
     const col = slot % cols;
@@ -59,6 +95,29 @@ function resizeGrid(m: EditorModel, axis: "row" | "col", remove?: number): Edito
         occupied[(row + dr) * cols + col + dc] = true;
   }
   return { ...m, elements: { ...m.elements }, layout: { rows, cols, cells } };
+}
+
+/**
+ * Resize the grid to rows×cols (at least 1×1) through the span-preserving
+ * line ops (#61): rows/cols are added or removed at the end one at a time, so
+ * spans survive a grow and shrink (rather than vanish) on a shrink; an element
+ * left with no area becomes unplaced but stays in the elements map. The Layout
+ * tab's grid controls use this; setGrid (1×1 re-flow) remains for callers that
+ * want a clean grid.
+ */
+export function resizeGridTo(m: EditorModel, rows: number, cols: number): EditorModel {
+  const wantRows = Math.max(1, Math.floor(rows));
+  const wantCols = Math.max(1, Math.floor(cols));
+  let out = m;
+  let g = assertGrid(out);
+  while (g.rows < wantRows) { out = addRow(out); g = assertGrid(out); }
+  while (g.rows > wantRows) { out = removeRow(out, g.rows - 1); g = assertGrid(out); }
+  while (g.cols < wantCols) { out = addCol(out); g = assertGrid(out); }
+  while (g.cols > wantCols) { out = removeCol(out, g.cols - 1); g = assertGrid(out); }
+  if (out === m) {
+    return { ...m, elements: { ...m.elements }, layout: { ...g, cells: g.cells.map((c) => ({ ...c })) } };
+  }
+  return out;
 }
 
 export function addRow(m: EditorModel): EditorModel {
