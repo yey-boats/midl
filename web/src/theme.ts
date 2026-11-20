@@ -73,14 +73,14 @@ const WIDGETS_NIGHT: WidgetColors = {
 };
 const WIDGETS_DAY: WidgetColors = {
   gaugeTrack: "#aab8c4", gaugeFill: "#0e7490", gaugeTick: "#5b6f82",
-  windApparent: "#b85c00", windTrue: "#0e7490",
+  windApparent: "#b85c00", windTrue: "#00707f",
   apPillBg: "#cfe9db", btnInk: "#ffffff", barTrack: "#d2dae2",
   hudBand: "#1c2b3a", dialTick: "#5b6f82", dialCardDim: "#aebfce",
   dialInk: "#eef4fa", cardinalN: "#ff6b6b",
 };
 const WIDGETS_HC: WidgetColors = {
   gaugeTrack: "#3a5a5a", gaugeFill: "#00d0ff", gaugeTick: "#9a9a9a",
-  windApparent: "#ff8800", windTrue: "#00e0ff",
+  windApparent: "#ff8800", windTrue: "#2bd4e8",
   apPillBg: "#0a3a26", btnInk: "#000000", barTrack: "#1a1a1a",
   hudBand: "#ffffff", dialTick: "#888888", dialCardDim: "#333333",
   dialInk: "#000000", cardinalN: "#ff3030",
@@ -88,14 +88,14 @@ const WIDGETS_HC: WidgetColors = {
 // Sun: firmware `use_sun` (instruments src/ui/ui_theme.cpp) for direct
 // sunlight on the IPS panel — white ground, black ink, near-black borders.
 // Values are the firmware palette fields, mapped by how the firmware itself
-// uses them: gauge track = grid, gauge fill / true wind = accent, gauge ticks =
-// fg_dim, apparent wind = warn, HUD band = arc_band, in-band ink = band_ink,
-// band ticks / dimmed inter-cardinals = band_ink_dim, North = alarm. The AP pill
-// and bar track (firmware literals) take the light badge fill so the green
-// engaged label and the bar border stay legible on white.
+// uses them: gauge track = grid, gauge fill = accent, true wind = wind_true,
+// gauge ticks = fg_dim, apparent wind = warn, HUD band = arc_band, in-band ink
+// = band_ink, band ticks / dimmed inter-cardinals = band_ink_dim, North =
+// alarm. The AP pill and bar track (firmware literals) take the light badge
+// fill so the green engaged label and the bar border stay legible on white.
 const WIDGETS_SUN: WidgetColors = {
   gaugeTrack: "#444444", gaugeFill: "#0050a0", gaugeTick: "#3a3a3a",
-  windApparent: "#a05a00", windTrue: "#0050a0",
+  windApparent: "#a05a00", windTrue: "#006c80",
   apPillBg: "#eeeeee", btnInk: "#ffffff", barTrack: "#eeeeee",
   hudBand: "#e6e6e6", dialTick: "#555555", dialCardDim: "#555555",
   dialInk: "#000000", cardinalN: "#c00000",
@@ -106,7 +106,7 @@ const WIDGETS_SUN: WidgetColors = {
 // normally split hue (good/bad, port/starboard) split on brightness instead.
 const WIDGETS_RED_NIGHT: WidgetColors = {
   gaugeTrack: "#4a1512", gaugeFill: "#ff5a4e", gaugeTick: "#8a2c26",
-  windApparent: "#ff7530", windTrue: "#ff5a4e",
+  windApparent: "#ff7530", windTrue: "#ff4b3e",
   apPillBg: "#2a0b08", btnInk: "#1a0404", barTrack: "#200806",
   hudBand: "#ff4438", dialTick: "#7a2620", dialCardDim: "#571d18",
   dialInk: "#1a0404", cardinalN: "#ff1a10",
@@ -115,7 +115,7 @@ const WIDGETS_RED_NIGHT: WidgetColors = {
 // numerals, brass bezels/accents, like a varnished-wood chartroom panel.
 const WIDGETS_CLASSIC: WidgetColors = {
   gaugeTrack: "#cbbb98", gaugeFill: "#8c6d1f", gaugeTick: "#6b5a40",
-  windApparent: "#a86412", windTrue: "#35566b",
+  windApparent: "#a86412", windTrue: "#2f6170",
   apPillBg: "#d8e2cf", btnInk: "#f8f2e4", barTrack: "#ddd0b2",
   hudBand: "#2b2114", dialTick: "#6b5a40", dialCardDim: "#b3a684",
   dialInk: "#f3ead8", cardinalN: "#b02a20",
